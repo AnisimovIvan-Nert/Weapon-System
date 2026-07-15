@@ -6,6 +6,7 @@ namespace Weapons.Tests.Mocks
     public class TestUser : IUser
     {
         private ButtonState _state;
+        private int[]? _attachment;
         private bool _cancel;
 
         public void Update()
@@ -28,6 +29,8 @@ namespace Weapons.Tests.Mocks
 
             if (_cancel)
                 _cancel = false;
+
+            _attachment = null;
         }
 
         public void PressButton()
@@ -39,15 +42,14 @@ namespace Weapons.Tests.Mocks
         {
             _cancel = true;
         }
-        
-        public ButtonState ReadButtonState()
+
+        public void ToggleAttachments(params int[] attachment)
         {
-            return _state;
+            _attachment = attachment;
         }
 
-        public bool ReadCancel()
-        {
-            return _cancel;
-        }
+        public ButtonState ReadButtonState() => _state;
+        public int[]? ReadToggleAttachments() => _attachment;
+        public bool ReadCancel() => _cancel;
     }
 }

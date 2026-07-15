@@ -1,15 +1,15 @@
 ﻿namespace Weapons
 {
-    public interface IWeaponData
+    public interface IUnitData
     {
         string Name { get; }
     }
 
-    public class WeaponData : IWeaponData
+    public class UnitData : IUnitData
     {
         public string Name { get; }
         
-        public WeaponData(string name)
+        public UnitData(string name)
         {
             Name = name;
         }

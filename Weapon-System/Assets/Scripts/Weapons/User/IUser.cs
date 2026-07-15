@@ -3,6 +3,8 @@
     public interface IUser
     {
         public ButtonState ReadButtonState();
+
+        public int[]? ReadToggleAttachments();
         
         public bool ReadCancel();
     }

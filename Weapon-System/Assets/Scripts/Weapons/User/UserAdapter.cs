@@ -36,9 +36,11 @@ namespace Weapons.User
             }
 
             if (_user.ReadCancel())
-            {
                 _events.Add(new CancelEvent());
-            }
+
+            var toggleAttachments = _user.ReadToggleAttachments();
+            if (toggleAttachments != null)
+                _events.Add(new AttachmentToggleEvent(toggleAttachments));
         }
 
         public IEnumerable<IUserEvent> EnumerateEvents() => _events;

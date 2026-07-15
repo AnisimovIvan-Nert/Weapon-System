@@ -1,7 +1,8 @@
 ﻿namespace Weapons.Operations
 {
-    public interface IOperationsRunner
+    public interface IOperationsRunner<in T>
+        where T : IUnit
     {
-        public void Update(IWeapon weapon);
+        public void Update(T unit);
     }
 }

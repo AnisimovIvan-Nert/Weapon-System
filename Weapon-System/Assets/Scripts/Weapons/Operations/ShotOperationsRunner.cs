@@ -3,31 +3,31 @@ using Weapons.User.Events;
 
 namespace Weapons.Operations
 {
-    public class ShotOperationsRunner : IOperationsRunner
+    public class ShotOperationsRunner : IOperationsRunner<IWeapon>
     {
-        private readonly List<IWeaponOperation> _operations = new();
+        private readonly List<ShotOperation> _operations = new();
 
         private bool _shootInProgress;
         
-        public void Update(IWeapon weapon)
+        public void Update(IWeapon unit)
         {
-            HandleEvents(weapon);
-            HandleOperations(weapon);
+            HandleEvents(unit);
+            HandleOperations(unit);
         }
 
-        private void HandleOperations(IWeapon weapon)
+        private void HandleOperations(IWeapon unit)
         {
             foreach (var operation in _operations)
-                operation.Increment(weapon);
+                operation.Increment(unit);
 
             _operations.RemoveAll(operation => operation.State == OperationState.Destroying);
         }
 
-        private void HandleEvents(IWeapon weapon)
+        private void HandleEvents(IWeapon unit)
         {
             var start = false;
             var end = false;
-            foreach (var userEvent in weapon.User.EnumerateEvents())
+            foreach (var userEvent in unit.User.EnumerateEvents())
             {
                 switch (userEvent)
                 {

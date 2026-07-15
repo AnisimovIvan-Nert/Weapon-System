@@ -10,15 +10,14 @@ namespace Weapons.Tests
 {
     public class WeaponsTests
     {
-        private ShotOperationsRunner _operationsRunner;
         private TestUser _user;
         private Weapon _weapon;
 
         [SetUp]
         public void SetUp()
         {
-            _operationsRunner = new ShotOperationsRunner();
-            var data = new WeaponData(nameof(WeaponsTests));
+            var operationsRunner = new ShotOperationsRunner();
+            var data = new UnitData(nameof(WeaponsTests));
 
             var controller = new WeaponController();
             var animator = new WeaponAnimator();
@@ -26,7 +25,7 @@ namespace Weapons.Tests
             _user = new TestUser();
             var userAdapter = new UserAdapter(_user);
 
-            _weapon = new Weapon(userAdapter, data, controller, animator, new[] { _operationsRunner });
+            _weapon = new Weapon(userAdapter, data, controller, animator, new[] { operationsRunner });
         }
 
         [Test]

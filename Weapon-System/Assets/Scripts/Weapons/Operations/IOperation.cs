@@ -1,11 +1,12 @@
 ﻿namespace Weapons.Operations
 {
-    public interface IWeaponOperation
+    public interface IOperation<in T>
+        where T : IUnit
     {
         OperationState State { get; }
         OperationResult Result { get; }
         
-        void Increment(IWeapon weapon);
+        void Increment(T unit);
     }
 
     public enum OperationState
