@@ -41,6 +41,8 @@ namespace Weapons
         
         public void Update()
         {
+            User.Update();
+            
             foreach (var unit in Units)
                 unit.Update();
         }
