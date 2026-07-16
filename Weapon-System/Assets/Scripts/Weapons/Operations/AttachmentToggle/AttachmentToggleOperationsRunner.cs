@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Weapons.Units.Attachments;
 using Weapons.User.Events;
 
-namespace Weapons.Operations
+namespace Weapons.Operations.AttachmentToggle
 {
     public class AttachmentToggleOperationsRunner : IOperationsRunner<IAttachment>
     {

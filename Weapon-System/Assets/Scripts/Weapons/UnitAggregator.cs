@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Weapons.Assets;
+using Weapons.Units.Attachments;
 using Weapons.User;
 
 namespace Weapons

@@ -1,8 +1,9 @@
 ﻿using System.Threading.Tasks;
+using Weapons.Units.Attachments;
 
-namespace Weapons.Operations
+namespace Weapons.Operations.AttachmentToggle
 {
-    public class ShotOperation : IOperation<IWeapon>
+    public class AttachmentToggleOperation : IOperation<IAttachment>
     {
         public OperationState State { get; private set; }
         public OperationResult Result { get; private set; }
@@ -13,7 +14,7 @@ namespace Weapons.Operations
         private Task? _controllerCancelTask;
         private Task? _animatorCancelTask;
         
-        public void Increment(IWeapon unit)
+        public void Increment(IAttachment unit)
         {
             if (State == OperationState.Pending)
                 Start(unit);
@@ -31,13 +32,13 @@ namespace Weapons.Operations
                 State = OperationState.Destroying;
         }
 
-        private void Start(IWeapon unit)
+        private void Start(IAttachment unit)
         {
             State = OperationState.InProgress;
-            _controllerTask = unit.Controller.PerformShot(unit, this);
+            _controllerTask = unit.Controller.PerformToggle(unit, this);
         }
 
-        private void Progress(IWeapon unit)
+        private void Progress(IAttachment unit)
         {
             if (_controllerTask is not { IsCompleted: true })
                 return;
@@ -49,7 +50,7 @@ namespace Weapons.Operations
                 return;
             }
 
-            _animatorTask ??= unit.Animator.PerformShot(unit, this);
+            _animatorTask ??= unit.Animator.PerformToggle(unit, this);
             
             if (_animatorTask is not { IsCompleted: true })
                 return;
@@ -65,16 +66,16 @@ namespace Weapons.Operations
             Result = OperationResult.Success;
         }
 
-        private void Canceling(IWeapon unit)
+        private void Canceling(IAttachment unit)
         {
             if (_animatorTask != null)
-                _animatorCancelTask ??= unit.Animator.CancelShot(unit, this);
+                _animatorCancelTask ??= unit.Animator.CancelToggle(unit, this);
             
             if (_animatorCancelTask is { IsCompleted: false })
                 return;
 
             if (_controllerTask != null)
-                _controllerCancelTask ??= unit.Controller.CancelShot(unit, this);
+                _controllerCancelTask ??= unit.Controller.CancelToggle(unit, this);
             
             if (_controllerTask is { IsCompleted: false })
                 return;

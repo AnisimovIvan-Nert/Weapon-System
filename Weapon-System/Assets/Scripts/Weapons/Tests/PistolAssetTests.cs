@@ -4,7 +4,11 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using Weapons.Assets;
 using Weapons.Operations;
+using Weapons.Operations.AttachmentToggle;
+using Weapons.Operations.Shot;
 using Weapons.Tests.Mocks;
+using Weapons.Units.Attachments;
+using Weapons.Units.Weapons;
 using Weapons.User;
 
 namespace Weapons.Tests

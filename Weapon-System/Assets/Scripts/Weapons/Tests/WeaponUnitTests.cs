@@ -3,7 +3,9 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using Weapons.Operations;
+using Weapons.Operations.Shot;
 using Weapons.Tests.Mocks;
+using Weapons.Units.Weapons;
 using Weapons.User;
 
 namespace Weapons.Tests

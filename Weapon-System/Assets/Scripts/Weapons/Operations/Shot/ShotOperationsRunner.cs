@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
+using Weapons.Units.Weapons;
 using Weapons.User.Events;
 
-namespace Weapons.Operations
+namespace Weapons.Operations.Shot
 {
     public class ShotOperationsRunner : IOperationsRunner<IWeapon>
     {

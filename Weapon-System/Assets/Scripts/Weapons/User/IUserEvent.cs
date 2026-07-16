@@ -1,4 +1,4 @@
-﻿namespace Weapons.User.Events
+﻿namespace Weapons.User
 {
     public interface IUserEvent
     {
