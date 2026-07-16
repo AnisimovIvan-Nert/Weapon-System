@@ -1,86 +1,55 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Collections;
+using Coroutine;
 using Weapons.Units.Attachments;
 
 namespace Weapons.Operations.AttachmentToggle
 {
-    public class AttachmentToggleOperation : IOperation<IAttachment>
+    public class AttachmentToggleOperation : AbstractOperation<IAttachment>
     {
-        public OperationState State { get; private set; }
-        public OperationResult Result { get; private set; }
+        private YieldCoroutine? _controllerCoroutine;
+        private YieldCoroutine? _animatorCoroutine;
+        
+        private YieldCoroutine? _controllerCancelCoroutine;
+        private YieldCoroutine? _animatorCancelCoroutine;
 
-        private Task? _controllerTask;
-        private Task? _animatorTask;
-        
-        private Task? _controllerCancelTask;
-        private Task? _animatorCancelTask;
-        
-        public void Increment(IAttachment unit)
+        protected override IEnumerator Start(IAttachment unit)
         {
-            if (State == OperationState.Pending)
-                Start(unit);
+            _controllerCoroutine = unit.Controller.PerformToggle(unit, this).ToCoroutine();
+            var baseStart = base.Start(unit);
+            yield return baseStart;
+        }
 
-            if (State == OperationState.InProgress)
-                Progress(unit);
+        protected override IEnumerator Progress(IAttachment unit)
+        {
+            if (_controllerCoroutine == null)
+                throw new InvalidOperationException();
             
-            if (State == OperationState.InCancellation)
-                Canceling(unit);
-
-            if (State == OperationState.Complete)
-                State = OperationState.ReadyForDestroying;
-
-            if (State == OperationState.ReadyForDestroying)
-                State = OperationState.Destroying;
+            var failure = OperationStatus.InCancellation;
+            
+            yield return WaitCoroutine(_controllerCoroutine, null, failure);
+            
+            _animatorCoroutine ??= unit.Animator.PerformToggle(unit, this).ToCoroutine();
+            yield return WaitCoroutine(_animatorCoroutine, null, failure);
+            
+            yield return base.Progress(unit);
         }
 
-        private void Start(IAttachment unit)
+        protected override IEnumerator Canceling(IAttachment unit)
         {
-            State = OperationState.InProgress;
-            _controllerTask = unit.Controller.PerformToggle(unit, this);
-        }
-
-        private void Progress(IAttachment unit)
-        {
-            if (_controllerTask is not { IsCompleted: true })
-                return;
-
-            if (!_controllerTask.IsCompletedSuccessfully)
+            if (_animatorCoroutine != null)
             {
-                State = OperationState.InCancellation;
-                Result = OperationResult.Failure;
-                return;
+                _animatorCancelCoroutine ??= unit.Animator.CancelToggle(unit, this).ToCoroutine();
+                yield return WaitCoroutine(_animatorCancelCoroutine, null, null);
             }
 
-            _animatorTask ??= unit.Animator.PerformToggle(unit, this);
-            
-            if (_animatorTask is not { IsCompleted: true })
-                return;
-            
-            if (!_animatorTask.IsCompletedSuccessfully)
+            if (_controllerCoroutine != null)
             {
-                State = OperationState.InCancellation;
-                Result = OperationResult.Failure;
-                return;
+                _controllerCancelCoroutine ??= unit.Controller.CancelToggle(unit, this).ToCoroutine();
+                yield return WaitCoroutine(_controllerCancelCoroutine, null, null);
             }
 
-            State = OperationState.Complete;
-            Result = OperationResult.Success;
-        }
-
-        private void Canceling(IAttachment unit)
-        {
-            if (_animatorTask != null)
-                _animatorCancelTask ??= unit.Animator.CancelToggle(unit, this);
-            
-            if (_animatorCancelTask is { IsCompleted: false })
-                return;
-
-            if (_controllerTask != null)
-                _controllerCancelTask ??= unit.Controller.CancelToggle(unit, this);
-            
-            if (_controllerTask is { IsCompleted: false })
-                return;
-            
-            State = OperationState.Complete;
+            yield return base.Canceling(unit);
         }
     }
 }

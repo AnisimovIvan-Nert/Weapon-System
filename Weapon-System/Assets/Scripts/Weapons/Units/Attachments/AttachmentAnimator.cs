@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections;
 using System.Linq;
-using System.Threading.Tasks;
 using UnityEngine;
 using Weapons.Operations;
 using Weapons.User.Events;
@@ -9,8 +9,8 @@ namespace Weapons.Units.Attachments
 {
     public interface IAttachmentAnimator : IUnitAnimator
     {
-        Task PerformToggle(IAttachment unit, IOperation<IAttachment> operation);
-        Task CancelToggle(IAttachment unit, IOperation<IAttachment> operation);
+        IEnumerator PerformToggle(IAttachment unit, IOperation<IAttachment> operation);
+        IEnumerator CancelToggle(IAttachment unit, IOperation<IAttachment> operation);
     }
     
     public class AttachmentAnimator : IAttachmentAnimator
@@ -23,7 +23,7 @@ namespace Weapons.Units.Attachments
         {
         }
 
-        public async Task PerformToggle(IAttachment unit, IOperation<IAttachment> operation)
+        public IEnumerator PerformToggle(IAttachment unit, IOperation<IAttachment> operation)
         {
             Debug.Log(Start);
             Debug.Log(unit.AttachmentNumber);
@@ -31,8 +31,8 @@ namespace Weapons.Units.Attachments
             var cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
             if (cancel)
                 throw new Exception();
-            
-            await Task.Yield();
+
+            yield return null;
             Debug.Log(Perform);
             
             cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
@@ -40,9 +40,9 @@ namespace Weapons.Units.Attachments
                 throw new Exception();
         }
 
-        public async Task CancelToggle(IAttachment unit, IOperation<IAttachment> operation)
+        public IEnumerator CancelToggle(IAttachment unit, IOperation<IAttachment> operation)
         {
-            await Task.Yield();
+            yield return null;
             Debug.Log(Cancel);
         }
     }

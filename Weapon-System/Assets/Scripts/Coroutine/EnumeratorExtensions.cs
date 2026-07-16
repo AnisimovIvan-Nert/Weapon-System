@@ -4,6 +4,6 @@ namespace Coroutine
 {
     public static class EnumeratorExtensions
     {
-        public static YieldCoroutine ToCoroutine(IEnumerator enumerator) => new YieldCoroutine(enumerator);
+        public static YieldCoroutine ToCoroutine(this IEnumerator enumerator) => new(enumerator);
     }
 }

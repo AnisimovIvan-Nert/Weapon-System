@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections;
 using System.Linq;
-using System.Threading.Tasks;
 using UnityEngine;
 using Weapons.Operations;
 using Weapons.User.Events;
@@ -9,8 +9,8 @@ namespace Weapons.Units.Weapons
 {
     public interface IWeaponAnimator : IUnitAnimator
     {
-        Task PerformShot(IWeapon unit, IOperation<IWeapon> operation);
-        Task CancelShot(IWeapon unit, IOperation<IWeapon> operation);
+        IEnumerator PerformShot(IWeapon unit, IOperation<IWeapon> operation);
+        IEnumerator CancelShot(IWeapon unit, IOperation<IWeapon> operation);
     }
     
     public class WeaponAnimator : IWeaponAnimator
@@ -23,15 +23,15 @@ namespace Weapons.Units.Weapons
         {
         }
 
-        public async Task PerformShot(IWeapon unit, IOperation<IWeapon> operation)
+        public IEnumerator PerformShot(IWeapon unit, IOperation<IWeapon> operation)
         {
             Debug.Log(Start);
             
             var cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
             if (cancel)
                 throw new Exception();
-            
-            await Task.Yield();
+
+            yield return null;
             Debug.Log(Perform);
             
             cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
@@ -39,9 +39,9 @@ namespace Weapons.Units.Weapons
                 throw new Exception();
         }
 
-        public async Task CancelShot(IWeapon unit, IOperation<IWeapon> operation)
+        public IEnumerator CancelShot(IWeapon unit, IOperation<IWeapon> operation)
         {
-            await Task.Yield();
+            yield return null;
             Debug.Log(Cancel);
         }
     }
