@@ -1,6 +1,4 @@
 ﻿using NUnit.Framework;
-using UnityEngine;
-using UnityEngine.TestTools;
 using Weapons.Operations.Shot;
 using Weapons.Tests.Mocks;
 using Weapons.Units.Weapons;
@@ -11,6 +9,7 @@ namespace Weapons.Tests
     public class WeaponsTests
     {
         private TestUser _user;
+        private UserAdapter _userAdapter;
         private Weapon _weapon;
 
         [SetUp]
@@ -23,34 +22,43 @@ namespace Weapons.Tests
             var animator = new WeaponAnimator();
             
             _user = new TestUser();
-            var userAdapter = new UserAdapter(_user);
+            _userAdapter = new UserAdapter(_user);
 
-            _weapon = new Weapon(userAdapter, data, controller, animator, new[] { operationsRunner });
+            _weapon = new Weapon(_userAdapter, data, controller, animator, new[] { operationsRunner });
         }
 
         [Test]
         public void Test()
         {
             _user.PressButton();
-            
+            _userAdapter.Update();
             _weapon.Update();
-            //LogAssert.Expect(LogType.Log, WeaponController.Start);
-            _user.Update();
-            //LogAssert.Expect(LogType.Log, WeaponController.Perform);
             
             _user.PressCancel();
             
-            _weapon.Update();
-            //LogAssert.Expect(LogType.Log, WeaponAnimator.Start);
             _user.Update();
+            _userAdapter.Update();
+            _weapon.Update();
             
-            _weapon.Update();
-            //LogAssert.Expect(LogType.Log, WeaponAnimator.Cancel);
             _user.Update();
+            _userAdapter.Update();
+            _weapon.Update();
             
-            _weapon.Update();
-            //LogAssert.Expect(LogType.Log, WeaponController.Cancel);
             _user.Update();
+            _userAdapter.Update();
+            _weapon.Update();
+            
+            _user.Update();
+            _userAdapter.Update();
+            _weapon.Update();
+            
+            _user.Update();
+            _userAdapter.Update();
+            _weapon.Update();
+            
+            _user.Update();
+            _userAdapter.Update();
+            _weapon.Update();
         }
     }
 }

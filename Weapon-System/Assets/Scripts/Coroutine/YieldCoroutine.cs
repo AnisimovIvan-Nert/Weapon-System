@@ -9,9 +9,13 @@ namespace Coroutine
         private readonly IEnumerator _coroutine;
         
         private bool _moveNext = true;
+        private YieldCoroutine? _innerCoroutine;
 
         public Exception? Exception { get; private set; }
-        public object? Current { get; private set; }
+        
+        public object? Current => _innerCoroutine != null 
+            ? _innerCoroutine.Current 
+            : _coroutine.Current;
 
         public YieldCoroutine(IEnumerator coroutine)
         {
@@ -28,20 +32,18 @@ namespace Coroutine
                 if (_coroutine.Current is IYieldInstruction yieldInstruction && !yieldInstruction.IsDone())
                     return true;
 
-                if (_coroutine.Current is IEnumerator enumerator)
+                if (_innerCoroutine == null && _coroutine.Current is IEnumerator enumerator)
+                    _innerCoroutine = enumerator.ToCoroutine();
+                
+                if (_innerCoroutine != null)
                 {
-                    if (enumerator.Current is IYieldInstruction innerYield && !innerYield.IsDone())
+                    if (_innerCoroutine.MoveNext())
                         return true;
 
-                    if (enumerator.MoveNext())
-                    {
-                        Current = enumerator.Current;
-                        return true;
-                    }
+                    _innerCoroutine = null;
                 }
             
                 _moveNext = _coroutine.MoveNext();
-                Current = _coroutine.Current;
                 return _moveNext;
             }
             catch (Exception e)

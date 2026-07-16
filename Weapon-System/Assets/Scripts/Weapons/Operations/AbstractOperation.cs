@@ -21,7 +21,7 @@ namespace Weapons.Operations
 
             while (_coroutine.MoveNext())
             {
-                if (_coroutine.Current == null)
+                if (_coroutine.Current is IEnumerator)
                     continue;
                 
                 if (_coroutine.Current is OperationStatus status)
