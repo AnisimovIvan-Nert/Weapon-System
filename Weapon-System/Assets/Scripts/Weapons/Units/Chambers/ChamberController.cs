@@ -5,28 +5,27 @@ using UnityEngine;
 using Weapons.Operations;
 using Weapons.User.Events;
 
-namespace Weapons.Units.Attachments
+namespace Weapons.Units.Chambers
 {
-    public interface IAttachmentAnimator : IUnitAnimator
+    public interface IChamberController : IUnitController
     {
-        Task PerformToggle(IAttachment unit, IOperation<IAttachment> operation);
-        Task CancelToggle(IAttachment unit, IOperation<IAttachment> operation);
+        Task PerformShot(IChamber unit, IOperation<IChamber> operation);
+        Task CancelShot(IChamber unit, IOperation<IChamber> operation);
     }
     
-    public class AttachmentAnimator : IAttachmentAnimator
+    public class ChamberController : IChamberController
     {
-        public const string Start = "Animate Start Toggle";
-        public const string Perform = "Animate Perform Toggle";
-        public const string Cancel = "Animate Cancel Toggle";
+        public const string Start = "Control Start Shot";
+        public const string Perform = "Control Perform Shot";
+        public const string Cancel = "Control Cancel Shot";
         
         public void Update(IUnit unit)
         {
         }
 
-        public async Task PerformToggle(IAttachment unit, IOperation<IAttachment> operation)
+        public async Task PerformShot(IChamber unit, IOperation<IChamber> operation)
         {
             Debug.Log(Start);
-            Debug.Log(unit.AttachmentNumber);
             
             var cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
             if (cancel)
@@ -40,7 +39,7 @@ namespace Weapons.Units.Attachments
                 throw new Exception();
         }
 
-        public async Task CancelToggle(IAttachment unit, IOperation<IAttachment> operation)
+        public async Task CancelShot(IChamber unit, IOperation<IChamber> operation)
         {
             await Task.Yield();
             Debug.Log(Cancel);

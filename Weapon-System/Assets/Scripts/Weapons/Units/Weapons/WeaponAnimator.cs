@@ -7,6 +7,12 @@ using Weapons.User.Events;
 
 namespace Weapons.Units.Weapons
 {
+    public interface IWeaponAnimator : IUnitAnimator
+    {
+        Task PerformShot(IWeapon unit, IOperation<IWeapon> operation);
+        Task CancelShot(IWeapon unit, IOperation<IWeapon> operation);
+    }
+    
     public class WeaponAnimator : IWeaponAnimator
     {
         public const string Start = "Animate Start Shot";

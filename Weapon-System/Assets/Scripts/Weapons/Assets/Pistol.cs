@@ -7,14 +7,14 @@ namespace Weapons.Assets
 {
     public class Pistol : IAsset
     {
-        public IUnitData Data;
+        public IWeaponData Data;
         public IWeaponController Controller;
         public IWeaponAnimator Animator;
         public List<IOperationsRunner<IWeapon>> OperationsRunners = new();
 
         public List<IAsset> Children { get; } = new();
 
-        public Pistol(IUnitData data, IWeaponController controller, IWeaponAnimator animator)
+        public Pistol(IWeaponData data, IWeaponController controller, IWeaponAnimator animator)
         {
             Data = data;
             Controller = controller;

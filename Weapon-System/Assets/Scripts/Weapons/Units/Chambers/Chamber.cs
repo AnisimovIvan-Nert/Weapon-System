@@ -2,27 +2,27 @@
 using Weapons.Operations;
 using Weapons.User;
 
-namespace Weapons.Units.Weapons
+namespace Weapons.Units.Chambers
 {
-    public interface IWeapon : IUnit<IWeapon, IWeaponData, IWeaponController, IWeaponAnimator>
+    public interface IChamber : IUnit<IChamber, IChamberData, IChamberController, IChamberAnimator>
     {
     }
     
-    public class Weapon : IWeapon
+    public class Chamber : IChamber
     {
         public IUserAdapter User { get; }
-        public IWeaponData Data { get; }
-        public IWeaponController Controller { get; }
-        public IWeaponAnimator Animator { get; }
+        public IChamberData Data { get; }
+        public IChamberController Controller { get; }
+        public IChamberAnimator Animator { get; }
         
-        public IEnumerable<IOperationsRunner<IWeapon>> OperationsRunners { get; }
+        public IEnumerable<IOperationsRunner<IChamber>> OperationsRunners { get; }
 
-        public Weapon(
+        public Chamber(
             IUserAdapter user,
-            IWeaponData data, 
-            IWeaponController controller,
-            IWeaponAnimator animator,
-            IEnumerable<IOperationsRunner<IWeapon>> operationsRunners)
+            IChamberData data, 
+            IChamberController controller,
+            IChamberAnimator animator,
+            IEnumerable<IOperationsRunner<IChamber>> operationsRunners)
         {
             User = user;
             Data = data;

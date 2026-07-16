@@ -7,6 +7,12 @@ using Weapons.User.Events;
 
 namespace Weapons.Units.Attachments
 {
+    public interface IAttachmentController : IUnitController
+    {
+        Task PerformToggle(IAttachment unit, IOperation<IAttachment> operation);
+        Task CancelToggle(IAttachment unit, IOperation<IAttachment> operation);
+    }
+    
     public class AttachmentController : IAttachmentController
     {
         public const string Start = "Control Start Toggle";

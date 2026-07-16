@@ -4,11 +4,16 @@ using Weapons.User;
 
 namespace Weapons.Units.Attachments
 {
+    public interface IAttachment : IUnit<IAttachment, IAttachmentData, IAttachmentController, IAttachmentAnimator>
+    {
+        int AttachmentNumber { get; set; }
+    }
+    
     public class Attachment : IAttachment
     {
         public int AttachmentNumber { get; set; }
         public IUserAdapter User { get; }
-        public IUnitData Data { get; }
+        public IAttachmentData Data { get; }
         public IAttachmentController Controller { get; }
         public IAttachmentAnimator Animator { get; }
         
@@ -16,7 +21,7 @@ namespace Weapons.Units.Attachments
 
         public Attachment(
             IUserAdapter user,
-            IUnitData data, 
+            IAttachmentData data, 
             IAttachmentController controller,
             IAttachmentAnimator animator,
             IEnumerable<IOperationsRunner<IAttachment>> operationsRunners)

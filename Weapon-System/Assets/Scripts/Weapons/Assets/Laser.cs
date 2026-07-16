@@ -7,14 +7,14 @@ namespace Weapons.Assets
 {
     public class Laser : IAsset
     {
-        public IUnitData Data;
+        public IAttachmentData Data;
         public IAttachmentController Controller;
         public IAttachmentAnimator Animator;
         public List<IOperationsRunner<IAttachment>> OperationsRunners = new();
         
         public List<IAsset> Children { get; } = new();
         
-        public Laser(IUnitData data, IAttachmentController controller, IAttachmentAnimator animator)
+        public Laser(IAttachmentData data, IAttachmentController controller, IAttachmentAnimator animator)
         {
             Data = data;
             Controller = controller;

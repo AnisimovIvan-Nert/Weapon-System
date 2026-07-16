@@ -2,7 +2,6 @@
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using Weapons.Operations;
 using Weapons.Operations.Shot;
 using Weapons.Tests.Mocks;
 using Weapons.Units.Weapons;
@@ -19,7 +18,7 @@ namespace Weapons.Tests
         public void SetUp()
         {
             var operationsRunner = new ShotOperationsRunner();
-            var data = new UnitData(nameof(WeaponsTests));
+            var data = new WeaponData(nameof(WeaponsTests));
 
             var controller = new WeaponController();
             var animator = new WeaponAnimator();

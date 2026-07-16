@@ -3,7 +3,6 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using Weapons.Assets;
-using Weapons.Operations;
 using Weapons.Operations.AttachmentToggle;
 using Weapons.Operations.Shot;
 using Weapons.Tests.Mocks;
@@ -129,7 +128,7 @@ namespace Weapons.Tests
 
         private static Laser CreateLaser()
         {
-            var data = new UnitData(nameof(Laser));
+            var data = new AttachmentData(nameof(Laser));
             var controller = new AttachmentController();
             var animator = new AttachmentAnimator();
             var toggleOperationRunner = new AttachmentToggleOperationsRunner();
@@ -141,7 +140,7 @@ namespace Weapons.Tests
         
         private static Pistol CreatePistol()
         {
-            var data = new UnitData(nameof(Pistol));
+            var data = new WeaponData(nameof(Pistol));
             var controller = new WeaponController();
             var animator = new WeaponAnimator();
             var shotOperationRunner = new ShotOperationsRunner();

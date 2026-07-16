@@ -5,15 +5,15 @@ using UnityEngine;
 using Weapons.Operations;
 using Weapons.User.Events;
 
-namespace Weapons.Units.Attachments
+namespace Weapons.Units.Magazines
 {
-    public interface IAttachmentAnimator : IUnitAnimator
+    public interface IMagazineAnimator : IUnitAnimator
     {
-        Task PerformToggle(IAttachment unit, IOperation<IAttachment> operation);
-        Task CancelToggle(IAttachment unit, IOperation<IAttachment> operation);
+        Task PerformToggle(IMagazine unit, IOperation<IMagazine> operation);
+        Task CancelToggle(IMagazine unit, IOperation<IMagazine> operation);
     }
     
-    public class AttachmentAnimator : IAttachmentAnimator
+    public class MagazineAnimator : IMagazineAnimator
     {
         public const string Start = "Animate Start Toggle";
         public const string Perform = "Animate Perform Toggle";
@@ -23,10 +23,10 @@ namespace Weapons.Units.Attachments
         {
         }
 
-        public async Task PerformToggle(IAttachment unit, IOperation<IAttachment> operation)
+        public async Task PerformToggle(IMagazine unit, IOperation<IMagazine> operation)
         {
             Debug.Log(Start);
-            Debug.Log(unit.AttachmentNumber);
+            Debug.Log(unit.MagazineNumber);
             
             var cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
             if (cancel)
@@ -40,7 +40,7 @@ namespace Weapons.Units.Attachments
                 throw new Exception();
         }
 
-        public async Task CancelToggle(IAttachment unit, IOperation<IAttachment> operation)
+        public async Task CancelToggle(IMagazine unit, IOperation<IMagazine> operation)
         {
             await Task.Yield();
             Debug.Log(Cancel);
