@@ -4,16 +4,19 @@ using Weapons.User.Events;
 
 namespace Weapons.Operations.Shot
 {
-    public class ShotOperationsRunner : IOperationsRunner<IWeapon>
+    public class ShotOperationsRunner : IOperationsRunner
     {
         private readonly List<ShotOperation> _operations = new();
 
         private bool _shootInProgress;
         
-        public void Update(IWeapon unit)
+        public void Update(IUnit unit)
         {
-            HandleEvents(unit);
-            HandleOperations(unit);
+            if (unit is not IWeapon weapon)
+                return;
+            
+            HandleEvents(weapon);
+            HandleOperations(weapon);
         }
 
         private void HandleOperations(IWeapon unit)

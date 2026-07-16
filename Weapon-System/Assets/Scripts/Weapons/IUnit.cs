@@ -11,8 +11,7 @@ namespace Weapons
         void Update();
     }
     
-    public interface IUnit<in T, out TData, out TController, out TAnimator> : IUnit
-        where T : IUnit
+    public interface IUnit<out TData, out TController, out TAnimator> : IUnit
         where TData : IUnitData
         where TController : IUnitController
         where TAnimator : IUnitAnimator
@@ -20,7 +19,6 @@ namespace Weapons
         TData Data { get; }
         TController Controller { get; }
         TAnimator Animator { get; }
-        
-        IEnumerable<IOperationsRunner<T>> OperationsRunners { get; }
+        IEnumerable<IOperationsRunner> OperationsRunners { get; }
     }
 }

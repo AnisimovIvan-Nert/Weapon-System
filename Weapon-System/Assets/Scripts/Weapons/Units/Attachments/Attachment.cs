@@ -4,44 +4,25 @@ using Weapons.User;
 
 namespace Weapons.Units.Attachments
 {
-    public interface IAttachment : IUnit<IAttachment, IAttachmentData, IAttachmentController, IAttachmentAnimator>
+    public interface IAttachment : IUnit<IAttachmentData, IAttachmentController, IAttachmentAnimator>
     {
         int AttachmentNumber { get; set; }
     }
-    
-    public class Attachment : IAttachment
+
+    public class Attachment 
+        : AbstractUnit<IAttachmentData, IAttachmentController, IAttachmentAnimator>
+        , IAttachment
     {
         public int AttachmentNumber { get; set; }
-        public IUserAdapter User { get; }
-        public IAttachmentData Data { get; }
-        public IAttachmentController Controller { get; }
-        public IAttachmentAnimator Animator { get; }
-        
-        public IEnumerable<IOperationsRunner<IAttachment>> OperationsRunners { get; }
 
         public Attachment(
             IUserAdapter user,
-            IAttachmentData data, 
+            IAttachmentData data,
             IAttachmentController controller,
             IAttachmentAnimator animator,
-            IEnumerable<IOperationsRunner<IAttachment>> operationsRunners)
+            IEnumerable<IOperationsRunner> operationsRunners)
+            : base(user, data, controller, animator, operationsRunners)
         {
-            User = user;
-            Data = data;
-            Controller = controller;
-            Animator = animator;
-            OperationsRunners = operationsRunners;
-        }
-        
-        public void Update()
-        {
-            User.Update();
-
-            foreach (var operationsRunner in OperationsRunners)
-                operationsRunner.Update(this);
-
-            Controller.Update(this);
-            Animator.Update(this);
         }
     }
 }

@@ -10,7 +10,7 @@ namespace Weapons.Assets
         public IWeaponData Data;
         public IWeaponController Controller;
         public IWeaponAnimator Animator;
-        public List<IOperationsRunner<IWeapon>> OperationsRunners = new();
+        public List<IOperationsRunner> OperationsRunners = new();
 
         public List<IAsset> Children { get; } = new();
 

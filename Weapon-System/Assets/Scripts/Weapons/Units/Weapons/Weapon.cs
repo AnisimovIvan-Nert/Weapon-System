@@ -4,42 +4,22 @@ using Weapons.User;
 
 namespace Weapons.Units.Weapons
 {
-    public interface IWeapon : IUnit<IWeapon, IWeaponData, IWeaponController, IWeaponAnimator>
+    public interface IWeapon : IUnit<IWeaponData, IWeaponController, IWeaponAnimator>
     {
     }
-    
-    public class Weapon : IWeapon
-    {
-        public IUserAdapter User { get; }
-        public IWeaponData Data { get; }
-        public IWeaponController Controller { get; }
-        public IWeaponAnimator Animator { get; }
-        
-        public IEnumerable<IOperationsRunner<IWeapon>> OperationsRunners { get; }
 
+    public class Weapon
+        : AbstractUnit<IWeaponData, IWeaponController, IWeaponAnimator>
+        , IWeapon
+    {
         public Weapon(
             IUserAdapter user,
-            IWeaponData data, 
+            IWeaponData data,
             IWeaponController controller,
             IWeaponAnimator animator,
-            IEnumerable<IOperationsRunner<IWeapon>> operationsRunners)
+            IEnumerable<IOperationsRunner> operationsRunners)
+            : base(user, data, controller, animator, operationsRunners)
         {
-            User = user;
-            Data = data;
-            Controller = controller;
-            Animator = animator;
-            OperationsRunners = operationsRunners;
-        }
-        
-        public void Update()
-        {
-            User.Update();
-
-            foreach (var operationsRunner in OperationsRunners)
-                operationsRunner.Update(this);
-
-            Controller.Update(this);
-            Animator.Update(this);
         }
     }
 }

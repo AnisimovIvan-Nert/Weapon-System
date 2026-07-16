@@ -26,7 +26,6 @@ namespace Weapons.Units.Magazines
         public async Task PerformToggle(IMagazine unit, IOperation<IMagazine> operation)
         {
             Debug.Log(Start);
-            Debug.Log(unit.MagazineNumber);
             
             var cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
             if (cancel)

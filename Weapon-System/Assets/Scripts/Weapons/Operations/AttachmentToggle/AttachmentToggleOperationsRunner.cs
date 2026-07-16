@@ -5,14 +5,17 @@ using Weapons.User.Events;
 
 namespace Weapons.Operations.AttachmentToggle
 {
-    public class AttachmentToggleOperationsRunner : IOperationsRunner<IAttachment>
+    public class AttachmentToggleOperationsRunner : IOperationsRunner
     {
         private readonly List<AttachmentToggleOperation> _operations = new();
 
-        public void Update(IAttachment unit)
+        public void Update(IUnit unit)
         {
-            HandleEvents(unit);
-            HandleOperations(unit);
+            if (unit is not IAttachment attachment)
+                return;
+            
+            HandleEvents(attachment);
+            HandleOperations(attachment);
         }
 
         private void HandleOperations(IAttachment unit)
