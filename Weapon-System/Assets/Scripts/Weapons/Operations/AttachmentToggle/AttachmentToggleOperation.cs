@@ -27,10 +27,10 @@ namespace Weapons.Operations.AttachmentToggle
             
             var failure = OperationStatus.InCancellation;
             
-            yield return WaitCoroutine(_controllerCoroutine, null, failure);
+            yield return WaitCoroutine(_controllerCoroutine, null, failure, false);
             
             _animatorCoroutine ??= unit.Animator.PerformToggle(unit, this).ToCoroutine();
-            yield return WaitCoroutine(_animatorCoroutine, null, failure);
+            yield return WaitCoroutine(_animatorCoroutine, null, failure, false);
             
             yield return base.Progress(unit);
         }
@@ -40,13 +40,13 @@ namespace Weapons.Operations.AttachmentToggle
             if (_animatorCoroutine != null)
             {
                 _animatorCancelCoroutine ??= unit.Animator.CancelToggle(unit, this).ToCoroutine();
-                yield return WaitCoroutine(_animatorCancelCoroutine, null, null);
+                yield return WaitCoroutine(_animatorCancelCoroutine, null, null, false);
             }
 
             if (_controllerCoroutine != null)
             {
                 _controllerCancelCoroutine ??= unit.Controller.CancelToggle(unit, this).ToCoroutine();
-                yield return WaitCoroutine(_controllerCancelCoroutine, null, null);
+                yield return WaitCoroutine(_controllerCancelCoroutine, null, null, false);
             }
 
             yield return base.Canceling(unit);

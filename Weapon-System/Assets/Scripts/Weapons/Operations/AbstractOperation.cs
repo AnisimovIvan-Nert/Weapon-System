@@ -8,10 +8,10 @@ namespace Weapons.Operations
         where T : IUnit
     {
         private YieldCoroutine? _coroutine;
-        
+
         public OperationStatus Status { get; private set; }
         public Exception? Exception { get; private set; }
-        
+
         public virtual bool Increment(T unit)
         {
             if (Status == OperationStatus.None)
@@ -23,17 +23,21 @@ namespace Weapons.Operations
             {
                 if (_coroutine.Current is IEnumerator)
                     continue;
-                
+
                 if (_coroutine.Current is OperationStatus status)
+                {
                     Status = status;
+                    _coroutine = IncrementEnumerator(unit).ToCoroutine();
+                    continue;
+                }
 
                 return true;
             }
-            
+
             AppendException(_coroutine.Exception);
             return false;
         }
-        
+
         private IEnumerator IncrementEnumerator(T unit)
         {
             if (Status & OperationStatus.Pending)
@@ -41,7 +45,7 @@ namespace Weapons.Operations
 
             if (Status & OperationStatus.InProgress)
                 yield return Progress(unit);
-            
+
             if (Status & OperationStatus.InCancellation)
                 yield return Canceling(unit);
 
@@ -52,18 +56,25 @@ namespace Weapons.Operations
                 yield return Destroy(unit);
         }
 
-        protected IEnumerator WaitCoroutine(YieldCoroutine coroutine, object? success, object? failure)
+        protected IEnumerator WaitCoroutine(
+            YieldCoroutine coroutine,
+            object? success,
+            object? failure,
+            bool yieldNull = true)
         {
             yield return coroutine;
 
             var isCompletedSuccessfully = coroutine.IsCompletedSuccessfully();
-            
+
             if (!isCompletedSuccessfully)
                 AppendException(coroutine.Exception);
-
-            yield return isCompletedSuccessfully 
-                ? success 
+            
+            var result = isCompletedSuccessfully
+                ? success
                 : failure;
+
+            if (result != null || yieldNull)
+                yield return result;
         }
 
         protected void AppendException(Exception? exception)
@@ -72,7 +83,7 @@ namespace Weapons.Operations
                 return;
 
             Status |= OperationStatus.WithException;
-            
+
             if (Exception == null)
             {
                 Exception = exception;

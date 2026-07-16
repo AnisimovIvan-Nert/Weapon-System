@@ -27,10 +27,10 @@ namespace Weapons.Operations.Shot
             
             var failure = OperationStatus.InCancellation;
             
-            yield return WaitCoroutine(_controllerCoroutine, null, failure);
+            yield return WaitCoroutine(_controllerCoroutine, null, failure, false);
             
             _animatorCoroutine ??= unit.Animator.PerformShot(unit, this).ToCoroutine();
-            yield return WaitCoroutine(_animatorCoroutine, null, failure);
+            yield return WaitCoroutine(_animatorCoroutine, null, failure, false);
             
             yield return base.Progress(unit);
         }
@@ -40,13 +40,13 @@ namespace Weapons.Operations.Shot
             if (_animatorCoroutine != null)
             {
                 _animatorCancelCoroutine ??= unit.Animator.CancelShot(unit, this).ToCoroutine();
-                yield return WaitCoroutine(_animatorCancelCoroutine, null, null);
+                yield return WaitCoroutine(_animatorCancelCoroutine, null, null, false);
             }
 
             if (_controllerCoroutine != null)
             {
                 _controllerCancelCoroutine ??= unit.Controller.CancelShot(unit, this).ToCoroutine();
-                yield return WaitCoroutine(_controllerCancelCoroutine, null, null);
+                yield return WaitCoroutine(_controllerCancelCoroutine, null, null, false);
             }
 
             yield return base.Canceling(unit);

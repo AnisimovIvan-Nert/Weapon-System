@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 
 namespace Weapons.Operations
 {
@@ -6,12 +7,12 @@ namespace Weapons.Operations
         where T : IUnit
     {
         protected readonly List<IOperation<T>> Operations = new();
-        
+
         public void Update(IUnit unit)
         {
             if (unit is not T typedUnit)
                 return;
-            
+
             HandleEvents(typedUnit);
             HandleOperations(typedUnit);
         }
@@ -23,10 +24,10 @@ namespace Weapons.Operations
                 var operation = Operations[index];
                 if (operation.Increment(unit))
                     continue;
-                
+
                 Operations.RemoveAt(index);
                 index--;
-                
+
                 HandleResult(unit, operation);
             }
         }
@@ -36,7 +37,7 @@ namespace Weapons.Operations
         protected virtual void HandleResult(T unit, IOperation<T> operation)
         {
             if (operation.Exception != null)
-                throw operation.Exception;
+                ExceptionDispatchInfo.Capture(operation.Exception).Throw();
         }
     }
 }
