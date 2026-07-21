@@ -1,6 +1,4 @@
 ﻿using System.Collections.Generic;
-using Weapons.Operations;
-using Weapons.ProducerConsumer;
 
 namespace Weapons.Assets
 {
@@ -8,6 +6,6 @@ namespace Weapons.Assets
     {
         List<IAsset> Children { get; }
 
-        IUnit ToUnit(IEventProducer eventProducer, IOperationRunner runner);
+        IUnit ToUnit();
     }
 }

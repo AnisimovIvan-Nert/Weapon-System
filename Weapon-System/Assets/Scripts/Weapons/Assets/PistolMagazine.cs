@@ -1,29 +1,17 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Weapons.Operations;
-using Weapons.ProducerConsumer;
-using Weapons.Units.Magazines;
+using Weapons.Units;
 
 namespace Weapons.Assets
 {
     public class PistolMagazine : IAsset
     {
-        public IMagazineData Data;
-        public IMagazineController Controller;
-        public List<IEventConsumer> EventConsumers = new();
-
         public List<IAsset> Children { get; } = new();
-
-        public PistolMagazine(IMagazineData data, IMagazineController controller)
-        {
-            Data = data;
-            Controller = controller;
-        }
         
-        public IUnit ToUnit(IEventProducer eventProducer, IOperationRunner runner)
+        public IUnit ToUnit()
         {
-            var children = Children.Select(o => o.ToUnit(eventProducer, runner));
-            return new Magazine(eventProducer, runner, Data, Controller, EventConsumers, children.ToArray());
+            var children = Children.Select(o => o.ToUnit()).ToList();
+            return new Magazine(children);
         }
     }
 }
