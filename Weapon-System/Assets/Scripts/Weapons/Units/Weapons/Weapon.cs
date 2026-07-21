@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-using Weapons.Operations;
-using Weapons.User;
+using Weapons.ProducerConsumer;
 
 namespace Weapons.Units.Weapons
 {
@@ -13,12 +12,12 @@ namespace Weapons.Units.Weapons
         , IWeapon
     {
         public Weapon(
-            IUserAdapter user,
+            IEventProducer eventProducer,
             IWeaponData data,
             IWeaponController controller,
             IWeaponAnimator animator,
-            IEnumerable<IOperationsRunner> operationsRunners)
-            : base(user, data, controller, animator, operationsRunners)
+            IEnumerable<IEventConsumer> eventConsumers)
+            : base(eventProducer, data, controller, animator, eventConsumers)
         {
         }
     }

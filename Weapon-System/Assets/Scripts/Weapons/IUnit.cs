@@ -1,12 +1,10 @@
-﻿using System.Collections.Generic;
-using Weapons.Operations;
-using Weapons.User;
+﻿using Weapons.ProducerConsumer;
 
 namespace Weapons
 {
     public interface IUnit
     {
-        IUserAdapter User { get; }
+        IEventProducer EventProducer { get; }
         
         void Update();
     }
@@ -19,6 +17,5 @@ namespace Weapons
         TData Data { get; }
         TController Controller { get; }
         TAnimator Animator { get; }
-        IEnumerable<IOperationsRunner> OperationsRunners { get; }
     }
 }

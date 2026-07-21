@@ -2,62 +2,74 @@
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using Weapons.Operations.Shot;
+using Weapons.Operations;
+using Weapons.ProducerConsumer;
+using Weapons.ProducerConsumer.Consumers;
+using Weapons.ProducerConsumer.Producers;
 using Weapons.Tests.Mocks;
 using Weapons.Units.Weapons;
-using Weapons.User;
 
 namespace Weapons.Tests
 {
     public class WeaponsTests
     {
-        private TestUser _user;
-        private UserAdapter _userAdapter;
+        private TestInput _input;
+        private IEventProducer _eventProducer;
+        private IOperationRunner _operationRunner;
         private Weapon _weapon;
 
         [SetUp]
         public void SetUp()
         {
-            var operationsRunner = new ShotOperationsRunner();
+            _operationRunner = new OperationRunner();
+            
+            _input = new TestInput();
+            _eventProducer = new EventProducerAggregator(
+                new WeaponTriggerEventProducer(_input), 
+                new CancellationEventProducer(_input));
+            
+            var triggerConsumer = new WeaponTriggerEventConsumer(_eventProducer, _operationRunner);
             var data = new WeaponData(nameof(WeaponsTests));
 
             var controller = new WeaponController();
             var animator = new WeaponAnimator();
-            
-            _user = new TestUser();
-            _userAdapter = new UserAdapter(_user);
 
-            _weapon = new Weapon(_userAdapter, data, controller, animator, new[] { operationsRunner });
+            _weapon = new Weapon(_eventProducer, data, controller, animator, new[] { triggerConsumer });
         }
 
         [Test]
         public void Test()
         {
-            _user.PressButton();
-            _userAdapter.Update(); //create shot event
-            _weapon.Update(); //handle event => create operation => controller start => yield null
+            _input.PressShoot();
+            _eventProducer.Update(); //create shot event
+            _weapon.Update();
+            _operationRunner.Update(); //handle event => create operation => controller start => yield null
             LogAssert.Expect(LogType.Log, WeaponController.Start);
             
-            _user.Update();
-            _userAdapter.Update();
-            _weapon.Update(); //controller perform => animator start => yield null
+            _input.Update();
+            _eventProducer.Update();
+            _weapon.Update();
+            _operationRunner.Update(); //controller perform => animator start => yield null
             LogAssert.Expect(LogType.Log, WeaponController.Perform);
             LogAssert.Expect(LogType.Log, WeaponAnimator.Start);
             
-            _user.Update();
-            _user.PressCancel();
-            _userAdapter.Update(); //create cancel event
-            _weapon.Update(); //animator perform => yield null (by animator cancel)
+            _input.Update();
+            _input.PressCancel();
+            _eventProducer.Update(); //create cancel event
+            _weapon.Update();
+            _operationRunner.Update(); //animator perform => yield null (by animator cancel)
             LogAssert.Expect(LogType.Log, WeaponAnimator.Perform);
             
-            _user.Update();
-            _userAdapter.Update();
-            _weapon.Update(); //animator cancel => yield null (by controller cancel)
+            _input.Update();
+            _eventProducer.Update();
+            _weapon.Update();
+            _operationRunner.Update(); //animator cancel => yield null (by controller cancel)
             LogAssert.Expect(LogType.Log, WeaponAnimator.Cancel);
             
-            _user.Update();
-            _userAdapter.Update();
-            Assert.Throws<Exception>(() => _weapon.Update()); //controller cancel => handle operation result => throw exception
+            _input.Update();
+            _eventProducer.Update();
+            _weapon.Update();
+            Assert.Throws<Exception>(() => _operationRunner.Update()); //controller cancel => handle operation result => throw exception
             LogAssert.Expect(LogType.Log, WeaponController.Cancel);
         }
     }

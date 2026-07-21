@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Weapons.Operations;
-using Weapons.User;
+using Weapons.ProducerConsumer;
 
 namespace Weapons.Units.Magazines
 {
@@ -13,12 +13,12 @@ namespace Weapons.Units.Magazines
         , IMagazine
     {
         public Magazine(
-            IUserAdapter user,
+            IEventProducer eventProducer,
             IMagazineData data,
             IMagazineController controller,
             IMagazineAnimator animator,
-            IEnumerable<IOperationsRunner> operationsRunners)
-            : base(user, data, controller, animator, operationsRunners)
+            IEnumerable<IEventConsumer> eventConsumers)
+            : base(eventProducer, data, controller, animator, eventConsumers)
         {
         }
     }

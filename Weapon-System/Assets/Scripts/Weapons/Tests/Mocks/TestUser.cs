@@ -1,55 +1,51 @@
 ﻿using System;
-using Weapons.User;
 
 namespace Weapons.Tests.Mocks
 {
-    public class TestUser : IUser
+    public class TestInput : IInput
     {
-        private ButtonState _state;
-        private int[]? _attachment;
-        private bool _cancel;
+        public IInput.InputState Shoot { get; private set; }
+        public IInput.InputState Cancel { get; private set; }
 
         public void Update()
         {
-            switch (_state)
+            switch (Shoot)
             {
-                case ButtonState.Down:
-                    _state = ButtonState.Up;
+                case IInput.InputState.Active:
+                case IInput.InputState.Activated:
+                    Shoot = IInput.InputState.Deactivated;
                     break;
-                case ButtonState.Up:
-                    _state = ButtonState.Released;
-                    break;
-                case ButtonState.Pressed:
-                case ButtonState.None:
-                case ButtonState.Released:
+                case IInput.InputState.Passive:
+                case IInput.InputState.None:
+                case IInput.InputState.Deactivated:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
 
-            if (_cancel)
-                _cancel = false;
-
-            _attachment = null;
+            switch (Cancel)
+            {
+                case IInput.InputState.Active:
+                case IInput.InputState.Activated:
+                    Cancel = IInput.InputState.Deactivated;
+                    break;
+                case IInput.InputState.Passive:
+                case IInput.InputState.None:
+                case IInput.InputState.Deactivated:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
-        public void PressButton()
+        public void PressShoot()
         {
-            _state = ButtonState.Down;
+            Shoot = IInput.InputState.Activated;
         }
-        
+
         public void PressCancel()
         {
-            _cancel = true;
+            Cancel = IInput.InputState.Activated;
         }
-
-        public void ToggleAttachments(params int[] attachment)
-        {
-            _attachment = attachment;
-        }
-
-        public ButtonState ReadButtonState() => _state;
-        public int[]? ReadToggleAttachments() => _attachment;
-        public bool ReadCancel() => _cancel;
     }
 }

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
-using Weapons.Operations;
+using Weapons.ProducerConsumer;
 using Weapons.Units.Weapons;
-using Weapons.User;
 
 namespace Weapons.Assets
 {
@@ -10,7 +9,7 @@ namespace Weapons.Assets
         public IWeaponData Data;
         public IWeaponController Controller;
         public IWeaponAnimator Animator;
-        public List<IOperationsRunner> OperationsRunners = new();
+        public List<IEventConsumer> EventConsumers = new();
 
         public List<IAsset> Children { get; } = new();
 
@@ -21,9 +20,9 @@ namespace Weapons.Assets
             Animator = animator;
         }
         
-        public IUnit ToUnit(IUserAdapter userAdapter)
+        public IUnit ToUnit(IEventProducer eventProducer)
         {
-            return new Weapon(userAdapter, Data, Controller, Animator, OperationsRunners);
+            return new Weapon(eventProducer, Data, Controller, Animator, EventConsumers);
         }
     }
 }

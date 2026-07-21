@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-using Weapons.Operations;
-using Weapons.User;
+using Weapons.ProducerConsumer;
 
 namespace Weapons.Units
 {
@@ -9,30 +8,31 @@ namespace Weapons.Units
         where TController : IUnitController
         where TAnimator : IUnitAnimator
     {
-        public IUserAdapter User { get; }
+        protected IEnumerable<IEventConsumer> EventConsumers;
+        
+        public IEventProducer EventProducer { get; }
         public TData Data { get; }
         public TController Controller { get; }
         public TAnimator Animator { get; }
-        public IEnumerable<IOperationsRunner> OperationsRunners { get; }
         
         protected AbstractUnit(
-            IUserAdapter user,
+            IEventProducer eventProducer,
             TData data, 
             TController controller,
             TAnimator animator,
-            IEnumerable<IOperationsRunner> operationsRunners)
+            IEnumerable<IEventConsumer> eventConsumers)
         {
-            User = user;
+            EventProducer = eventProducer;
             Data = data;
             Controller = controller;
             Animator = animator;
-            OperationsRunners = operationsRunners;
+            EventConsumers = eventConsumers;
         }
         
         public void Update()
         {
-            foreach (var operationsRunner in OperationsRunners)
-                operationsRunner.Update(this);
+            foreach (var eventConsumer in EventConsumers)
+                eventConsumer.Update(this);
 
             Controller.Update(this);
             Animator.Update(this);

@@ -3,14 +3,14 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 using Weapons.Operations;
-using Weapons.User.Events;
+using Weapons.ProducerConsumer.Producers;
 
 namespace Weapons.Units.Chambers
 {
     public interface IChamberAnimator : IUnitAnimator
     {
-        IEnumerator PerformShot(IChamber unit, IOperation<IChamber> operation);
-        IEnumerator CancelShot(IChamber unit, IOperation<IChamber> operation);
+        IEnumerator PerformShot(IChamber unit, IOperation operation);
+        IEnumerator CancelShot(IChamber unit, IOperation operation);
     }
     
     public class ChamberAnimator : IChamberAnimator
@@ -23,23 +23,23 @@ namespace Weapons.Units.Chambers
         {
         }
 
-        public IEnumerator PerformShot(IChamber unit, IOperation<IChamber> operation)
+        public IEnumerator PerformShot(IChamber unit, IOperation operation)
         {
             Debug.Log(Start);
             
-            var cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
+            var cancel = unit.EventProducer.EnumerateEvents().Any(e => e is CancellationEvent);
             if (cancel)
                 throw new Exception();
 
             yield return null;
             Debug.Log(Perform);
             
-            cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
+            cancel = unit.EventProducer.EnumerateEvents().Any(e => e is CancellationEvent);
             if (cancel)
                 throw new Exception();
         }
 
-        public IEnumerator CancelShot(IChamber unit, IOperation<IChamber> operation)
+        public IEnumerator CancelShot(IChamber unit, IOperation operation)
         {
             yield return null;
             Debug.Log(Cancel);

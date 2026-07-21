@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-using Weapons.Operations;
-using Weapons.User;
+using Weapons.ProducerConsumer;
 
 namespace Weapons.Units.Chambers
 {
@@ -13,12 +12,12 @@ namespace Weapons.Units.Chambers
         , IChamber
     {
         public Chamber(
-            IUserAdapter user,
+            IEventProducer eventProducer,
             IChamberData data, 
             IChamberController controller,
             IChamberAnimator animator,
-            IEnumerable<IOperationsRunner> operationsRunners)
-            : base(user, data, controller, animator, operationsRunners)
+            IEnumerable<IEventConsumer> eventConsumers)
+            : base(eventProducer, data, controller, animator, eventConsumers)
         {
         }
     }

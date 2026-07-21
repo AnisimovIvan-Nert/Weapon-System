@@ -1,14 +1,12 @@
 ﻿using System;
-using System.Collections;
 
 namespace Weapons.Operations
 {
-    public interface IOperation<in T>
-        where T : IUnit
+    public interface IOperation
     {
         OperationStatus Status { get; }
         public Exception? Exception { get; }
         
-        bool Increment(T unit);
+        bool Increment();
     }
 }

@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Weapons.User;
+using Weapons.ProducerConsumer;
 
 namespace Weapons.Assets
 {
@@ -7,6 +7,6 @@ namespace Weapons.Assets
     {
         List<IAsset> Children { get; }
 
-        IUnit ToUnit(IUserAdapter userAdapter);
+        IUnit ToUnit(IEventProducer eventProducer);
     }
 }

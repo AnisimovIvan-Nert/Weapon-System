@@ -3,14 +3,14 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 using Weapons.Operations;
-using Weapons.User.Events;
+using Weapons.ProducerConsumer.Producers;
 
 namespace Weapons.Units.Magazines
 {
     public interface IMagazineController : IUnitController
     {
-        IEnumerator PerformToggle(IMagazine unit, IOperation<IMagazine> operation);
-        IEnumerator CancelToggle(IMagazine unit, IOperation<IMagazine> operation);
+        IEnumerator PerformToggle(IMagazine unit, IOperation operation);
+        IEnumerator CancelToggle(IMagazine unit, IOperation operation);
     }
     
     public class MagazineController : IMagazineController
@@ -23,23 +23,23 @@ namespace Weapons.Units.Magazines
         {
         }
 
-        public IEnumerator PerformToggle(IMagazine unit, IOperation<IMagazine> operation)
+        public IEnumerator PerformToggle(IMagazine unit, IOperation operation)
         {
             Debug.Log(Start);
             
-            var cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
+            var cancel = unit.EventProducer.EnumerateEvents().Any(e => e is CancellationEvent);
             if (cancel)
                 throw new Exception();
 
             yield return null;
             Debug.Log(Perform);
             
-            cancel = unit.User.EnumerateEvents().Any(e => e is CancelEvent);
+            cancel = unit.EventProducer.EnumerateEvents().Any(e => e is CancellationEvent);
             if (cancel)
                 throw new Exception();
         }
 
-        public IEnumerator CancelToggle(IMagazine unit, IOperation<IMagazine> operation)
+        public IEnumerator CancelToggle(IMagazine unit, IOperation operation)
         {
             yield return null;
             Debug.Log(Cancel);

@@ -4,20 +4,27 @@ using Coroutine;
 
 namespace Weapons.Operations
 {
-    public abstract class AbstractOperation<T> : IOperation<T>
+    public abstract class AbstractOperation<T> : IOperation
         where T : IUnit
     {
+        protected readonly T Unit;
+        
         private YieldCoroutine? _coroutine;
+
+        protected AbstractOperation(T unit)
+        {
+            Unit = unit;
+        }
 
         public OperationStatus Status { get; private set; }
         public Exception? Exception { get; private set; }
 
-        public virtual bool Increment(T unit)
+        public virtual bool Increment()
         {
             if (Status == OperationStatus.None)
                 Status |= OperationStatus.Pending;
 
-            _coroutine ??= IncrementEnumerator(unit).ToCoroutine();
+            _coroutine ??= IncrementEnumerator().ToCoroutine();
 
             while (_coroutine.MoveNext())
             {
@@ -27,7 +34,7 @@ namespace Weapons.Operations
                 if (_coroutine.Current is OperationStatus status)
                 {
                     Status = status;
-                    _coroutine = IncrementEnumerator(unit).ToCoroutine();
+                    _coroutine = IncrementEnumerator().ToCoroutine();
                     continue;
                 }
 
@@ -38,22 +45,22 @@ namespace Weapons.Operations
             return false;
         }
 
-        private IEnumerator IncrementEnumerator(T unit)
+        private IEnumerator IncrementEnumerator()
         {
             if (Status & OperationStatus.Pending)
-                yield return Start(unit);
+                yield return Start();
 
             if (Status & OperationStatus.InProgress)
-                yield return Progress(unit);
+                yield return Progress();
 
             if (Status & OperationStatus.InCancellation)
-                yield return Canceling(unit);
+                yield return Canceling();
 
             if (Status & OperationStatus.Complete)
-                yield return PrepareForDestroying(unit);
+                yield return PrepareForDestroying();
 
             if (Status & OperationStatus.ReadyForDestroying)
-                yield return Destroy(unit);
+                yield return Destroy();
         }
 
         protected IEnumerator WaitCoroutine(
@@ -93,27 +100,27 @@ namespace Weapons.Operations
             Exception = new AggregateException(Exception, exception);
         }
 
-        protected virtual IEnumerator Start(T unit)
+        protected virtual IEnumerator Start()
         {
             yield return OperationStatus.InProgress;
         }
 
-        protected virtual IEnumerator Progress(T unit)
+        protected virtual IEnumerator Progress()
         {
             yield return OperationStatus.Complete;
         }
 
-        protected virtual IEnumerator Canceling(T unit)
+        protected virtual IEnumerator Canceling()
         {
             yield return OperationStatus.Complete;
         }
 
-        protected virtual IEnumerator PrepareForDestroying(T unit)
+        protected virtual IEnumerator PrepareForDestroying()
         {
             yield return OperationStatus.ReadyForDestroying;
         }
 
-        protected virtual IEnumerator Destroy(T unit)
+        protected virtual IEnumerator Destroy()
         {
             yield return OperationStatus.Destroying;
         }
