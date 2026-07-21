@@ -8,6 +8,7 @@ using Weapons.ProducerConsumer.Consumers;
 using Weapons.ProducerConsumer.Producers;
 using Weapons.Tests.Mocks;
 using Weapons.Units.Weapons;
+using Weapons.Units.Weapons.Controller;
 
 namespace Weapons.Tests
 {
@@ -28,13 +29,13 @@ namespace Weapons.Tests
                 new WeaponTriggerEventProducer(_input), 
                 new CancellationEventProducer(_input));
             
-            var triggerConsumer = new WeaponTriggerEventConsumer(_eventProducer, _operationRunner);
+            var triggerConsumer = new WeaponTriggerEventConsumer(_eventProducer);
             var data = new WeaponData(nameof(WeaponsTests));
 
             var controller = new WeaponController();
             var animator = new WeaponAnimator();
 
-            _weapon = new Weapon(_eventProducer, data, controller, animator, new[] { triggerConsumer });
+            _weapon = new Weapon(_eventProducer, _operationRunner, data, controller, animator, new[] { triggerConsumer });
         }
 
         [Test]

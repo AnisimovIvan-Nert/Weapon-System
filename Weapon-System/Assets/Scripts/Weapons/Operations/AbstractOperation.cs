@@ -4,20 +4,45 @@ using Coroutine;
 
 namespace Weapons.Operations
 {
-    public abstract class AbstractOperation<T> : IOperation
+    public abstract class AbstractOperation<TTarget, TSource> : AbstractOperation
+        where TTarget : IUnit
+        where TSource : IUnit
+    {
+        protected readonly TTarget Target;
+        protected readonly TSource Source;
+        
+        protected AbstractOperation(Guid identifier, TTarget target, TSource source)
+            : base(identifier)
+        {
+            Target = target;
+            Source = source;
+        }
+    }
+    
+    public abstract class AbstractOperation<T> : AbstractOperation
         where T : IUnit
     {
         protected readonly T Unit;
         
-        private YieldCoroutine? _coroutine;
-
-        protected AbstractOperation(T unit)
+        protected AbstractOperation(Guid identifier, T unit)
+            : base(identifier)
         {
             Unit = unit;
         }
+    }
+    
+     public abstract class AbstractOperation : IOperation
+    {
+        private YieldCoroutine? _coroutine;
 
+        public Guid Identifier { get; }
         public OperationStatus Status { get; private set; }
         public Exception? Exception { get; private set; }
+        
+        protected AbstractOperation(Guid identifier)
+        {
+            Identifier = identifier;
+        }
 
         public virtual bool Increment()
         {
@@ -65,9 +90,9 @@ namespace Weapons.Operations
 
         protected IEnumerator WaitCoroutine(
             YieldCoroutine coroutine,
-            object? success,
-            object? failure,
-            bool yieldNull = true)
+            object? success = null,
+            object? failure = null,
+            bool yieldNull = false)
         {
             yield return coroutine;
 

@@ -1,7 +1,13 @@
-﻿namespace Weapons
+﻿using System.Collections.Generic;
+
+namespace Weapons
 {
     public interface IUnitController
     {
-        void Update(IUnit unit);
+    }
+    
+    public interface IComplexUnitController : IUnitController
+    {
+        IEnumerable<IOperationController> OperationControllers { get; }
     }
 }

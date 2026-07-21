@@ -13,8 +13,8 @@ namespace Weapons.Operations.Implementations
         private YieldCoroutine? _controllerCancelCoroutine;
         private YieldCoroutine? _animatorCancelCoroutine;
 
-        public ShotOperation(IWeapon unit) 
-            : base(unit)
+        public ShotOperation(Guid identifier, IWeapon unit) 
+            : base(identifier, unit)
         {
         }
 
@@ -32,10 +32,10 @@ namespace Weapons.Operations.Implementations
             
             var failure = OperationStatus.InCancellation;
             
-            yield return WaitCoroutine(_controllerCoroutine, null, failure, false);
+            yield return WaitCoroutine(_controllerCoroutine, null, failure);
             
             _animatorCoroutine ??= Unit.Animator.PerformShot(Unit, this).ToCoroutine();
-            yield return WaitCoroutine(_animatorCoroutine, null, failure, false);
+            yield return WaitCoroutine(_animatorCoroutine, null, failure);
             
             yield return base.Progress();
         }
@@ -45,13 +45,13 @@ namespace Weapons.Operations.Implementations
             if (_animatorCoroutine != null)
             {
                 _animatorCancelCoroutine ??= Unit.Animator.CancelShot(Unit, this).ToCoroutine();
-                yield return WaitCoroutine(_animatorCancelCoroutine, null, null, false);
+                yield return WaitCoroutine(_animatorCancelCoroutine);
             }
 
             if (_controllerCoroutine != null)
             {
                 _controllerCancelCoroutine ??= Unit.Controller.CancelShot(Unit, this).ToCoroutine();
-                yield return WaitCoroutine(_controllerCancelCoroutine, null, null, false);
+                yield return WaitCoroutine(_controllerCancelCoroutine);
             }
 
             yield return base.Canceling();

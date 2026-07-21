@@ -2,20 +2,19 @@
 using System.Linq;
 using Weapons.Operations;
 using Weapons.ProducerConsumer;
-using Weapons.Units.Weapons;
-using Weapons.Units.Weapons.Controller;
+using Weapons.Units.Chambers;
 
 namespace Weapons.Assets
 {
-    public class Pistol : IAsset
+    public class PistolChamber : IAsset
     {
-        public IWeaponData Data;
-        public IWeaponController Controller;
+        public IChamberData Data;
+        public IChamberController Controller;
         public List<IEventConsumer> EventConsumers = new();
 
         public List<IAsset> Children { get; } = new();
 
-        public Pistol(IWeaponData data, IWeaponController controller)
+        public PistolChamber(IChamberData data, IChamberController controller)
         {
             Data = data;
             Controller = controller;
@@ -24,7 +23,7 @@ namespace Weapons.Assets
         public IUnit ToUnit(IEventProducer eventProducer, IOperationRunner runner)
         {
             var children = Children.Select(o => o.ToUnit(eventProducer, runner));
-            return new Weapon(eventProducer, runner, Data, Controller, EventConsumers, children.ToArray());
+            return new Chamber(eventProducer, runner, Data, Controller, EventConsumers, children.ToArray());
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Weapons.Operations;
+﻿using System;
 using Weapons.Operations.Implementations;
 using Weapons.ProducerConsumer.Producers;
 using Weapons.Units.Weapons;
@@ -8,14 +8,12 @@ namespace Weapons.ProducerConsumer.Consumers
     public class WeaponTriggerEventConsumer : IEventConsumer
     {
         private readonly IEventProducer _eventProducer;
-        private readonly IOperationRunner _operationRunner;
 
         private bool _triggerPressed;
 
-        public WeaponTriggerEventConsumer(IEventProducer eventProducer, IOperationRunner operationRunner)
+        public WeaponTriggerEventConsumer(IEventProducer eventProducer)
         {
             _eventProducer = eventProducer;
-            _operationRunner = operationRunner;
         }
 
         public void Update(IUnit unit)
@@ -43,7 +41,7 @@ namespace Weapons.ProducerConsumer.Consumers
             _triggerPressed |= isPressed;
             
             if (_triggerPressed)
-                _operationRunner.RunOperation(new ShotOperation(weaponUnit));
+                unit.OperationRunner.RunOperation(new ShotOperation(Guid.NewGuid(), weaponUnit));
             
             _triggerPressed &= !isReleased;
         }
