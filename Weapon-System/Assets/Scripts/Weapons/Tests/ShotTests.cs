@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 using Weapons.Assets;
@@ -15,6 +17,46 @@ namespace Weapons.Tests
         private const int Timeout = 100;
 
         private const int Rounds = 10;
+
+        [Test]
+        public void MultipleSimultaneouslyShotOperations()
+        {
+            var pistol = new Pistol();
+            pistol.Children.Add(new PistolChamber(false));
+            pistol.Children.Add(new PistolMagazine(Rounds));
+            
+            var unit = (IWeapon)pistol.ToUnit();
+            var operationRunner = new OperationRunner();
+
+            var handler = new WeaponHandler(unit, operationRunner);
+
+            var operations = new List<IOperation>();
+            for (var i = 0; i < Rounds + 1; i++)
+            {
+                var operation = new WeaponShotOperation(Guid.NewGuid());
+                operation.RunOperation(handler);
+                operations.Add(operation);
+            }
+
+            var timeout = Timeout;
+            while (operations.Any(o => !o.IsCompleted) && timeout > 0)
+            {
+                timeout--;
+                handler.Update();
+            }
+
+            if (operations.Any(o => !o.IsCompleted))
+                Assert.Fail();
+
+            var failedOperation = operations.SingleOrDefault(o => !o.IsCompletedSuccessfully);
+            Assert.NotNull(failedOperation);
+
+            var chamber = unit.TryFind<IChamber>() ?? throw new InvalidOperationException();
+            var magazine = unit.TryFind<IMagazine>() ?? throw new InvalidOperationException();
+            
+            Assert.False(chamber.HasRound);
+            Assert.Zero(magazine.Rounds);
+        }
         
         [Test]
         public void LoadedChamberPassTest()
