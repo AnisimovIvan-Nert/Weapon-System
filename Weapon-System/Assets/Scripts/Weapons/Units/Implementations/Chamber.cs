@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Weapons.Units
+namespace Weapons.Units.Implementations
 {
     public interface IChamber : IUnit
     {

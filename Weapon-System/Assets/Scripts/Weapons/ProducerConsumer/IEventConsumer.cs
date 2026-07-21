@@ -1,4 +1,6 @@
-﻿namespace Weapons.ProducerConsumer
+﻿using Weapons.Units;
+
+namespace Weapons.ProducerConsumer
 {
     public interface IEventConsumer
     {

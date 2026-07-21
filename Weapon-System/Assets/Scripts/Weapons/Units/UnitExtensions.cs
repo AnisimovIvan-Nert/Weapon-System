@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace Weapons
+namespace Weapons.Units
 {
     public static class UnitExtensions
     {

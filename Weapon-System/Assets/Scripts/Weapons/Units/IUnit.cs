@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
+using Weapons.Resource;
 
-namespace Weapons
+namespace Weapons.Units
 {
-    public interface IUnit
+    public interface IUnit : IResource
     {
         IEnumerable<IUnit> Children { get; }
     }

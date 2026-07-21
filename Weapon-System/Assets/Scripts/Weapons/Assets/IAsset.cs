@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Weapons.Units;
 
 namespace Weapons.Assets
 {

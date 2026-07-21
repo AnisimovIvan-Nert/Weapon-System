@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Weapons.Units;
+using Weapons.Units.Implementations;
 
 namespace Weapons.Assets
 {
