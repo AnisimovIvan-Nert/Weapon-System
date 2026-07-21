@@ -6,9 +6,9 @@ namespace Weapons.Operations
     {
         Guid Identifier { get; }
         
-        OperationStatus Status { get; }
+        bool IsCompleted { get; }
         public Exception? Exception { get; }
         
-        bool Increment();
+        void Increment();
     }
 }

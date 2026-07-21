@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Runtime.ExceptionServices;
 
 namespace Weapons.Operations
 {
@@ -16,11 +15,10 @@ namespace Weapons.Operations
             for (var i = 0; i < _operations.Count; i++)
             {
                 var operation = _operations[i];
-                
-                if (operation.Increment())
-                    continue;
 
-                HandleResult(operation);
+                operation.Increment();
+                if (!operation.IsCompleted)
+                    continue;
                 
                 _operations.RemoveAt(i);
                 i--;
@@ -30,12 +28,6 @@ namespace Weapons.Operations
         public void RunOperation(IOperation operation)
         {
             _add.Add(operation);
-        }
-
-        private static void HandleResult(IOperation operation)
-        {
-            if (operation.Exception != null)
-                ExceptionDispatchInfo.Capture(operation.Exception).Throw();
         }
     }
 }
