@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Units;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Units;
 
 namespace OperationSystem.Weapons.Operations
 {
-    public class WeaponShotOperation : AbstractOperation<IWeapon>
+    public class WeaponShotUnitOperation : AbstractUnitOperation<IWeapon>
     {
-        public WeaponShotOperation(Guid identifier)
+        public WeaponShotUnitOperation(Guid identifier)
             : base(identifier)
         {
         }
@@ -19,7 +20,7 @@ namespace OperationSystem.Weapons.Operations
 
             yield return AcquireLocks(context);
 
-            var chamber = context.TryAccessFirst<IChamber>(this) ?? throw new InvalidOperationException();
+            var chamber = context.AccessFirst<IChamber>(this);
             var magazine = context.TryAccessFirst<IMagazine>(this);
 
             RecordPossibleMutation(context);
@@ -35,7 +36,7 @@ namespace OperationSystem.Weapons.Operations
                 magazine.Rounds--;
                 chamber.HasRound = true;
             }
-            
+
             chamber.HasRound = false;
         }
 
@@ -43,55 +44,60 @@ namespace OperationSystem.Weapons.Operations
         {
             var weapon = Handler.Unit ?? throw new InvalidOperationException();
 
-            var chamber = weapon.TryFind<IChamber>();
+            var chamber = weapon.Find<IChamber>();
             var magazine = weapon.TryFind<IMagazine>();
-
-            if (chamber == null)
-                throw new InvalidOperationException();
 
             if (!chamber.HasRound && magazine is not { Rounds: > 0 })
                 throw new InvalidOperationException();
-            
+
             yield break;
         }
 
         private IEnumerator AcquireLocks(IOperationContext context)
         {
             var timer = AcquireLocksTimeout;
-            var weapon = Handler.Unit ?? throw new InvalidOperationException();
 
             while (timer > 0)
             {
                 timer--;
 
-                var chamber = weapon.TryFind<Chamber>() ?? throw new InvalidOperationException();
-
-                if (!context.TryAcquire(chamber, this))
+                var success = true;
+                try
                 {
-                    yield return null;
-                    continue;
+                    Acquire();
                 }
-
-                if (!chamber.HasRound)
+                catch (AcquireException)
                 {
-                    var magazine = weapon.TryFind<Magazine>() ?? throw new InvalidOperationException();
-                    if (!context.TryAcquire(magazine, this))
-                    {
-                        context.ReleaseAll();
-                        yield return null;
-                        continue;
-                    }
+                    success = false;
+                    context.ReleaseAll();
                 }
+                
+                if (success)
+                    break;
 
-                break;
+                yield return null;
             }
 
             throw new InvalidOperationException();
+
+            void Acquire()
+            {
+                var weapon = Handler.Unit ?? throw new InvalidOperationException();
+                var chamber = weapon.Find<Chamber>();
+                
+                context.Acquire(chamber, this);
+
+                if (!chamber.HasRound)
+                {
+                    var magazine = weapon.Find<Magazine>();
+                    context.Acquire(magazine, this);
+                }
+            }
         }
 
         private void RecordPossibleMutation(IOperationContext context)
         {
-            var chamber = context.TryAccessFirst<IChamber>(this) ?? throw new InvalidOperationException();
+            var chamber = context.AccessFirst<IChamber>(this);
             var magazine = context.TryAccessFirst<IMagazine>(this);
 
             if (magazine != null)

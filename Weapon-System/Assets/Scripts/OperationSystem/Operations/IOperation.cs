@@ -1,6 +1,5 @@
 ﻿using System;
-using OperationSystem.UnitHandlers;
-using OperationSystem.Units;
+using OperationSystem.Handlers;
 
 namespace OperationSystem.Operations
 {
@@ -13,11 +12,7 @@ namespace OperationSystem.Operations
         public Exception? Exception { get; }
         
         void Increment(IOperationContext operationContext);
-    }
-
-    public interface IOperation<T> : IOperation
-        where T : IUnit
-    {
-        void RunOperation(IUnitHandler<T> handler);
+        
+        void RunOperation(IOperationHandler handler);
     }
 }

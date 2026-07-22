@@ -5,7 +5,7 @@ namespace OperationSystem.Units
 {
     public abstract class AbstractUnit : AbstractResource, IUnit
     {
-        public IEnumerable<IUnit> Children { get; }
+        public virtual IEnumerable<IUnit> Children { get; }
 
         protected AbstractUnit(IEnumerable<IUnit> children)
         {

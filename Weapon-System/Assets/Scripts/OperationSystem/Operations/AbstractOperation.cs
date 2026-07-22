@@ -1,23 +1,18 @@
 ﻿using System;
 using System.Collections;
 using Coroutine;
-using OperationSystem.UnitHandlers;
-using OperationSystem.Units;
+using OperationSystem.Handlers;
 
 namespace OperationSystem.Operations
 {
-    public abstract class AbstractOperation<T> : IOperation<T>
-        where T : IUnit
+    public abstract class AbstractOperation : IOperation
     {
-        protected const int AcquireLocksTimeout = 100;
+        protected const int AcquireLocksTimeout = 10;
         
-        private YieldCoroutine? _coroutine;
-
-        protected IUnitHandler<T>? NullableHandler;
-        protected IUnitHandler<T> Handler => NullableHandler ?? throw new InvalidOperationException();
+        protected YieldCoroutine? Coroutine;
 
         public Guid Identifier { get; }
-        public bool IsCompleted { get; private set; }
+        public bool IsCompleted { get; protected set; }
         public bool IsCompletedSuccessfully => Exception == null;
         public Exception? Exception { get; private set; }
 
@@ -25,29 +20,26 @@ namespace OperationSystem.Operations
         {
             Identifier = identifier;
         }
-        
-        public void RunOperation(IUnitHandler<T> handler)
-        {
-            if (NullableHandler != null)
-                throw new InvalidOperationException();
-            NullableHandler = handler;
-            handler.OperationRunner.RunOperation(this);
-        }
 
         public virtual void Increment(IOperationContext context)
         {
-            _coroutine ??= IncrementEnumerator(context).ToCoroutine();
+            Coroutine ??= IncrementEnumerator(context).ToCoroutine();
 
-            while (_coroutine.MoveNext())
+            while (Coroutine.MoveNext())
             {
-                if (_coroutine.Current is IEnumerator)
+                if (Coroutine.InContinueState())
                     continue;
 
                 return;
             }
 
             IsCompleted = true;
-            AppendException(_coroutine.Exception);
+            AppendException(Coroutine.Exception);
+        }
+
+        public virtual void RunOperation(IOperationHandler handler)
+        {
+            handler.OperationRunner.RunOperation(this);
         }
 
         protected abstract IEnumerator IncrementEnumerator(IOperationContext context);

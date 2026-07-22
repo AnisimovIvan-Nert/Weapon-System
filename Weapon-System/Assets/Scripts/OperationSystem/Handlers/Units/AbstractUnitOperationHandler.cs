@@ -2,22 +2,18 @@
 using OperationSystem.Operations;
 using OperationSystem.Units;
 
-namespace OperationSystem.UnitHandlers
+namespace OperationSystem.Handlers.Units
 {
-    public class AbstractUnitHandler<T> : IUnitHandler<T>
+    public abstract class AbstractUnitOperationHandler<T> 
+        : AbstractOperationHandler
+        , IUnitOperationHandler<T>
         where T : IUnit
     {
         public T? Unit { get; private set; }
-        public IOperationRunner OperationRunner { get; }
 
-        public AbstractUnitHandler(IOperationRunner operationRunner)
+        protected AbstractUnitOperationHandler(IOperationRunner operationRunner) 
+            : base(operationRunner)
         {
-            OperationRunner = operationRunner;
-        }
-        
-        public void Update()
-        {
-            OperationRunner.Update();
         }
 
         public IEnumerator SetUnit(T? unit)

@@ -28,14 +28,14 @@ namespace OperationSystem.Weapons.Tests
             var unit = (IWeapon)pistol.ToUnit();
             var operationRunner = new OperationRunner();
 
-            var handler = new WeaponHandler(operationRunner);
+            var handler = new WeaponUnitHandler(operationRunner);
             handler.SetUnit(unit).Wait(Timeout);
             Assert.AreEqual(unit, handler.Unit);
 
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
             {
-                var operation = new WeaponShotOperation(Guid.NewGuid());
+                var operation = new WeaponShotUnitOperation(Guid.NewGuid());
                 operation.RunOperation(handler);
                 operations.Add(operation);
             }
@@ -112,11 +112,11 @@ namespace OperationSystem.Weapons.Tests
             var unit = (IWeapon)pistol.ToUnit();
             var operationRunner = new OperationRunner();
 
-            var handler = new WeaponHandler(operationRunner);
+            var handler = new WeaponUnitHandler(operationRunner);
             handler.SetUnit(unit).Wait(Timeout);
             Assert.AreEqual(unit, handler.Unit);
 
-            var operation = new WeaponShotOperation(Guid.NewGuid());
+            var operation = new WeaponShotUnitOperation(Guid.NewGuid());
             operation.RunOperation(handler);
 
             var timeout = Timeout;
