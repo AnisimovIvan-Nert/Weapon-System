@@ -1,0 +1,18 @@
+{
+    "name": "OperationSystem",
+    "rootNamespace": "",
+    "references": [
+        "GUID:35ba3b6e76ed1b346a21ac0a27b444a0"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
