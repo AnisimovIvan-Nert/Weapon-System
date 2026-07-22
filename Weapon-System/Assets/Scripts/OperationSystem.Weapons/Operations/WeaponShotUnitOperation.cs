@@ -73,7 +73,7 @@ namespace OperationSystem.Weapons.Operations
                 }
                 
                 if (success)
-                    break;
+                    yield break;
 
                 yield return null;
             }
