@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Operations;
@@ -131,8 +132,10 @@ namespace OperationSystem.Weapons.Tests
         
         private static void AssertPass(IOperation operation, IWeapon weapon, int rounds, bool hasRound, bool hasChamber, bool hasMagazine)
         {
-            if (!operation.IsCompleted)
-                Assert.Fail();
+            Assert.IsTrue(operation.IsCompleted);
+
+            if (operation.Exception != null)
+                ExceptionDispatchInfo.Capture(operation.Exception).Throw();
             
             if (hasChamber)
             {
@@ -149,23 +152,13 @@ namespace OperationSystem.Weapons.Tests
                 Assert.AreEqual(exceptedRounds, magazine!.Rounds);
             }
             
-            if (operation.IsCompletedSuccessfully)
-                Assert.Pass();
-                
-            if (operation.Exception != null)
-                Assert.Fail();
-                
-            Assert.Fail();
+            Assert.IsTrue(operation.IsCompletedSuccessfully);
         }
 
         private static void AssertFail(IOperation operation, IWeapon weapon, int rounds, bool hasRound, bool hasChamber, bool hasMagazine)
         {
-            if (!operation.IsCompleted)
-                Assert.Fail();
+            Assert.IsTrue(operation.IsCompleted);
             
-            if (operation.IsCompletedSuccessfully)
-                Assert.Fail();
-
             if (hasChamber)
             {
                 var chamber = weapon.TryFind<IChamber>();
@@ -180,10 +173,7 @@ namespace OperationSystem.Weapons.Tests
                 Assert.AreEqual(rounds, magazine!.Rounds);
             }
                 
-            if (operation.Exception != null)
-                Assert.Pass();
-                
-            Assert.Fail();
+            Assert.IsFalse(operation.IsCompletedSuccessfully);
         }
     }
 }

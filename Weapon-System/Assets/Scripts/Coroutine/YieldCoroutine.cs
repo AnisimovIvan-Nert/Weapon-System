@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Runtime.ExceptionServices;
 using Coroutine.Instructions;
 
 namespace Coroutine
@@ -39,6 +40,9 @@ namespace Coroutine
                 {
                     if (_innerCoroutine.MoveNext())
                         return true;
+
+                    if (_innerCoroutine.Exception != null)
+                        ExceptionDispatchInfo.Capture(_innerCoroutine.Exception).Throw();
 
                     _innerCoroutine = null;
                 }
