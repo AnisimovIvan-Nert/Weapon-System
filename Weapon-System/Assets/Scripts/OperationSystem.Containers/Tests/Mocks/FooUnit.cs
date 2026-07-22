@@ -1,11 +1,10 @@
-﻿using System.Linq;
-using OperationSystem.Units;
+﻿using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Tests.Mocks
 {
     public class FooUnit : AbstractUnit
     {
-        public FooUnit() : base(Enumerable.Empty<IUnit>())
+        public FooUnit(params IUnit[] children) : base(children)
         {
         }
     }

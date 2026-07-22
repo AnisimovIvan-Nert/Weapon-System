@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿using System.Linq;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Units.Containers
@@ -14,8 +14,8 @@ namespace OperationSystem.Containers.Units.Containers
     {
         public int MaxIndividualItemVolume { get; }
         
-        public ContainerVolume(int maxIndividualItemVolume, IEnumerable<IUnit> children) 
-            : base(children)
+        public ContainerVolume(int maxIndividualItemVolume) 
+            : base(Enumerable.Empty<IUnit>())
         {
             MaxIndividualItemVolume = maxIndividualItemVolume;
         }
