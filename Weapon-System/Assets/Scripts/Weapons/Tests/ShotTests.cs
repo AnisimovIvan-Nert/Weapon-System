@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Coroutine;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using Weapons.Assets;
 using Weapons.Operations;
 using Weapons.Operations.Implementation.Weapons;
@@ -28,7 +28,9 @@ namespace Weapons.Tests
             var unit = (IWeapon)pistol.ToUnit();
             var operationRunner = new OperationRunner();
 
-            var handler = new WeaponHandler(unit, operationRunner);
+            var handler = new WeaponHandler(operationRunner);
+            handler.SetUnit(unit).Wait(Timeout);
+            Assert.AreEqual(unit, handler.Unit);
 
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
@@ -110,7 +112,9 @@ namespace Weapons.Tests
             var unit = (IWeapon)pistol.ToUnit();
             var operationRunner = new OperationRunner();
 
-            var handler = new WeaponHandler(unit, operationRunner);
+            var handler = new WeaponHandler(operationRunner);
+            handler.SetUnit(unit).Wait(Timeout);
+            Assert.AreEqual(unit, handler.Unit);
 
             var operation = new WeaponShotOperation(Guid.NewGuid());
             operation.RunOperation(handler);
@@ -127,8 +131,6 @@ namespace Weapons.Tests
         
         private static void AssertPass(IOperation operation, IWeapon weapon, int rounds, bool hasRound, bool hasChamber, bool hasMagazine)
         {
-            LogAssert.Expect("Shot");
-            
             if (!operation.IsCompleted)
                 Assert.Fail();
             

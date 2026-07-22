@@ -1,4 +1,5 @@
-﻿using Weapons.Operations;
+﻿using System.Collections;
+using Weapons.Operations;
 using Weapons.Units;
 
 namespace Weapons.UnitHandlers
@@ -6,18 +7,28 @@ namespace Weapons.UnitHandlers
     public class AbstractUnitHandler<T> : IUnitHandler<T>
         where T : IUnit
     {
-        public T Unit { get; }
+        public T? Unit { get; private set; }
         public IOperationRunner OperationRunner { get; }
 
-        public AbstractUnitHandler(T unit, IOperationRunner operationRunner)
+        public AbstractUnitHandler(IOperationRunner operationRunner)
         {
-            Unit = unit;
             OperationRunner = operationRunner;
         }
         
         public void Update()
         {
             OperationRunner.Update();
+        }
+
+        public IEnumerator SetUnit(T? unit)
+        {
+            var delayer = OperationRunner.DelayOperationRunning();
+
+            if (OperationRunner.AnyRunningOperation)
+                yield return null;
+
+            Unit = unit;
+            OperationRunner.ReleaseOperationRunning(delayer);
         }
     }
 }

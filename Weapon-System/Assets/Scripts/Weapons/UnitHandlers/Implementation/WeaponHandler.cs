@@ -5,8 +5,8 @@ namespace Weapons.UnitHandlers.Implementation
 {
     public class WeaponHandler : AbstractUnitHandler<IWeapon>
     {
-        public WeaponHandler(IWeapon unit, IOperationRunner operationRunner) 
-            : base(unit, operationRunner)
+        public WeaponHandler(IOperationRunner operationRunner) 
+            : base(operationRunner)
         {
         }
     }

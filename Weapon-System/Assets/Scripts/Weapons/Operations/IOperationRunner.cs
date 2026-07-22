@@ -2,8 +2,20 @@
 {
     public interface IOperationRunner
     {
-        public void Update();
+        bool AnyRunningOperation { get; }
+        
+        void Update();
+        void RunOperation(IOperation operation);
 
-        public void RunOperation(IOperation operation);
+        IDelayer DelayOperationRunning();
+        void ReleaseOperationRunning(IDelayer delayer);
+
+        public interface IDelayer
+        {
+        }
+
+        internal class Delayer : IDelayer
+        {
+        }
     }
 }

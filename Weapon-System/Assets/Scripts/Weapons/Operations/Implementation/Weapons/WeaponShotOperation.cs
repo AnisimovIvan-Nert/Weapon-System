@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using UnityEngine;
 using Weapons.Units;
 using Weapons.Units.Implementations;
 
@@ -37,12 +36,11 @@ namespace Weapons.Operations.Implementation.Weapons
             }
             
             chamber.HasRound = false;
-            Debug.Log("Shot");
         }
 
         private IEnumerator Validate(IOperationContext context)
         {
-            var weapon = Handler.Unit;
+            var weapon = Handler.Unit ?? throw new InvalidOperationException();
 
             var chamber = weapon.TryFind<IChamber>();
             var magazine = weapon.TryFind<IMagazine>();
@@ -59,7 +57,7 @@ namespace Weapons.Operations.Implementation.Weapons
         private IEnumerator AcquireLocks(IOperationContext context)
         {
             var timer = AcquireLocksTimeout;
-            var weapon = Handler.Unit;
+            var weapon = Handler.Unit ?? throw new InvalidOperationException();
 
             while (timer > 0)
             {

@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Weapons.Operations
 {
@@ -7,10 +9,17 @@ namespace Weapons.Operations
         private readonly List<OperationWithContext> _add = new();
         private readonly List<OperationWithContext> _operations = new();
 
+        private IOperationRunner.IDelayer? _runningDelayer;
+
+        public bool AnyRunningOperation => _operations.Any();
+
         public void Update()
         {
-            _operations.AddRange(_add);
-            _add.Clear();
+            if (_runningDelayer == null)
+            {
+                _operations.AddRange(_add);
+                _add.Clear();
+            }
             
             for (var i = 0; i < _operations.Count; i++)
             {
@@ -37,6 +46,20 @@ namespace Weapons.Operations
         {
             var context = new OperationContext();
             _add.Add(new OperationWithContext(operation, context));
+        }
+        
+        public IOperationRunner.IDelayer DelayOperationRunning()
+        {
+            _runningDelayer = new IOperationRunner.Delayer();
+            return _runningDelayer;
+        }
+
+        public void ReleaseOperationRunning(IOperationRunner.IDelayer delayer)
+        {
+            if (_runningDelayer != delayer)
+                return;
+
+            _runningDelayer = null;
         }
 
         private struct OperationWithContext
