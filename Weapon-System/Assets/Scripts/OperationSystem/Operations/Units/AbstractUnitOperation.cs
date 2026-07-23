@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using OperationSystem.Handlers;
 using OperationSystem.Handlers.Units;
+using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Middleware;
 using OperationSystem.Units;
 
 namespace OperationSystem.Operations.Units
@@ -12,8 +15,12 @@ namespace OperationSystem.Operations.Units
     {
         protected IUnitOperationHandler<T>? NullableHandler;
         protected IUnitOperationHandler<T> Handler => NullableHandler ?? throw new InvalidOperationException();
-
-        protected AbstractUnitOperation(Guid identifier) : base(identifier)
+        
+        protected AbstractUnitOperation(
+            Guid identifier, 
+            IEnumerable<IOperationMiddleware> middlewares, 
+            params IOperationData[] data) 
+            : base(identifier, middlewares, data)
         {
         }
         

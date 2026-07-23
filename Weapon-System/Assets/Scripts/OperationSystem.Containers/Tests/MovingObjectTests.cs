@@ -2,6 +2,7 @@
 using System.Runtime.ExceptionServices;
 using Coroutine;
 using NUnit.Framework;
+using OperationSystem.Containers.Middleware;
 using OperationSystem.Containers.Operations;
 using OperationSystem.Containers.Tests.Mocks;
 using OperationSystem.Containers.UnitHandlers;
@@ -9,9 +10,10 @@ using OperationSystem.Containers.Units;
 using OperationSystem.Containers.Units.Containers;
 using OperationSystem.Containers.Units.Containers.Locks.Accesses;
 using OperationSystem.Containers.Units.Containers.Locks.Keys;
-using OperationSystem.Containers.Units.Items;
 using OperationSystem.Handlers;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Middleware;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Tests
@@ -31,7 +33,7 @@ namespace OperationSystem.Containers.Tests
             var receiverItems = new ContainerItems();
             var receiver = new Container(receiverItems);
 
-            var executor = new Player();
+            var executor = new Executor();
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver);
             
@@ -52,7 +54,7 @@ namespace OperationSystem.Containers.Tests
             var receiverItems = new ContainerItems();
             var receiver = new Container(receiverItems);
 
-            var executor = new Player();
+            var executor = new Executor();
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver);
             
@@ -75,7 +77,7 @@ namespace OperationSystem.Containers.Tests
 
             var key = new Key(keyIdentifier);
             var keysStorage = new KeysStorage(key);
-            var executor = new Player(keysStorage);
+            var executor = new Executor(keysStorage);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver);
             
@@ -97,7 +99,7 @@ namespace OperationSystem.Containers.Tests
             var receiver = new Container(receiverItems, receiverLock);
 
             var access = new AccessLevel(accessLevel - 1);
-            var executor = new Player(access);
+            var executor = new Executor(access);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver);
             
@@ -120,7 +122,7 @@ namespace OperationSystem.Containers.Tests
             var receiver = new Container(receiverItems, receiverLock);
 
             var access = new AccessLevel(accessLevel + 1);
-            var executor = new Player(access);
+            var executor = new Executor(access);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver);
             
@@ -144,7 +146,7 @@ namespace OperationSystem.Containers.Tests
             var receiverVolume = new ContainerVolume(volume - 1);
             var receiver = new Container(receiverItems, receiverVolume);
 
-            var executor = new Player();
+            var executor = new Executor();
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver);
             
@@ -168,7 +170,7 @@ namespace OperationSystem.Containers.Tests
             var receiverVolume = new ContainerVolume(volume);
             var receiver = new Container(receiverItems, receiverVolume);
 
-            var executor = new Player();
+            var executor = new Executor();
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver);
             
@@ -176,11 +178,20 @@ namespace OperationSystem.Containers.Tests
         }
         
         private static IOperation RunAndWaitOperation(
-            IPlayer executor,
+            IUnit executor,
             IUnit target, 
             IContainer sender, 
             IContainer receiver)
         {
+            var middlewares = new IOperationMiddleware[]
+            {
+                new ContainerLockMiddleware(),
+                new ContainerVolumeMiddleware()
+            };
+
+            var executorData = new OperationExecutor(executor);
+            var targetData = new OperationTarget(target);
+            
             var senderRunner = new OperationRunner();
             var senderHandler = new ContainerHandler(senderRunner);
             senderHandler.SetUnit(sender).Wait();
@@ -193,7 +204,9 @@ namespace OperationSystem.Containers.Tests
             var globalHandler = new OperationHandler(globalRunner);
             
             var guid = Guid.NewGuid();
-            var operation = new MovingObjectOperation(guid, executor, target, senderHandler, receiverHandler);
+            var operation = new MovingObjectOperation(guid, executorData, targetData, 
+                senderHandler, receiverHandler, middlewares);
+            
             operation.RunOperation(globalHandler);
             
             var timeout = Timeout;

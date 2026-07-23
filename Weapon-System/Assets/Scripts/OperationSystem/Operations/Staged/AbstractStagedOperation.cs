@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Coroutine;
+using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Middleware;
 
 namespace OperationSystem.Operations.Staged
 {
@@ -16,7 +19,11 @@ namespace OperationSystem.Operations.Staged
 
         protected IOperationContext Context => _context ?? throw new InvalidOperationException();
         
-        protected AbstractStagedOperation(Guid identifier) : base(identifier)
+        protected AbstractStagedOperation(
+            Guid identifier, 
+            IEnumerable<IOperationMiddleware> middlewares, 
+            params IOperationData[] data) 
+            : base(identifier, middlewares, data)
         {
         }
 
@@ -52,6 +59,7 @@ namespace OperationSystem.Operations.Staged
         public Task Cancel(Exception exception) => CreateCoroutineTask(CancelEnumerator(exception));
 
         protected abstract IEnumerator ValidateEnumerator();
+        
         protected abstract IEnumerator TryAcquireLocksEnumerator();
 
         protected virtual IEnumerator ReleaseLocksEnumerator()

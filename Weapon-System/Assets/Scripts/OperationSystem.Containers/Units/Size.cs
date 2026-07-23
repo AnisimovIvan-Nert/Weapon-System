@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using OperationSystem.Units;
 
-namespace OperationSystem.Containers.Units.Items
+namespace OperationSystem.Containers.Units
 {
     public interface ISize : IUnit
     {

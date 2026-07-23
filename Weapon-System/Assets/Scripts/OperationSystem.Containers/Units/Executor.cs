@@ -2,15 +2,15 @@
 
 namespace OperationSystem.Containers.Units
 {
-    public interface IPlayer : IUnit
+    public interface IExecutor : IUnit
     {
     }
 
-    public class Player
+    public class Executor
         : AbstractUnit
-        , IPlayer
+        , IExecutor
     {
-        public Player(params IUnit[] children) 
+        public Executor(params IUnit[] children) 
             : base(children)
         {
         }

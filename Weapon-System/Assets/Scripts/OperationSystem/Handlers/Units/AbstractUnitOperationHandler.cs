@@ -10,6 +10,8 @@ namespace OperationSystem.Handlers.Units
         where T : IUnit
     {
         public T? Unit { get; private set; }
+        
+        IUnit? IUnitOperationHandler.Unit => Unit;
 
         protected AbstractUnitOperationHandler(IOperationRunner operationRunner) 
             : base(operationRunner)

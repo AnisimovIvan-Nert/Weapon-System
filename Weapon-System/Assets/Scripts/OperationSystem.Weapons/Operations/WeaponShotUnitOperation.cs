@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Units;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Units;
@@ -9,8 +12,11 @@ namespace OperationSystem.Weapons.Operations
 {
     public class WeaponShotUnitOperation : AbstractUnitOperation<IWeapon>
     {
-        public WeaponShotUnitOperation(Guid identifier)
-            : base(identifier)
+        public WeaponShotUnitOperation(
+            Guid identifier, 
+            IEnumerable<IOperationMiddleware> middlewares,
+            params IOperationData[] data) 
+            : base(identifier, middlewares, data)
         {
         }
 

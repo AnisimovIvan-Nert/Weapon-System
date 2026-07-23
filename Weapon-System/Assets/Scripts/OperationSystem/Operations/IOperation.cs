@@ -1,5 +1,6 @@
 ﻿using System;
 using OperationSystem.Handlers;
+using OperationSystem.Operations.Data;
 
 namespace OperationSystem.Operations
 {
@@ -14,5 +15,8 @@ namespace OperationSystem.Operations
         void Increment(IOperationContext operationContext);
         
         void RunOperation(IOperationHandler handler);
+
+        T? TryGetData<T>()
+            where T : IOperationData;
     }
 }

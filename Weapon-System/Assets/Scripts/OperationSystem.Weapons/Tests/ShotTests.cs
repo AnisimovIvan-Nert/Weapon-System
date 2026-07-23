@@ -5,6 +5,7 @@ using System.Runtime.ExceptionServices;
 using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Middleware;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Assets;
 using OperationSystem.Weapons.Operations;
@@ -36,7 +37,8 @@ namespace OperationSystem.Weapons.Tests
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
             {
-                var operation = new WeaponShotUnitOperation(Guid.NewGuid());
+                var guid = Guid.NewGuid();
+                var operation = new WeaponShotUnitOperation(guid, Enumerable.Empty<IOperationMiddleware>());
                 operation.RunOperation(handler);
                 operations.Add(operation);
             }
@@ -117,7 +119,8 @@ namespace OperationSystem.Weapons.Tests
             handler.SetUnit(unit).Wait(Timeout);
             Assert.AreEqual(unit, handler.Unit);
 
-            var operation = new WeaponShotUnitOperation(Guid.NewGuid());
+            var guid = Guid.NewGuid();
+            var operation = new WeaponShotUnitOperation(guid, Enumerable.Empty<IOperationMiddleware>());
             operation.RunOperation(handler);
 
             var timeout = Timeout;

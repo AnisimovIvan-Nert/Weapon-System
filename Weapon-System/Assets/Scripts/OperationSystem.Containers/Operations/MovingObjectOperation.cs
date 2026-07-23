@@ -1,40 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
-using OperationSystem.Containers.Units;
+using System.Linq;
 using OperationSystem.Containers.Units.Containers;
 using OperationSystem.Handlers.Units;
+using OperationSystem.Operations;
+using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Orchestrator;
 using OperationSystem.Operations.Staged;
-using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
 {
     public class MovingObjectOperation : AbstractOrchestratorOperation
     {
-        private readonly IPlayer _executor;
-        private readonly IUnit _target;
-
         private readonly IUnitOperationHandler<IContainer> _sender;
         private readonly IUnitOperationHandler<IContainer> _receiver;
 
         public MovingObjectOperation(
             Guid identifier,
-            IPlayer executor,
-            IUnit target,
+            IOperationExecutor executor,
+            IOperationTarget target,
             IUnitOperationHandler<IContainer> sender,
-            IUnitOperationHandler<IContainer> receiver)
-            : base(identifier)
+            IUnitOperationHandler<IContainer> receiver,
+            params IOperationMiddleware[] middlewares)
+            : base(identifier, middlewares, executor, target)
         {
-            _executor = executor;
-            _target = target;
             _sender = sender;
             _receiver = receiver;
         }
 
         protected override ICollection<IStagedOperation> GetOrchestratedOperations()
         {
-            var sendOperation = new SendObjectUnitOperation(Identifier, _executor, _target);
-            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, _executor, _target);
+            var executor = this.GetData<IOperationExecutor>();
+            var target = this.GetData<IOperationTarget>();
+            
+            var sendOperation = new SendObjectUnitOperation(Identifier,  executor, target, Middlewares.ToArray());
+            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, executor, target, Middlewares.ToArray());
             return new IStagedOperation[] { sendOperation, receiveObjectOperation };
         }
 

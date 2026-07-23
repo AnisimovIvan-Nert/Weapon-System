@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Coroutine;
 using Coroutine.Instructions;
+using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Staged;
 
 namespace OperationSystem.Operations.Orchestrator
@@ -14,8 +16,11 @@ namespace OperationSystem.Operations.Orchestrator
 
         private ICollection<IStagedOperation> Operations => _operations ?? throw new InvalidOperationException();
 
-        protected AbstractOrchestratorOperation(Guid identifier) 
-            : base(identifier)
+        protected AbstractOrchestratorOperation(
+            Guid identifier, 
+            IEnumerable<IOperationMiddleware> middlewares, 
+            params IOperationData[] data) 
+            : base(identifier, middlewares, data)
         {
         }
 

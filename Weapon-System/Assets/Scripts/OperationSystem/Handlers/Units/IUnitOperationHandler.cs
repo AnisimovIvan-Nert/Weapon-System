@@ -3,10 +3,15 @@ using OperationSystem.Units;
 
 namespace OperationSystem.Handlers.Units
 {
-    public interface IUnitOperationHandler<T> : IOperationHandler
+    public interface IUnitOperationHandler : IOperationHandler
+    {
+        IUnit? Unit { get; }
+    }
+    
+    public interface IUnitOperationHandler<T> : IUnitOperationHandler
         where T : IUnit
     {
-        T? Unit { get; }
+        new T? Unit { get; }
 
         IEnumerator SetUnit(T? unit);
     }
