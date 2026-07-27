@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ShiftableData
 {
@@ -7,7 +9,7 @@ namespace ShiftableData
         private readonly ShiftableDataBuffer<T> _data;
         private readonly int[] _lengthData;
 
-        public T[] Data => _data.Data;
+        public IReadOnlyList<T> Data => _data.Data;
 
         public int Length
         {
@@ -43,7 +45,7 @@ namespace ShiftableData
             if (index != Length)
                 _data.ShiftRight(index, Length, data.Length);
 
-            Array.Copy(data, 0, Data, index, data.Length);
+            Array.Copy(data, 0, _data.Data, index, data.Length);
             Length += data.Length;
         }
 
@@ -62,7 +64,7 @@ namespace ShiftableData
                 return;
 
             var length = endIndex - startIndex;
-            _data.ShiftLeft(endIndex, Length, endIndex - startIndex);
+            _data.ShiftLeft(endIndex, -1, length);
             Length -= length;
         }
         
@@ -72,14 +74,20 @@ namespace ShiftableData
         {
             var end = endIndex == -1 ? Length : endIndex;
             var length = end - startIndex;
-            if (length == data.Length)
+            var difference =  data.Length - length; 
+            
+            switch (difference)
             {
-                Array.Copy(data, 0, Data, startIndex, length);
-                return;
+                case < 0:
+                    Remove(end + difference, end);
+                    break;
+                case > 0:
+                    var defaultData = Enumerable.Repeat<T>(default!, difference).ToArray();
+                    Insert(startIndex + length, defaultData);
+                    break;
             }
             
-            Remove(startIndex, endIndex);
-            Insert(startIndex, data);
+            Array.Copy(data, 0, _data.Data, startIndex, data.Length);
         }
     }
 }

@@ -33,7 +33,7 @@ namespace ShiftableData
             Resize(size);
         }
 
-        public void ShiftRight(int startIndex, int endIndex = -1, int distance = 1)
+        public void ShiftRight(int startIndex, int endIndex = -1, int distance = 1, bool dropExtra = true)
         {
             if (distance < 1 || startIndex < 0 || endIndex > Data.Length)
                 throw new ArgumentOutOfRangeException();
@@ -46,8 +46,12 @@ namespace ShiftableData
             if (targetIndex >= Data.Length)
                 throw new ArgumentException("Shift exceeds array bounds");
 
-            var length = endIndex == -1 ? Data.Length - targetIndex : endIndex - startIndex;
-            var extra =  targetIndex + length - Data.Length;
+            endIndex = endIndex == -1 ? Data.Length : endIndex;
+            var length = endIndex - startIndex;
+            var extra = targetIndex + length - Data.Length;
+
+            if (!dropExtra && extra > 0)
+                throw new InvalidOperationException();
 
             length = extra > 0 ? length - extra : length;
 
@@ -71,7 +75,8 @@ namespace ShiftableData
             if (targetIndex < 0)
                 throw new ArgumentException("Shift exceeds array bounds");
 
-            var length = endIndex == -1 ? Data.Length - startIndex : endIndex - startIndex;
+            endIndex = endIndex == -1 ? Data.Length : endIndex;
+            var length = endIndex - startIndex;
             
             Array.Copy(Data, startIndex, Data, targetIndex, length);
             Array.Clear(Data, endIndex - distance, distance);
