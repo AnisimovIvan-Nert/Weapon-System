@@ -89,5 +89,7 @@ namespace ShiftableData
             
             Array.Copy(data, 0, _data.Data, startIndex, data.Length);
         }
+
+        public Span<T> GetRange(int start, int end) => new(_data.Data, start, end - start);
     }
 }

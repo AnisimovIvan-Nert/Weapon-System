@@ -1,11 +1,11 @@
-﻿using OperationSystem.Resource;
+﻿using System;
+using OperationSystem.Resource;
 
 namespace OperationSystem.Components
 {
     public interface IComponent : IResource
     {
-        int DataSize { get; }
-        byte[] GetData();
-        void ReadData(byte[] data);
+        Span<byte> GetData();
+        void ReadData(Span<byte> data);
     }
 }
