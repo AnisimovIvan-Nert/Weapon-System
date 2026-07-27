@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using OperationSystem.Components;
 using ShiftableData;
 
-namespace OperationSystem.Components
+namespace OperationSystem.Component
 {
     public readonly struct Components
     {
