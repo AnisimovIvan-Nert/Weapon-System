@@ -1,14 +1,13 @@
 {
-    "name": "OperationSystem.Weapons",
+    "name": "OperationSystem.Components",
     "rootNamespace": "",
     "references": [
         "GUID:eed073242e6d60446bb877b8ab40d7bc",
-        "GUID:35ba3b6e76ed1b346a21ac0a27b444a0",
-        "GUID:70d52a3df526d44499181bc0e43e2af3"
+        "GUID:6185fb26b2412674e97712d0fc5c9248"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
