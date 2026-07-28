@@ -1,21 +1,19 @@
-﻿using System.Collections.Generic;
-using OperationSystem.Units;
+﻿using OperationSystem.Component;
 
 namespace OperationSystem.Weapons.Units
 {
-    public interface IChamber : IUnit
+    public interface IChamber : IComponent
     {
         bool HasRound { get; set; }
     }
 
     public class Chamber
-        : AbstractUnit
+        : AbstractComponent
         , IChamber
     {
         public bool HasRound { get; set; }
         
-        public Chamber(bool hasRound, IEnumerable<IUnit> children)
-            : base(children)
+        public Chamber(bool hasRound)
         {
             HasRound = hasRound;
         }

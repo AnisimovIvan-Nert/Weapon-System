@@ -1,21 +1,19 @@
-﻿using System.Collections.Generic;
-using OperationSystem.Units;
+﻿using OperationSystem.Component;
 
 namespace OperationSystem.Weapons.Units
 {
-    public interface IMagazine : IUnit
+    public interface IMagazine : IComponent
     {
         int Rounds { get; set; }
     }
 
     public class Magazine
-        : AbstractUnit
+        : AbstractComponent
         , IMagazine
     {
         public int Rounds { get; set; }
         
-        public Magazine(int rounds, IEnumerable<IUnit> children)
-            : base(children)
+        public Magazine(int rounds)
         {
             Rounds = rounds;
         }

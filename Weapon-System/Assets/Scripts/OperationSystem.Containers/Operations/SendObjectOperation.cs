@@ -49,7 +49,7 @@ namespace OperationSystem.Containers.Operations
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
-            var items = Context.AccessFirst<IContainerItems>(this);
+            var items = Context.Access<IContainerItems>(this);
             var index = items.Items.IndexOf(target);
 
             if (index == -1)
@@ -68,7 +68,7 @@ namespace OperationSystem.Containers.Operations
         {
             yield return base.ExecuteEnumerator();
             
-            var items = Context.AccessFirst<IContainerItems>(this);
+            var items = Context.Access<IContainerItems>(this);
             var target = this.GetData<IOperationTarget>();
 
             items.Items.Remove(target.Target);

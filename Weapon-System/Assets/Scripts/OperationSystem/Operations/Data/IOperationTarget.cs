@@ -4,14 +4,14 @@ namespace OperationSystem.Operations.Data
 {
     public interface IOperationTarget : IOperationData
     {
-        IUnit Target { get; }
+        Unit Target { get; }
     }
     
     public class OperationTarget : IOperationTarget
     {
-        public IUnit Target { get; }
+        public Unit Target { get; }
         
-        public OperationTarget(IUnit target)
+        public OperationTarget(Unit target)
         {
             Target = target;
         }

@@ -11,7 +11,7 @@ namespace OperationSystem.Handlers
             OperationRunner = operationRunner;
         }
         
-        public void Update()
+        public virtual void Update()
         {
             OperationRunner.Update();
         }

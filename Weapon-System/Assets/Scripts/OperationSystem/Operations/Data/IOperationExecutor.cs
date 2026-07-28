@@ -4,14 +4,14 @@ namespace OperationSystem.Operations.Data
 {
     public interface IOperationExecutor : IOperationData
     {
-        IUnit Executor { get; }
+        Unit Executor { get; }
     }
     
     public class OperationExecutor : IOperationExecutor
     {
-        public IUnit Executor { get; }
+        public Unit Executor { get; }
         
-        public OperationExecutor(IUnit executor)
+        public OperationExecutor(Unit executor)
         {
             Executor = executor;
         }

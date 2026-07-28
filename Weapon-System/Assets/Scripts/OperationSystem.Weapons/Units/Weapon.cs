@@ -1,19 +1,14 @@
-﻿using System.Collections.Generic;
-using OperationSystem.Units;
+﻿using OperationSystem.Component;
 
 namespace OperationSystem.Weapons.Units
 {
-    public interface IWeapon : IUnit
+    public interface IWeapon : IComponent
     {
     }
 
     public class Weapon
-        : AbstractUnit
+        : AbstractComponent
         , IWeapon
     {
-        public Weapon(IEnumerable<IUnit> children)
-            : base(children)
-        {
-        }
     }
 }

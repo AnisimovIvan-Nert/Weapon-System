@@ -1,9 +1,8 @@
 ﻿using System;
-using OperationSystem.Resource;
 
-namespace OperationSystem.Components
+namespace OperationSystem.Component
 {
-    public interface IComponent : IResource
+    public interface IComponent
     {
         Span<byte> GetData();
         void ReadData(Span<byte> data);

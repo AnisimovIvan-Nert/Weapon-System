@@ -1,32 +1,58 @@
 ﻿using System.Collections;
+using OperationSystem.Assets;
 using OperationSystem.Operations;
 using OperationSystem.Units;
 
 namespace OperationSystem.Handlers.Units
 {
-    public abstract class AbstractUnitOperationHandler<T> 
+    public abstract class AbstractUnitOperationHandler
         : AbstractOperationHandler
-        , IUnitOperationHandler<T>
-        where T : IUnit
+        , IUnitOperationHandler
     {
-        public T? Unit { get; private set; }
+        private readonly UnitWorld _world;
         
-        IUnit? IUnitOperationHandler.Unit => Unit;
+        private IAsset? _asset;
+        
+        public Unit? Unit { get; private set; }
 
         protected AbstractUnitOperationHandler(IOperationRunner operationRunner) 
             : base(operationRunner)
         {
+            _world = new UnitWorld();
         }
 
-        public IEnumerator SetUnit(T? unit)
+        public IEnumerator SetAsset(IAsset? asset)
         {
             var delayer = OperationRunner.DelayOperationRunning();
+            {
+                if (OperationRunner.AnyRunningOperation)
+                    yield return null;
 
-            if (OperationRunner.AnyRunningOperation)
-                yield return null;
-
-            Unit = unit;
+                _asset = asset;
+                
+                _world.Clear();
+                if (asset == null)
+                {
+                    Unit = null;
+                }
+                else
+                {
+                    var unit = _world.GetOrAddUnit(asset);
+                    Unit = unit;
+                }
+            }
             OperationRunner.ReleaseOperationRunning(delayer);
+        }
+
+        public override void Update()
+        {
+            if (_asset != null && Unit != null)
+                _asset.SetComponents(Unit.Value, _world);
+                
+            base.Update();
+            
+            if (_asset != null && Unit != null)
+                _asset.ReadComponents(Unit.Value, _world);
         }
     }
 }

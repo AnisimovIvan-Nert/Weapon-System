@@ -3,9 +3,8 @@ using OperationSystem.Units;
 
 namespace OperationSystem.Operations.Units
 {
-    public interface IUnitOperation<T> : IOperation
-        where T : IUnit
+    public interface IUnitOperation : IOperation
     {
-        void RunOperation(IUnitOperationHandler<T> handler);
+        void RunOperation(IUnitOperationHandler handler);
     }
 }

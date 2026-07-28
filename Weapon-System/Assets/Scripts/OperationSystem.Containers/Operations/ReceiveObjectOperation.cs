@@ -48,7 +48,7 @@ namespace OperationSystem.Containers.Operations
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
-            var items = Context.AccessFirst<IContainerItems>(this);
+            var items = Context.Access<IContainerItems>(this);
 
             Context.RecordUndo(() =>
             {
@@ -61,7 +61,7 @@ namespace OperationSystem.Containers.Operations
         {
             yield return base.ExecuteEnumerator();
             
-            var items = Context.AccessFirst<IContainerItems>(this);
+            var items = Context.Access<IContainerItems>(this);
             var target = this.GetData<IOperationTarget>();
 
             items.Items.Add(target.Target);

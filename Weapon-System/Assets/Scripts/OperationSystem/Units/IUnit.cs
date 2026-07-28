@@ -1,10 +1,16 @@
-﻿using System.Collections.Generic;
-using OperationSystem.Resource;
+﻿using OperationSystem.Component;
 
 namespace OperationSystem.Units
 {
-    public interface IUnit : IResource
+    public readonly struct Unit
     {
-        IEnumerable<IUnit> Children { get; }
+        public UnitId Id { get; }
+        public ComponentsData ComponentsData { get; }
+        
+        public Unit(UnitId id, ComponentsData componentsData)
+        {
+            Id = id;
+            ComponentsData = componentsData;
+        }
     }
 }
