@@ -4,7 +4,7 @@ using ECS.Units;
 
 namespace ECS
 {
-    public class ComponentArray<T> : IComponentArray where T : IComponent
+    public class ComponentArray<T> : IComponentArray where T : struct, IComponent
     {
         private T[] _components;
         private DirtyTracker _assetDirty;

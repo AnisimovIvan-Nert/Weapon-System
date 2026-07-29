@@ -62,17 +62,15 @@ namespace ECS
             return new DirtyEnumerator(_bits, _capacity);
         }
 
-        public unsafe struct DirtyEnumerator
+        public struct DirtyEnumerator
         {
-            private ulong[] _bits;
-            private int _capacity;
+            private readonly ulong[] _bits;
             private int _currentWord;
             private ulong _currentBits;
 
             internal DirtyEnumerator(ulong[] bits, int capacity)
             {
                 _bits = bits;
-                _capacity = capacity;
                 _currentWord = -1;
                 _currentBits = 0;
             }

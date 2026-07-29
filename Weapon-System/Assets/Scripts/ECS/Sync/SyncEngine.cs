@@ -11,7 +11,7 @@ namespace ECS
         private readonly List<IComponentArray> _componentArrays;
         private IComponentArray[] _arrayByTypeId;
 
-        private int _maxEntities;
+        private readonly int _maxEntities;
 
         public UnitRegistry Registry => _registry;
         public ISyncAssetResolver AssetResolver => _assetResolver;
@@ -40,7 +40,7 @@ namespace ECS
             _arrayByTypeId[typeId] = array;
         }
 
-        public ComponentArray<T> RegisterComponentType<T>() where T : IComponent
+        public ComponentArray<T> RegisterComponentType<T>() where T : struct, IComponent
         {
             var typeId = ComponentType<T>.Id;
             var existing = GetArrayByTypeId(typeId);
@@ -53,17 +53,17 @@ namespace ECS
             return array;
         }
 
-        public ComponentArray<T> GetArray<T>() where T : IComponent
+        public ComponentArray<T> GetArray<T>() where T : struct, IComponent
         {
             return (ComponentArray<T>)_arrayByTypeId[ComponentType<T>.Id];
         }
 
-        public ref T Get<T>(UnitId unitId) where T : IComponent
+        public ref T Get<T>(UnitId unitId) where T : struct, IComponent
         {
             return ref GetArray<T>().Get(unitId);
         }
 
-        public ref T Get<T>(in Unit unit) where T : IComponent
+        public ref T Get<T>(in Unit unit) where T : struct, IComponent
         {
             return ref GetArray<T>().Get(unit.Id);
         }
