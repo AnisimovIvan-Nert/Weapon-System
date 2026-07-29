@@ -3,7 +3,7 @@ using OperationSystem.Units;
 
 namespace OperationSystem.Assets
 {
-    public interface IAsset
+    public interface IAsset : IUnitTarget
     {
         IEnumerable<IAsset> Children { get; }
 

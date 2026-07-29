@@ -1,32 +1,61 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using OperationSystem.Component;
 
-namespace OperationSystem.Component.Types
+namespace ECS
 {
-    public readonly struct ComponentType : IEquatable<ComponentType>
+    public static class ComponentType<T> where T : IComponent
     {
-        public int Id { get; }
+        public static readonly int Id;
+
+        static ComponentType()
+        {
+            Id = ComponentType.Register();
+        }
+    }
+    
+    public static class ComponentType
+    {
+        private static int _nextId;
+        private static bool _isWarmedUp;
+
+        public static int RegisteredTypeCount => _nextId;
+            
+        public static int Register()
+        {
+            return Interlocked.Increment(ref _nextId);
+        }
+
+        public static void WarmUp()
+        {
+            if (_isWarmedUp)
+                return;
+            
+            var types = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(GetSafeTypes)
+                .Where(type => typeof(IComponent).IsAssignableFrom(type))
+                .OrderBy(type => type.FullName)
+                .ToArray();
+            
+            foreach (var type in types)
+                RuntimeHelpers.RunClassConstructor(typeof(ComponentType<>).MakeGenericType(type).TypeHandle);
+
+            _isWarmedUp = true;
+        }
         
-        public ComponentType(int id)
+        private static IEnumerable<Type> GetSafeTypes(System.Reflection.Assembly assembly)
         {
-            Id = id;
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (System.Reflection.ReflectionTypeLoadException exception)
+            {
+                return exception.Types.Where(type => type != null);
+            }
         }
-
-        public static ComponentType Create(Type type)
-        {
-            return TypesRegistry<IComponent>.GetComponentType(type);
-        }
-        
-        public static ComponentType Create<T>()
-            where T : IComponent
-        {
-            return TypesRegistry<IComponent>.GetComponentType<T>();
-        }
-
-        public static bool operator ==(ComponentType value, ComponentType other) => value.Equals(other);
-        public static bool operator !=(ComponentType value, ComponentType other) => !(value == other);
-
-        public bool Equals(ComponentType other) => Id == other.Id;
-        public override bool Equals(object? obj) => obj is ComponentType other && Equals(other);
-        public override int GetHashCode() => Id;
     }
 }

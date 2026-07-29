@@ -6,10 +6,12 @@ namespace OperationSystem.Units
     public readonly struct Unit : IEquatable<Unit>
     {
         public UnitId Id { get; }
+        public ComponentsData ComponentsData { get; }
         
-        public Unit(UnitId id)
+        public Unit(UnitId id, ComponentsData componentsData)
         {
             Id = id;
+            ComponentsData = componentsData;
         }
         
         public static bool operator ==(Unit left, Unit right) => left.Equals(right);
