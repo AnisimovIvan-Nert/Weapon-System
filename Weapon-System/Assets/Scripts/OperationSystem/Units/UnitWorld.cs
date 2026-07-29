@@ -1,63 +1,40 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using OperationSystem.Assets;
+﻿using ECS;
+using ECS.Units;
 using OperationSystem.Component;
 
 namespace OperationSystem.Units
 {
     public readonly struct UnitWorld
     {
-        private readonly Dictionary<UnitId, IAsset> _units;
-        private readonly UnitId[] _nextId;
+        private readonly IComponentArray[] _componentArrays;
         private readonly object _lock;
-        
-        public UnitId NextId
+
+        public UnitRegistry Registry { get; }
+
+        private UnitWorld(UnitRegistry registry, IComponentArray[] componentArrays)
         {
-            get => _nextId[0];
-            set => _nextId[0] = value;
-        }
-        
-        private UnitWorld(bool _)
-        {
-            _units = new Dictionary<UnitId, IAsset>();
-            _nextId = new[] { new UnitId() };
+            Registry = registry;
+            _componentArrays = componentArrays;
             _lock = new object();
         }
 
-        public static UnitWorld Create() => new(true);
-
-        public Unit CreateUnit(IAsset asset)
+        public static UnitWorld Create()
         {
-            lock (_lock)
-            {
-                var componentsData = ComponentsData.Create();
-                var unit = new Unit(NextId, componentsData);
+            var registry = new UnitRegistry();
             
-                _units.Add(NextId, asset);
-
-                while (_units.ContainsKey(NextId))
-                    NextId = new UnitId(NextId.Id + 1);
-
-                foreach (var handle in asset.EnumerateComponents(this))
-                    componentsData.AddComponent(handle);
-
-                return unit;
-            }
+            ComponentType.WarmUp();
+            var componentArrays = new IComponentArray[ComponentType.RegisteredTypeCount];
+            return new UnitWorld(registry, componentArrays);
         }
-
-        public IAsset GetAsset(UnitId id)
+        
+        public ComponentArray<T> GetArray<T>() where T : struct, IComponent
         {
-            lock (_lock)
-                return _units[id];
+            return (ComponentArray<T>)_componentArrays[ComponentType<T>.Id];
         }
-
-        public void RemoveUnits(params UnitId[] ids)
+        
+        public ref T Get<T>(in Unit unit) where T : struct, IComponent
         {
-            lock (_lock)
-            {
-                foreach (var id in ids)
-                    _units.Remove(id);
-            }
+            return ref GetArray<T>().Get(unit.Id);
         }
     }
 }

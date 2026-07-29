@@ -30,15 +30,17 @@ namespace ECS.Units
             _freeSlots = new ConcurrentStack<int>();
         }
 
-        public Unit Create(IAsset asset, ComponentMask mask)
+        public Unit Create(IAsset asset)
         {
+            var mask = asset.GetComponentMask();
+            
             if (!_freeSlots.TryPop(out var id))
             {
                 id = Interlocked.Increment(ref _count);
                 if (_count > _slots.Length)
                     GrowSize(_count);
             }
-
+            
             _slots[id] = new Slot
             {
                 Alive = true,
@@ -70,11 +72,6 @@ namespace ECS.Units
         
         public IAsset GetAsset(UnitId unitId) => _slots[unitId.Id].Asset;
         public ComponentMask GetMask(UnitId unitId) => _slots[unitId.Id].Mask;
-
-        public bool HasMask(UnitId unitId, ComponentMask mask)
-        {
-            return (_slots[unitId.Id].Mask & mask) == mask;
-        }
 
         public IEnumerable<UnitId> EnumerateAlive()
         {

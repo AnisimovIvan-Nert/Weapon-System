@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using ECS;
 using OperationSystem.Units;
 
 namespace OperationSystem.Assets
@@ -9,5 +10,7 @@ namespace OperationSystem.Assets
 
         void AddChild(IAsset child);
         void RemoveChild(IAsset child);
+
+        ComponentMask GetComponentMask();
     }
 }
