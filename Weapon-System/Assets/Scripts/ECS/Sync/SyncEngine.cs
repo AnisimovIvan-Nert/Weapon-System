@@ -23,20 +23,6 @@ namespace ECS
             _arrayByTypeId = Array.Empty<IComponentArray>();
         }
 
-        private IComponentArray GetArrayByTypeId(int typeId)
-        {
-            if (typeId < _arrayByTypeId.Length)
-                return _arrayByTypeId[typeId];
-            return null;
-        }
-
-        private void SetArrayByTypeId(int typeId, IComponentArray array)
-        {
-            if (typeId >= _arrayByTypeId.Length)
-                Array.Resize(ref _arrayByTypeId, Math.Max(typeId + 1, _arrayByTypeId.Length * 2));
-            _arrayByTypeId[typeId] = array;
-        }
-
         public ComponentArray<T> RegisterComponentType<T>() where T : struct, IComponent
         {
             var typeId = ComponentType<T>.Id;
@@ -139,6 +125,20 @@ namespace ECS
             Pull();
             systems();
             Push();
+        }
+        
+        private IComponentArray? GetArrayByTypeId(int typeId)
+        {
+            if (typeId < _arrayByTypeId.Length)
+                return _arrayByTypeId[typeId];
+            return null;
+        }
+
+        private void SetArrayByTypeId(int typeId, IComponentArray array)
+        {
+            if (typeId >= _arrayByTypeId.Length)
+                Array.Resize(ref _arrayByTypeId, Math.Max(typeId + 1, _arrayByTypeId.Length * 2));
+            _arrayByTypeId[typeId] = array;
         }
     }
 }

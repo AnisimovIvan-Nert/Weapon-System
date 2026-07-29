@@ -7,15 +7,12 @@ namespace ECS
 {
     public struct DirtyTracker
     {
-        private readonly object _lock;
-        
         private ulong[] _bits;
 
         public DirtyTracker(int initialCapacity = 64)
         {
             var len = Math.Max(1, (initialCapacity + 63) / 64);
             _bits = new ulong[len];
-            _lock = new object();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -43,7 +40,7 @@ namespace ECS
         {
             var id = unitId.Id;
             var idx = id >> 6;
-            if (idx >= _bits.Length) 
+            if (idx >= _bits.Length)
                 return;
             _bits[idx] &= ~(1UL << (id & 0x3F));
         }
@@ -55,12 +52,9 @@ namespace ECS
 
         internal void EnsureCapacity(int maxEntityId)
         {
-            lock (_lock)
-            {
-                var idx = maxEntityId >> 6;
-                if (idx >= _bits.Length)
-                    Array.Resize(ref _bits, Math.Max(idx + 1, _bits.Length * 2));
-            }
+            var idx = maxEntityId >> 6;
+            if (idx >= _bits.Length)
+                Array.Resize(ref _bits, Math.Max(idx + 1, _bits.Length * 2));
         }
 
         public DirtyEnumerator GetEnumerator()
@@ -89,6 +83,7 @@ namespace ECS
                     if (_currentWord >= _bits.Length) return false;
                     _currentBits = _bits[_currentWord];
                 }
+
                 return true;
             }
 

@@ -6,8 +6,6 @@ namespace ECS
 {
     public class ComponentArray<T> : IComponentArray where T : struct, IComponent
     {
-        private readonly object _lock = new();
-        
         private T[] _components;
         private DirtyTracker _assetDirty;
         private DirtyTracker _componentDirty;
@@ -46,15 +44,12 @@ namespace ECS
 
         private void EnsureCapacity(int id)
         {
-            lock (_lock)
+            if (id >= _components.Length)
             {
-                if (id >= _components.Length)
-                {
-                    var newLen = Math.Max(id + 1, _components.Length * 2);
-                    Array.Resize(ref _components, newLen);
-                    _assetDirty.EnsureCapacity(newLen - 1);
-                    _componentDirty.EnsureCapacity(newLen - 1);
-                }
+                var newLen = Math.Max(id + 1, _components.Length * 2);
+                Array.Resize(ref _components, newLen);
+                _assetDirty.EnsureCapacity(newLen - 1);
+                _componentDirty.EnsureCapacity(newLen - 1);
             }
         }
 
@@ -66,6 +61,7 @@ namespace ECS
                 if (assetResolver.GetAsset(registry.GetAssetHandle(unitId)) is IAssetPull<T> pull)
                     pull.PullInto(ref _components[unitId.Id]);
             }
+
             _assetDirty.ClearAll();
         }
 
@@ -77,6 +73,7 @@ namespace ECS
                 if (assetResolver.GetAsset(registry.GetAssetHandle(unitId)) is IAssetPush<T> push)
                     push.PushFrom(in _components[unitId.Id]);
             }
+
             _componentDirty.ClearAll();
         }
 
