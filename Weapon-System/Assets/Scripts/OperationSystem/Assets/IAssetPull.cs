@@ -1,4 +1,5 @@
 using OperationSystem.Assets;
+using OperationSystem.Component;
 
 namespace ECS
 {

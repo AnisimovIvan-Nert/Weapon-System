@@ -1,101 +1,47 @@
-using System;
-using System.Runtime.CompilerServices;
+using System.Collections;
+using System.Collections.Generic;
 using ECS.Shared;
 using OperationSystem.Units;
 
 namespace ECS
 {
-    public struct DirtyTracker
+    public readonly struct DirtyTracker
     {
-        private readonly object _lock;
-        private ulong[] _bits;
+        private readonly BitsCollection _dirtyBits;
 
-        public DirtyTracker(int initialCapacity = 64)
+        public DirtyTracker(int initialCapacity = 63)
         {
-            _bits = new ulong[initialCapacity];
-            _lock = new object();
+            _dirtyBits = new BitsCollection(initialCapacity);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetDirty(UnitId unitId)
-        {
-            var id = unitId.Id;
-            var idx = id >> 6;
-            var bit = 1UL << (id & 0x3F);
-            if (idx >= _bits.Length)
-                Array.Resize(ref _bits, Math.Max(idx + 1, _bits.Length * 2));
-            _bits[idx] |= bit;
-        }
+        public void SetDirty(UnitId unitId) => _dirtyBits.SetTrue(unitId.Id);
+        public bool IsDirty(UnitId unitId) => _dirtyBits.IsTrue(unitId.Id);
+        public void Clear(UnitId unitId) => _dirtyBits.SetFalse(unitId.Id);
+        public void ClearAll() => _dirtyBits.Clear();
+        public void EnsureCapacity(int capacity) => _dirtyBits.EnsureIndexInRange(capacity - 1);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsDirty(UnitId unitId)
-        {
-            var id = unitId.Id;
-            var idx = id >> 6;
-            var bit = 1UL << (id & 0x3F);
-            return idx < _bits.Length && (_bits[idx] & bit) != 0;
-        }
+        public DirtyEnumerator GetEnumerator() => new(_dirtyBits);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Clear(UnitId unitId)
+        public struct DirtyEnumerator : IEnumerator<UnitId>
         {
-            var id = unitId.Id;
-            var idx = id >> 6;
-            if (idx >= _bits.Length)
-                return;
-            _bits[idx] &= ~(1UL << (id & 0x3F));
-        }
+            private BitsCollection.TrueBitsEnumerator _trueBitsEnumerator;
 
-        public void ClearAll()
-        {
-            Array.Clear(_bits, 0, _bits.Length);
-        }
-
-        internal void EnsureCapacity(int maxEntityId)
-        {
-            var idx = maxEntityId >> 6;
-            if (idx >= _bits.Length)
-                Array.Resize(ref _bits, Math.Max(idx + 1, _bits.Length * 2));
-        }
-
-        public DirtyEnumerator GetEnumerator()
-        {
-            return new DirtyEnumerator(_bits);
-        }
-
-        public struct DirtyEnumerator
-        {
-            private readonly ulong[] _bits;
-            private int _currentWord;
-            private ulong _currentBits;
-
-            internal DirtyEnumerator(ulong[] bits)
+            internal DirtyEnumerator(BitsCollection bitsCollection)
             {
-                _bits = bits;
-                _currentWord = -1;
-                _currentBits = 0;
+                _trueBitsEnumerator = bitsCollection.GetEnumerator();
             }
+            
+            public void Reset() => _trueBitsEnumerator.Reset();
 
-            public bool MoveNext()
+            public bool MoveNext() => _trueBitsEnumerator.MoveNext();
+
+            public UnitId Current => new(_trueBitsEnumerator.Current);
+            
+            object IEnumerator.Current => Current;
+
+            public void Dispose()
             {
-                while (_currentBits == 0)
-                {
-                    _currentWord++;
-                    if (_currentWord >= _bits.Length) return false;
-                    _currentBits = _bits[_currentWord];
-                }
-
-                return true;
-            }
-
-            public UnitId Current
-            {
-                get
-                {
-                    var tz = BitOperations.TrailingZeroCount(_currentBits);
-                    _currentBits &= _currentBits - 1;
-                    return new UnitId((_currentWord << 6) + tz);
-                }
+                _trueBitsEnumerator.Dispose();
             }
         }
     }

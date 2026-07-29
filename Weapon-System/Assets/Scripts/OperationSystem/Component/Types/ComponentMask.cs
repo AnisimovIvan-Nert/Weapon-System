@@ -7,11 +7,11 @@ namespace ECS
 {
     public readonly struct ComponentMask
     {
-        private readonly BitCollection _typeBits;
+        private readonly BitsCollection _typeBits;
         
         private ComponentMask(int singleTypeId)
         {
-            _typeBits = new BitCollection(singleTypeId + 1);
+            _typeBits = new BitsCollection(singleTypeId + 1);
             _typeBits.SetTrue(singleTypeId);
         }
         
