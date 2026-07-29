@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using ECS.Shared;
 using ECS.Units;
 
 namespace ECS
@@ -10,8 +9,7 @@ namespace ECS
         private readonly UnitRegistry _registry;
         private readonly ISyncAssetResolver _assetResolver;
         private readonly List<IComponentArray> _componentArrays;
-        private readonly Dictionary<int, IComponentArray> _arrayByTypeId;
-        private readonly IComponentArray[] _arrayByTypeIdIndex;
+        private IComponentArray[] _arrayByTypeId;
 
         private int _maxEntities;
 
@@ -24,27 +22,40 @@ namespace ECS
             _registry = registry;
             _assetResolver = assetResolver;
             _componentArrays = new List<IComponentArray>();
-            _arrayByTypeId = new Dictionary<int, IComponentArray>();
-            _arrayByTypeIdIndex = new IComponentArray[64];
+            _arrayByTypeId = Array.Empty<IComponentArray>();
             _maxEntities = maxEntities;
+        }
+
+        private IComponentArray GetArrayByTypeId(int typeId)
+        {
+            if (typeId < _arrayByTypeId.Length)
+                return _arrayByTypeId[typeId];
+            return null;
+        }
+
+        private void SetArrayByTypeId(int typeId, IComponentArray array)
+        {
+            if (typeId >= _arrayByTypeId.Length)
+                Array.Resize(ref _arrayByTypeId, Math.Max(typeId + 1, _arrayByTypeId.Length * 2));
+            _arrayByTypeId[typeId] = array;
         }
 
         public ComponentArray<T> RegisterComponentType<T>() where T : IComponent
         {
             var typeId = ComponentType<T>.Id;
-            if (_arrayByTypeIdIndex[typeId] != null)
-                return (ComponentArray<T>)_arrayByTypeIdIndex[typeId];
+            var existing = GetArrayByTypeId(typeId);
+            if (existing != null)
+                return (ComponentArray<T>)existing;
 
             var array = new ComponentArray<T>(_maxEntities);
             _componentArrays.Add(array);
-            _arrayByTypeId[typeId] = array;
-            _arrayByTypeIdIndex[typeId] = array;
+            SetArrayByTypeId(typeId, array);
             return array;
         }
 
         public ComponentArray<T> GetArray<T>() where T : IComponent
         {
-            return (ComponentArray<T>)_arrayByTypeIdIndex[ComponentType<T>.Id];
+            return (ComponentArray<T>)_arrayByTypeId[ComponentType<T>.Id];
         }
 
         public ref T Get<T>(UnitId unitId) where T : IComponent
@@ -61,15 +72,10 @@ namespace ECS
         {
             var entity = _registry.Create(assetHandle, assetTypeId, mask);
 
-            var typesToRegister = mask.RawValue;
-            while (typesToRegister != 0)
+            foreach (var typeId in mask)
             {
-                var tz = BitOperations.TrailingZeroCount(typesToRegister);
-                typesToRegister &= typesToRegister - 1;
-                if (_arrayByTypeIdIndex[tz] != null)
-                {
-                    _arrayByTypeIdIndex[tz].SetAssetDirty(entity.Id);
-                }
+                var arr = GetArrayByTypeId(typeId);
+                arr?.SetAssetDirty(entity.Id);
             }
 
             return entity;
@@ -77,14 +83,13 @@ namespace ECS
 
         public void DestroyEntity(in Unit unit)
         {
-            var mask = _registry.GetMask(unit.Id).RawValue;
+            var mask = _registry.GetMask(unit.Id);
             _registry.Destroy(unit);
 
-            while (mask != 0)
+            foreach (var typeId in mask)
             {
-                var tz = BitOperations.TrailingZeroCount(mask);
-                mask &= mask - 1;
-                _arrayByTypeIdIndex[tz]?.OnEntityDestroyed(unit.Id);
+                var arr = GetArrayByTypeId(typeId);
+                arr?.OnEntityDestroyed(unit.Id);
             }
         }
 
@@ -92,16 +97,11 @@ namespace ECS
         {
             foreach (var unitId in _registry.AllAlive())
             {
-                if (_registry.GetAssetTypeId(unitId) == assetTypeId)
+                if (_registry.GetAssetTypeId(unitId) != assetTypeId) continue;
+                foreach (var typeId in _registry.GetMask(unitId))
                 {
-                    var mask = _registry.GetMask(unitId).RawValue;
-                    var remaining = mask;
-                    while (remaining != 0)
-                    {
-                        var tz = BitOperations.TrailingZeroCount(remaining);
-                        remaining &= remaining - 1;
-                        _arrayByTypeIdIndex[tz]?.SetAssetDirty(unitId);
-                    }
+                    var arr = GetArrayByTypeId(typeId);
+                    arr?.SetAssetDirty(unitId);
                 }
             }
         }
@@ -110,16 +110,11 @@ namespace ECS
         {
             foreach (var unitId in _registry.AllAlive())
             {
-                if (_registry.GetAssetHandle(unitId) == assetHandle)
+                if (_registry.GetAssetHandle(unitId) != assetHandle) continue;
+                foreach (var typeId in _registry.GetMask(unitId))
                 {
-                    var mask = _registry.GetMask(unitId).RawValue;
-                    var remaining = mask;
-                    while (remaining != 0)
-                    {
-                        var tz = BitOperations.TrailingZeroCount(remaining);
-                        remaining &= remaining - 1;
-                        _arrayByTypeIdIndex[tz]?.SetAssetDirty(unitId);
-                    }
+                    var arr = GetArrayByTypeId(typeId);
+                    arr?.SetAssetDirty(unitId);
                 }
             }
         }
@@ -127,17 +122,13 @@ namespace ECS
         public void Pull()
         {
             foreach (var array in _componentArrays)
-            {
                 array.PullFromAssets(_registry, _assetResolver);
-            }
         }
 
         public void Push()
         {
             foreach (var array in _componentArrays)
-            {
                 array.PushToAssets(_registry, _assetResolver);
-            }
         }
 
         public void Update()
