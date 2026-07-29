@@ -1,12 +1,6 @@
-﻿using OperationSystem.Resource;
-
-namespace OperationSystem.Component
+﻿namespace OperationSystem.Component
 {
-    public interface IComponent : IResource
+    public interface IComponent
     {
-        bool IsDirty { get; }
-        
-        void SetDirty();
-        void ResetDirty();
     }
 }

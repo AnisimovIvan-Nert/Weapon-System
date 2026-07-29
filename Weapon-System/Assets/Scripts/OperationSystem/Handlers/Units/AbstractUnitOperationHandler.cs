@@ -11,8 +11,6 @@ namespace OperationSystem.Handlers.Units
     {
         private readonly UnitWorld _world;
         
-        private IAsset? _asset;
-        
         public Unit? Unit { get; private set; }
 
         protected AbstractUnitOperationHandler(IOperationRunner operationRunner) 
@@ -21,38 +19,26 @@ namespace OperationSystem.Handlers.Units
             _world = new UnitWorld();
         }
 
-        public IEnumerator SetAsset(IAsset? asset)
+        public IEnumerator SetUnit(IAsset? asset)
         {
             var delayer = OperationRunner.DelayOperationRunning();
             {
                 if (OperationRunner.AnyRunningOperation)
                     yield return null;
-
-                _asset = asset;
                 
-                _world.Clear();
                 if (asset == null)
-                {
                     Unit = null;
-                }
                 else
-                {
-                    var unit = _world.GetOrAddUnit(asset);
-                    Unit = unit;
-                }
+                    Unit = _world.CreateUnit(asset);
             }
             OperationRunner.ReleaseOperationRunning(delayer);
         }
 
         public override void Update()
         {
-            if (_asset != null && Unit != null)
-                _asset.BeforeUpdate(Unit.Value, _world);
-                
+            Unit?.ComponentsData.PullData();
             base.Update();
-            
-            if (_asset != null && Unit != null)
-                _asset.AfterUpdate(Unit.Value, _world);
+            Unit?.ComponentsData.PushData();
         }
     }
 }

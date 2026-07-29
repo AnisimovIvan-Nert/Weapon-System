@@ -7,11 +7,9 @@ namespace OperationSystem.Units
 {
     public readonly struct UnitWorld
     {
-        private readonly Dictionary<UnitId, Unit> _idToUnitMap;
-        private readonly Dictionary<IAsset, UnitId> _objectToIdMap;
+        private readonly Dictionary<UnitId, IAsset> _units;
         private readonly UnitId[] _nextId;
-        
-        public IReadOnlyDictionary<UnitId, Unit> Units => _idToUnitMap;
+        private readonly object _lock;
         
         public UnitId NextId
         {
@@ -21,41 +19,45 @@ namespace OperationSystem.Units
         
         private UnitWorld(bool _)
         {
-            _idToUnitMap = new Dictionary<UnitId, Unit>();
-            _objectToIdMap = new Dictionary<IAsset, UnitId>();
-
+            _units = new Dictionary<UnitId, IAsset>();
             _nextId = new[] { new UnitId() };
+            _lock = new object();
         }
 
         public static UnitWorld Create() => new(true);
 
-        public void Clear()
+        public Unit CreateUnit(IAsset asset)
         {
-            _idToUnitMap.Clear();
-            _objectToIdMap.Clear();
+            lock (_lock)
+            {
+                var componentsData = ComponentsData.Create();
+                var unit = new Unit(NextId, componentsData);
+            
+                _units.Add(NextId, asset);
+
+                while (_units.ContainsKey(NextId))
+                    NextId = new UnitId(NextId.Id + 1);
+
+                foreach (var handle in asset.EnumerateComponents(this))
+                    componentsData.AddComponent(handle);
+
+                return unit;
+            }
         }
 
-        public Unit GetOrAddUnit(IAsset asset)
+        public IAsset GetAsset(UnitId id)
         {
-            if (_objectToIdMap.TryGetValue(asset, out var id))
-               return _idToUnitMap[id];
+            lock (_lock)
+                return _units[id];
+        }
 
-            var data = ComponentsData.Create();
-            var unit = new Unit(NextId, data);
-            
-            _objectToIdMap.Add(asset, NextId);
-            _idToUnitMap.Add(NextId, unit);
-
-            while (_idToUnitMap.ContainsKey(NextId))
-                NextId = new UnitId(NextId.Id + 1);
-
-            var children = asset.Children.Select(GetOrAddUnit).Select(o => o.Id);
-            var childrenComponent = new ChildrenComponent(children.ToArray());
-            data.AddComponent(childrenComponent);
-            
-            asset.CreateComponents(unit, this);
-
-            return unit;
+        public void RemoveUnits(params UnitId[] ids)
+        {
+            lock (_lock)
+            {
+                foreach (var id in ids)
+                    _units.Remove(id);
+            }
         }
     }
 }

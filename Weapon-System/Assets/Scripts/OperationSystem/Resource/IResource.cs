@@ -9,6 +9,5 @@ namespace OperationSystem.Resource
         bool IsBelongs(OperationIdentifier owner);
         bool TryAcquire(OperationIdentifier owner);
         void Release(OperationIdentifier owner);
-        void ForceRelease();
     }
 }

@@ -1,23 +1,18 @@
 ﻿using System;
-using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace Serializable.Byte
 {
-    public readonly unsafe ref struct Bytes
+    public readonly unsafe struct Bytes
     {
         public int Length => Data.Length;
         public int IntLength => Data.Length / sizeof(int);
 
-        public Span<byte> Data { get; }
+        public byte[] Data { get; }
 
-        public Bytes(Span<byte> data)
+        public Bytes(int length)
         {
-            Data = data;
-        }
-
-        public static Bytes Create(int length)
-        {
-            return new Bytes(new byte[length]);
+            Data = new byte[length];
         }
 
         public byte this[int index]
@@ -25,28 +20,33 @@ namespace Serializable.Byte
             get
             {
                 CheckIndexInRange(index);
-                fixed (byte* result = &MemoryMarshal.GetReference(Data))
+                fixed (byte* result = Data)
                     return result[index];
             }
             set
             {
                 CheckIndexInRange(index);
-                fixed (byte* result = &MemoryMarshal.GetReference(Data))
+                fixed (byte* result = Data)
                     result[index] = value;
             }
+        }
+
+        public void Clear()
+        {
+            Array.Clear(Data, 0, Data.Length);
         }
 
         public int GetInt(int index)
         {
             CheckIndexInRange(index * sizeof(int));
-            fixed (byte* result = &MemoryMarshal.GetReference(Data))
+            fixed (byte* result = Data)
                 return ((int*)result)[index];
         }
 
         public void SetInt(int index, int value)
         {
             CheckIndexInRange(index * sizeof(int));
-            fixed (byte* result = &MemoryMarshal.GetReference(Data))
+            fixed (byte* result = Data)
                 ((int*)result)[index] = value;
         }
         
@@ -54,6 +54,15 @@ namespace Serializable.Byte
         {
             if (index < 0 || index >= Length)
                 throw new IndexOutOfRangeException();
+        }
+        
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                const int fnvPrime = 16777619;
+                return Data.Aggregate((int)2166136261, (current, t) => (current ^ t) * fnvPrime);
+            }
         }
     }
 }

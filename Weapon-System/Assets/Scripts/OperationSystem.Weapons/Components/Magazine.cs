@@ -7,9 +7,7 @@ namespace OperationSystem.Weapons.Components
         int Rounds { get; set; }
     }
 
-    public class Magazine
-        : AbstractComponent
-        , IMagazine
+    public struct Magazine : IMagazine
     {
         public int Rounds { get; set; }
         

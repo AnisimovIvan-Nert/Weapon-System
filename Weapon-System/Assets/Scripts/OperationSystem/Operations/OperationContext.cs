@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using OperationSystem.Resource;
+using OperationSystem.Component;
+using OperationSystem.Component.Types;
 using UnityEngine;
 
 namespace OperationSystem.Operations
@@ -10,24 +11,25 @@ namespace OperationSystem.Operations
 
     public interface IOperationContext : IDisposable
     {
-        bool TryAcquire<T>(T resource, OperationIdentifier owner) where T : IResource;
+        bool TryAcquire<T>(T resource, OperationIdentifier owner) where T : IComponentResource;
         void RecordUndo(Undo undo);
         void Commit();
         void Rollback();
         void ReleaseAll();
         
-        T? TryAccess<T>(OperationIdentifier owner) where T : IResource;
+        IComponentResource? TryAccess<T>(OperationIdentifier owner) where T : IComponent;
+        T? TryRead<T>(OperationIdentifier owner) where T : IComponent;
     }
 
     public class OperationContext : IOperationContext
     {
-        private readonly Dictionary<IResource, OperationIdentifier> _locks = new();
+        private readonly Dictionary<IComponentResource, OperationIdentifier> _locks = new();
 
         private readonly List<Undo> _undoStack = new();
         private bool _committed;
 
         public bool TryAcquire<T>(T resource, OperationIdentifier owner)
-            where T : IResource
+            where T : IComponentResource
         {
             if (!resource.TryAcquire(owner)) 
                 return false;
@@ -95,12 +97,12 @@ namespace OperationSystem.Operations
             _locks.Clear();
         }
         
-        public T? TryAccess<T>(OperationIdentifier owner)
-            where T : IResource
+        public IComponentResource? TryAccess<T>(OperationIdentifier owner)
+            where T : IComponent
         {
             foreach (var (resource, lockOwner) in _locks)
             {
-                if (resource is not T typedResource)
+                if (resource.Type.IsAssignableFrom<T>())
                     continue;
                 
                 if (lockOwner != owner)
@@ -109,10 +111,19 @@ namespace OperationSystem.Operations
                 if (!resource.IsBelongs(owner))
                     continue;
 
-                return typedResource;
+                return resource;
             }
             
-            return default;
+            return null;
+        }
+        
+        public T? TryRead<T>(OperationIdentifier owner)
+            where T : IComponent
+        {
+            var access = TryAccess<T>(owner);
+            if (access == null)
+                return default;
+            return access.Read<T>();
         }
     }
 }

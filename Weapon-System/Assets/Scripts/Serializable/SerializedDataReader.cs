@@ -44,8 +44,8 @@ namespace Serializable
             if (_offset + size > _data.Length)
                 throw new IndexOutOfRangeException();
 
-            var data = Bytes.Create(size);
-            _data.Data.Slice(_offset, size).CopyTo(data.Data);
+            var data = new Bytes(size);
+            Array.Copy(_data.Data, _offset, data.Data, 0, size);
 
             value = new SerializedData(data, size);
             return new SerializedDataReader(_data, _offset + size);

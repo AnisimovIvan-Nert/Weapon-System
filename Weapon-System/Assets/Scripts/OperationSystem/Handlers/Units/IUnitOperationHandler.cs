@@ -8,6 +8,6 @@ namespace OperationSystem.Handlers.Units
     {
         Unit? Unit { get; }
         
-        IEnumerator SetAsset(IAsset? asset);
+        IEnumerator SetUnit(IAsset? asset);
     }
 }

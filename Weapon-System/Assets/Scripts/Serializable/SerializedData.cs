@@ -3,7 +3,7 @@ using Serializable.Byte;
 
 namespace Serializable
 {
-    public readonly ref struct SerializedData
+    public readonly struct SerializedData
     {
         public Bytes Bytes { get; }
         public int Length { get; }

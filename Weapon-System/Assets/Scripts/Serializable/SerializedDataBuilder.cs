@@ -10,7 +10,7 @@ namespace Serializable
         public int Length { get; }
         public int Capacity => _data.Length;
 
-        private SerializedDataBuilder(Bytes data, int length)
+        public SerializedDataBuilder(Bytes data, int length)
         {
             _data = data;
             Length = length;
@@ -18,7 +18,7 @@ namespace Serializable
 
         public static SerializedDataBuilder Create(int size)
         {
-            var bytes = Bytes.Create(size);
+            var bytes = new Bytes(size);
             return new SerializedDataBuilder(bytes, 0);
         }
 
@@ -50,10 +50,8 @@ namespace Serializable
             
             if (Length + size > Capacity)
                 throw new InvalidOperationException();
-
-            serializedData.Bytes.Data.Slice(0, size)
-                .CopyTo(_data.Data.Slice(Length, size));
-
+            
+            Array.Copy(serializedData.Bytes.Data, 0, _data.Data, Length, size);
             return new SerializedDataBuilder(_data, Length + size);
         }
     }

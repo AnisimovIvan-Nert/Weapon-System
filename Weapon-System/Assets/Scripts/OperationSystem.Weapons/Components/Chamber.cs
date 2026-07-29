@@ -7,9 +7,7 @@ namespace OperationSystem.Weapons.Components
         bool HasRound { get; set; }
     }
 
-    public class Chamber
-        : AbstractComponent
-        , IChamber
+    public struct Chamber : IChamber
     {
         public bool HasRound { get; set; }
         

@@ -6,9 +6,7 @@ namespace OperationSystem.Weapons.Components
     {
     }
 
-    public class Weapon
-        : AbstractComponent
-        , IWeapon
+    public struct Weapon : IWeapon
     {
     }
 }

@@ -3,14 +3,11 @@ using OperationSystem.Units;
 
 namespace OperationSystem.Assets
 {
-    public interface IAsset
+    public interface IAsset : IUnitTarget
     {
-        List<IAsset> Children { get; }
+        IEnumerable<IAsset> Children { get; }
 
-        IEnumerable<IAsset> EnumerateUnitChildren();
-        
-        void CreateComponents(Unit unit, UnitWorld world);
-        void BeforeUpdate(Unit unit, UnitWorld world);
-        void AfterUpdate(Unit unit, UnitWorld world);
+        void AddChild(IAsset child);
+        void RemoveChild(IAsset child);
     }
 }

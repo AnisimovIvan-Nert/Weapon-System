@@ -1,20 +1,21 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using OperationSystem.Units;
 
 namespace OperationSystem.Component
 {
     public interface IChildrenComponent : IComponent
     {
-        IEnumerable<UnitId> Children { get; }
+        IList<UnitId> Children { get; }
     }
     
-    public class ChildrenComponent : AbstractComponent, IChildrenComponent
+    public readonly struct ChildrenComponent : IChildrenComponent
     {
-        public IEnumerable<UnitId> Children { get; }
+        public IList<UnitId> Children { get; }
         
         public ChildrenComponent(params UnitId[] children)
         {
-            Children = children;
+            Children = children.ToList();
         }
     }
 }
