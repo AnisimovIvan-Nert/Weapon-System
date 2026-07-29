@@ -11,19 +11,16 @@ namespace ECS
         private readonly List<IComponentArray> _componentArrays;
         private IComponentArray[] _arrayByTypeId;
 
-        private readonly int _maxEntities;
-
         public UnitRegistry Registry => _registry;
         public ISyncAssetResolver AssetResolver => _assetResolver;
         public IReadOnlyList<IComponentArray> ComponentArrays => _componentArrays;
 
-        public SyncEngine(UnitRegistry registry, ISyncAssetResolver assetResolver, int maxEntities = 4096)
+        public SyncEngine(UnitRegistry registry, ISyncAssetResolver assetResolver)
         {
             _registry = registry;
             _assetResolver = assetResolver;
             _componentArrays = new List<IComponentArray>();
             _arrayByTypeId = Array.Empty<IComponentArray>();
-            _maxEntities = maxEntities;
         }
 
         private IComponentArray GetArrayByTypeId(int typeId)
@@ -47,7 +44,7 @@ namespace ECS
             if (existing != null)
                 return (ComponentArray<T>)existing;
 
-            var array = new ComponentArray<T>(_maxEntities);
+            var array = new ComponentArray<T>();
             _componentArrays.Add(array);
             SetArrayByTypeId(typeId, array);
             return array;

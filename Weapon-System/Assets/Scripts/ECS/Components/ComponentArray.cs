@@ -6,6 +6,8 @@ namespace ECS
 {
     public class ComponentArray<T> : IComponentArray where T : struct, IComponent
     {
+        private readonly object _lock = new();
+        
         private T[] _components;
         private DirtyTracker _assetDirty;
         private DirtyTracker _componentDirty;
@@ -13,17 +15,18 @@ namespace ECS
         public int ComponentTypeId { get; }
         public Span<T> AllComponents => _components.AsSpan(0, _components.Length);
 
-        public ComponentArray(int maxEntities)
+        public ComponentArray(int initialCapacity = 64)
         {
             ComponentTypeId = ComponentType<T>.Id;
-            _components = new T[Math.Max(1, maxEntities)];
-            _assetDirty = new DirtyTracker(maxEntities);
-            _componentDirty = new DirtyTracker(maxEntities);
+            _components = new T[Math.Max(1, initialCapacity)];
+            _assetDirty = new DirtyTracker(initialCapacity);
+            _componentDirty = new DirtyTracker(initialCapacity);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T Get(UnitId unitId)
         {
+            EnsureCapacity(unitId.Id);
             _componentDirty.SetDirty(unitId);
             return ref _components[unitId.Id];
         }
@@ -31,6 +34,7 @@ namespace ECS
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T ReadOnly(UnitId unitId)
         {
+            EnsureCapacity(unitId.Id);
             return ref _components[unitId.Id];
         }
 
@@ -38,6 +42,20 @@ namespace ECS
         public void SetAssetDirty(UnitId unitId)
         {
             _assetDirty.SetDirty(unitId);
+        }
+
+        private void EnsureCapacity(int id)
+        {
+            lock (_lock)
+            {
+                if (id >= _components.Length)
+                {
+                    var newLen = Math.Max(id + 1, _components.Length * 2);
+                    Array.Resize(ref _components, newLen);
+                    _assetDirty.EnsureCapacity(newLen - 1);
+                    _componentDirty.EnsureCapacity(newLen - 1);
+                }
+            }
         }
 
         public void PullFromAssets(UnitRegistry registry, ISyncAssetResolver assetResolver)
@@ -64,16 +82,19 @@ namespace ECS
 
         public void OnEntityDestroyed(UnitId unitId)
         {
+            var id = unitId.Id;
             _assetDirty.Clear(unitId);
             _componentDirty.Clear(unitId);
-            _components[unitId.Id] = default;
+            if (id < _components.Length)
+                _components[id] = default;
         }
 
         public void Grow(int newCapacity)
         {
+            if (newCapacity <= _components.Length) return;
             Array.Resize(ref _components, newCapacity);
-            _assetDirty.Resize(newCapacity);
-            _componentDirty.Resize(newCapacity);
+            _assetDirty.EnsureCapacity(newCapacity - 1);
+            _componentDirty.EnsureCapacity(newCapacity - 1);
         }
     }
 }

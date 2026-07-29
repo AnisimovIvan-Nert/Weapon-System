@@ -7,7 +7,6 @@ namespace ECS.Examples
     public class SyncManager : MonoBehaviour, ISyncAssetResolver
     {
         [SerializeField] private PlayerAsset[] _players;
-        [SerializeField] private int _maxEntities = 4096;
 
         private UnitRegistry _registry;
         private SyncEngine _engine;
@@ -19,8 +18,8 @@ namespace ECS.Examples
 
         private void Awake()
         {
-            _registry = new UnitRegistry(_maxEntities);
-            _engine = new SyncEngine(_registry, this, _maxEntities);
+            _registry = new UnitRegistry();
+            _engine = new SyncEngine(_registry, this);
             _assetByHandle = new Dictionary<int, IAsset>();
             _assetTypeByHandle = new Dictionary<int, int>();
 

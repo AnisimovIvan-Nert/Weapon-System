@@ -7,14 +7,15 @@ namespace ECS
 {
     public struct DirtyTracker
     {
+        private readonly object _lock;
+        
         private ulong[] _bits;
-        private int _capacity;
 
-        public DirtyTracker(int maxEntities)
+        public DirtyTracker(int initialCapacity = 64)
         {
-            var len = Math.Max(1, (maxEntities + 63) / 64);
+            var len = Math.Max(1, (initialCapacity + 63) / 64);
             _bits = new ulong[len];
-            _capacity = maxEntities;
+            _lock = new object();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -23,6 +24,8 @@ namespace ECS
             var id = unitId.Id;
             var idx = id >> 6;
             var bit = 1UL << (id & 0x3F);
+            if (idx >= _bits.Length)
+                Array.Resize(ref _bits, Math.Max(idx + 1, _bits.Length * 2));
             _bits[idx] |= bit;
         }
 
@@ -32,7 +35,7 @@ namespace ECS
             var id = unitId.Id;
             var idx = id >> 6;
             var bit = 1UL << (id & 0x3F);
-            return (_bits[idx] & bit) != 0;
+            return idx < _bits.Length && (_bits[idx] & bit) != 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -40,8 +43,9 @@ namespace ECS
         {
             var id = unitId.Id;
             var idx = id >> 6;
-            var bit = 1UL << (id & 0x3F);
-            _bits[idx] &= ~bit;
+            if (idx >= _bits.Length) 
+                return;
+            _bits[idx] &= ~(1UL << (id & 0x3F));
         }
 
         public void ClearAll()
@@ -49,17 +53,19 @@ namespace ECS
             Array.Clear(_bits, 0, _bits.Length);
         }
 
-        public void Resize(int newMaxEntities)
+        internal void EnsureCapacity(int maxEntityId)
         {
-            var newLen = (newMaxEntities + 63) / 64;
-            if (newLen <= _bits.Length) return;
-            Array.Resize(ref _bits, newLen);
-            _capacity = newMaxEntities;
+            lock (_lock)
+            {
+                var idx = maxEntityId >> 6;
+                if (idx >= _bits.Length)
+                    Array.Resize(ref _bits, Math.Max(idx + 1, _bits.Length * 2));
+            }
         }
 
         public DirtyEnumerator GetEnumerator()
         {
-            return new DirtyEnumerator(_bits, _capacity);
+            return new DirtyEnumerator(_bits);
         }
 
         public struct DirtyEnumerator
@@ -68,7 +74,7 @@ namespace ECS
             private int _currentWord;
             private ulong _currentBits;
 
-            internal DirtyEnumerator(ulong[] bits, int capacity)
+            internal DirtyEnumerator(ulong[] bits)
             {
                 _bits = bits;
                 _currentWord = -1;
@@ -83,7 +89,6 @@ namespace ECS
                     if (_currentWord >= _bits.Length) return false;
                     _currentBits = _bits[_currentWord];
                 }
-
                 return true;
             }
 
@@ -93,8 +98,7 @@ namespace ECS
                 {
                     var tz = BitOperations.TrailingZeroCount(_currentBits);
                     _currentBits &= _currentBits - 1;
-                    var id = (_currentWord << 6) + tz;
-                    return new UnitId(id);
+                    return new UnitId((_currentWord << 6) + tz);
                 }
             }
         }
