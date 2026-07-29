@@ -1,220 +1,46 @@
 using System;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using ECS.Shared;
 using OperationSystem.Component;
 
 namespace ECS
 {
-    public struct ComponentMask : IEquatable<ComponentMask>
+    public readonly struct ComponentMask
     {
-        private const int WordCapacity = sizeof(ulong) * 8;
-        private const int WordShift = 6; // 1 << 6 == WordSize
-        private const int AllOnes = WordCapacity - 1; //Word filled with 1
+        private readonly BitCollection _typeBits;
         
-        private ulong[] _words;
-
-        private ComponentMask(ulong[] words) => _words = words;
-
-        internal ComponentMask(int singleTypeId)
+        private ComponentMask(int singleTypeId)
         {
-            var (index, word) = ToWord(singleTypeId);
-            _words = new ulong[index + 1];
-            _words[index] = word;
+            _typeBits = new BitCollection(singleTypeId + 1);
+            _typeBits.SetTrue(singleTypeId);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly bool Contains(int typeId)
+        
+        public static ComponentMask Create(params int[] typeIds)
         {
-            var (index, word) = ToWord(typeId);
-            return _words != null && index < _words.Length && (_words[index] & word) != 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly bool Contains<T>() where T : IComponent => Contains(ComponentType<T>.Id);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(int typeId)
-        {
-            var (index, word) = ToWord(typeId);
-            EnsureIndexInRange(index);
-            _words[index] |= word;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add<T>() where T : IComponent => Add(ComponentType<T>.Id);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Remove(int typeId)
-        {
-            var (index, word) = ToWord(typeId);
-            if (_words != null && index < _words.Length)
-                _words[index] &= ~word;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Remove<T>() where T : IComponent => Remove(ComponentType<T>.Id);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ComponentMask operator &(ComponentMask a, ComponentMask b)
-        {
-            var len = Math.Min(a._words.Length, b._words.Length);
-            if (len == 0) 
-                return default;
-            var result = new ulong[len];
-            for (var i = 0; i < len; i++)
-                result[i] = a._words[i] & b._words[i];
-            return new ComponentMask(result);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ComponentMask operator |(ComponentMask a, ComponentMask b)
-        {
-            var aLen = a._words.Length;
-            var bLen = b._words.Length;
-            var len = Math.Max(aLen, bLen);
-            if (len == 0) return default;
-            var result = new ulong[len];
-            for (var i = 0; i < len; i++)
-                result[i] = (i < aLen ? a._words[i] : 0)
-                            | (i < bLen ? b._words[i] : 0);
-            return new ComponentMask(result);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ComponentMask operator ~(ComponentMask a)
-        {
-            var words = a._words;
-            var result = new ulong[words.Length];
-            for (var i = 0; i < words.Length; i++)
-                result[i] = ~words[i];
-            return new ComponentMask(result);
-        }
-
-        public readonly bool IsEmpty =>  _words == null || _words.All(word => word == 0);
-
-        internal ulong[] GetWords() => _words ?? Array.Empty<ulong>();
-
-        public readonly bool Equals(ComponentMask other)
-        {
-            var aLen = _words.Length;
-            var bLen = other._words.Length;
-            var max = Math.Max(aLen, bLen);
-            for (int i = 0; i < max; i++)
-            {
-                var aVal = i < aLen ? _words[i] : 0;
-                var bVal = i < bLen ? other._words[i] : 0;
-                if (aVal != bVal) return false;
-            }
-
-            return true;
-        }
-
-        public readonly override bool Equals(object? obj) => obj is ComponentMask other && Equals(other);
-
-        public readonly override int GetHashCode()
-        {
-            return _words == null ? 0 : _words.Aggregate(0, (current, word) => current ^ word.GetHashCode());
-        }
-
-        public static bool operator ==(ComponentMask a, ComponentMask b) => a.Equals(b);
-        public static bool operator !=(ComponentMask a, ComponentMask b) => !a.Equals(b);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ComponentMask FromTypes(params int[] typeIds)
-        {
-            var mask = new ComponentMask();
-            foreach (var id in typeIds) mask.Add(id);
+            if (typeIds.Length == 0)
+                throw new InvalidOperationException();
+            
+            var mask = new ComponentMask(typeIds[0]);
+            foreach (var id in typeIds.Skip(1)) 
+				mask.Add(id);
             return mask;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ComponentMask FromTypes<T>() where T : IComponent
+        public static ComponentMask Create<T>() where T : IComponent
         {
             return new ComponentMask(ComponentType<T>.Id);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ComponentMask FromTypes<T1, T2>()
-            where T1 : IComponent where T2 : IComponent
-        {
-            var id1 = ComponentType<T1>.Id;
-            var id2 = ComponentType<T2>.Id;
-            var max = Math.Max(id1, id2);
-            var words = new ulong[(max >> WordShift) + 1];
-            words[id1 >> WordShift] |= 1UL << (id1 & AllOnes);
-            words[id2 >> WordShift] |= 1UL << (id2 & AllOnes);
-            return new ComponentMask(words);
-        }
+        public bool Contains(int typeId) => _typeBits.IsTrue(typeId);
+        public bool Contains<T>() where T : IComponent => Contains(ComponentType<T>.Id);
+        
+        public void Add(int typeId) => _typeBits.SetTrue(typeId);
+        public void Add<T>() where T : IComponent => Add(ComponentType<T>.Id);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ComponentMask FromTypes<T1, T2, T3>()
-            where T1 : IComponent where T2 : IComponent where T3 : IComponent
-        {
-            var id1 = ComponentType<T1>.Id;
-            var id2 = ComponentType<T2>.Id;
-            var id3 = ComponentType<T3>.Id;
-            var max = Math.Max(Math.Max(id1, id2), id3);
-            var words = new ulong[(max >> WordShift) + 1];
-            words[id1 >> WordShift] |= 1UL << (id1 & AllOnes);
-            words[id2 >> WordShift] |= 1UL << (id2 & AllOnes);
-            words[id3 >> WordShift] |= 1UL << (id3 & AllOnes);
-            return new ComponentMask(words);
-        }
 
-        public MaskEnumerator GetEnumerator()
-        {
-            return new MaskEnumerator(_words ?? Array.Empty<ulong>());
-        }
+        public void Remove(int typeId) => _typeBits.SetFalse(typeId);
+        public void Remove<T>() where T : IComponent => Remove(ComponentType<T>.Id);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void EnsureIndexInRange(int wordIndex)
-        {
-            if (_words == null)
-                _words = new ulong[wordIndex + 1];
-            else if (_words.Length <= wordIndex)
-                Array.Resize(ref _words, wordIndex + 1);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static (int index, ulong word) ToWord(int typeId)
-        {
-            return (typeId >> WordShift, 1UL << (typeId & AllOnes));
-        }
-
-        public struct MaskEnumerator
-        {
-            private readonly ulong[] _words;
-            private int _wordIndex;
-            private ulong _currentBits;
-
-            internal MaskEnumerator(ulong[] words)
-            {
-                _words = words;
-                _wordIndex = -1;
-                _currentBits = 0;
-            }
-
-            public bool MoveNext()
-            {
-                while (_currentBits == 0)
-                {
-                    _wordIndex++;
-                    if (_wordIndex >= _words.Length) return false;
-                    _currentBits = _words[_wordIndex];
-                }
-
-                return true;
-            }
-
-            public int Current
-            {
-                get
-                {
-                    var tz = Shared.BitOperations.TrailingZeroCount(_currentBits);
-                    _currentBits &= _currentBits - 1;
-                    return (_wordIndex << 6) | tz;
-                }
-            }
-        }
+        public bool IsEmpty => !_typeBits.Any();
     }
 }
