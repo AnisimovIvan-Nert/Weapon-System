@@ -1,21 +1,19 @@
-﻿using System.Linq;
-using OperationSystem.Units;
+﻿using OperationSystem.Component;
 
-namespace OperationSystem.Containers.Units.Containers
+namespace OperationSystem.Containers.Components.Containers
 {
-    public interface IContainerVolume : IUnit
+    public interface IContainerVolume : IComponent
     {
         int MaxIndividualItemVolume { get; }
     }
     
     public class ContainerVolume 
-        : AbstractUnit
+        : AbstractComponent
         , IContainerVolume
     {
         public int MaxIndividualItemVolume { get; }
         
         public ContainerVolume(int maxIndividualItemVolume) 
-            : base(Enumerable.Empty<IUnit>())
         {
             MaxIndividualItemVolume = maxIndividualItemVolume;
         }

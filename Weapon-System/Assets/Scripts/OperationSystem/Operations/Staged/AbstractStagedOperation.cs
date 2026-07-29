@@ -20,7 +20,7 @@ namespace OperationSystem.Operations.Staged
         protected IOperationContext Context => _context ?? throw new InvalidOperationException();
         
         protected AbstractStagedOperation(
-            Guid identifier, 
+            OperationIdentifier identifier, 
             IEnumerable<IOperationMiddleware> middlewares, 
             params IOperationData[] data) 
             : base(identifier, middlewares, data)

@@ -17,7 +17,7 @@ namespace OperationSystem.Operations.Units
         protected IUnitOperationHandler Handler => NullableHandler ?? throw new InvalidOperationException();
         
         protected AbstractStagedUnitOperation(
-            Guid identifier, 
+            OperationIdentifier identifier, 
             IEnumerable<IOperationMiddleware> middlewares, 
             params IOperationData[] data) 
             : base(identifier, middlewares, data)

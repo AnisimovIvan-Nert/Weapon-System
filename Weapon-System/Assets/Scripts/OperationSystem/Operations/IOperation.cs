@@ -6,7 +6,7 @@ namespace OperationSystem.Operations
 {
     public interface IOperation
     {
-        Guid Identifier { get; }
+        OperationIdentifier Identifier { get; }
         
         bool IsCompleted { get; }
         bool IsCompletedSuccessfully { get; }

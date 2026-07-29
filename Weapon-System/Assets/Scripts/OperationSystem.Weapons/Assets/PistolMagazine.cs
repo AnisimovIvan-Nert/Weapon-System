@@ -1,42 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using OperationSystem.Assets;
+using OperationSystem.Component;
 using OperationSystem.Units;
-using OperationSystem.Weapons.Units;
+using OperationSystem.Weapons.Components;
 
 namespace OperationSystem.Weapons.Assets
 {
     public class PistolMagazine : IAsset
     {
-        public int Rounds { get; }
+        public int Rounds { get; set;  }
         public List<IAsset> Children { get; } = new();
 
         public PistolMagazine(int rounds)
         {
             Rounds = rounds;
         }
-        
+
+        public IEnumerable<IAsset> EnumerateUnitChildren() => Children;
+
         public void CreateComponents(Unit unit, UnitWorld world)
         {
             var magazine = new Magazine(Rounds);
             unit.ComponentsData.AddComponent(magazine);
         }
 
-        public void ReadComponents(Unit unit, UnitWorld world)
+        public void BeforeUpdate(Unit unit, UnitWorld world)
         {
-            throw new System.NotImplementedException();
+            var magazine = unit.ComponentsData.Get<IMagazine>();
+            magazine.Rounds = Rounds;
         }
 
-        public void SetComponents(Unit unit, UnitWorld world)
+        public void AfterUpdate(Unit unit, UnitWorld world)
         {
-            var data = new Span<byte>()
-        }
-        
-        public Unit ToUnit()
-        {
-            var children = Children.Select(o => o.ToUnit()).ToList();
-            return new Magazine(Rounds, children);
+            var magazine = unit.ComponentsData.Get<IMagazine>();
+            
+            if (magazine.IsDirty)
+                Rounds = magazine.Rounds;
         }
     }
 }

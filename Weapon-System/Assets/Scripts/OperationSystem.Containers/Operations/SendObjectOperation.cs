@@ -1,19 +1,19 @@
 ﻿using System;
 using System.Collections;
+using OperationSystem.Component;
+using OperationSystem.Containers.Components.Containers;
 using OperationSystem.Containers.Operations.Tags;
-using OperationSystem.Containers.Units.Containers;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Units;
-using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
 {
-    public class SendObjectUnitOperation : AbstractStagedUnitOperation<IContainer>, ISendOperationTag
+    public class SendObjectUnitOperation : AbstractStagedUnitOperation, ISendOperationTag
     {
         public SendObjectUnitOperation(
-            Guid identifier, 
+            OperationIdentifier identifier, 
             IOperationExecutor executor, 
             IOperationTarget target, 
             IOperationMiddleware[] middlewares) 
@@ -28,7 +28,7 @@ namespace OperationSystem.Containers.Operations
             var container = Handler.Unit ?? throw new InvalidOperationException();
             var target = this.GetData<IOperationTarget>();
 
-            var containerItems = container.Find<IContainerItems>();
+            var containerItems = container.ComponentsData.Get<IContainerItems>();
 
             if (!containerItems.Items.Contains(target.Target))
                 throw new InvalidOperationException();
@@ -39,8 +39,8 @@ namespace OperationSystem.Containers.Operations
             yield return base.TryAcquireLocksEnumerator();
             
             var container = Handler.Unit ?? throw new InvalidOperationException();
-            var containerItems = container.Find<IContainerItems>();
-            Context.Acquire(containerItems, this);
+            var containerItems = container.ComponentsData.Get<IContainerItems>();
+            Context.Acquire(containerItems, Identifier);
         }
 
         protected override IEnumerator RecordPossibleMutationsEnumerator()
@@ -49,7 +49,7 @@ namespace OperationSystem.Containers.Operations
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
-            var items = Context.Access<IContainerItems>(this);
+            var items = Context.Access<IContainerItems>(Identifier);
             var index = items.Items.IndexOf(target);
 
             if (index == -1)
@@ -68,7 +68,7 @@ namespace OperationSystem.Containers.Operations
         {
             yield return base.ExecuteEnumerator();
             
-            var items = Context.Access<IContainerItems>(this);
+            var items = Context.Access<IContainerItems>(Identifier);
             var target = this.GetData<IOperationTarget>();
 
             items.Items.Remove(target.Target);

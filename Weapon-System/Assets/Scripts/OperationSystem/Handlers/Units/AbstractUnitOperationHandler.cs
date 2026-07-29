@@ -47,12 +47,12 @@ namespace OperationSystem.Handlers.Units
         public override void Update()
         {
             if (_asset != null && Unit != null)
-                _asset.SetComponents(Unit.Value, _world);
+                _asset.BeforeUpdate(Unit.Value, _world);
                 
             base.Update();
             
             if (_asset != null && Unit != null)
-                _asset.ReadComponents(Unit.Value, _world);
+                _asset.AfterUpdate(Unit.Value, _world);
         }
     }
 }

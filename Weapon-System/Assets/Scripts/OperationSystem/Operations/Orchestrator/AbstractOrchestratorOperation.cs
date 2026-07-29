@@ -17,7 +17,7 @@ namespace OperationSystem.Operations.Orchestrator
         private ICollection<IStagedOperation> Operations => _operations ?? throw new InvalidOperationException();
 
         protected AbstractOrchestratorOperation(
-            Guid identifier, 
+            OperationIdentifier identifier, 
             IEnumerable<IOperationMiddleware> middlewares, 
             params IOperationData[] data) 
             : base(identifier, middlewares, data)

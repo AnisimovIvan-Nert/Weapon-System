@@ -1,24 +1,23 @@
 ﻿using System.Collections;
-using System.Linq;
+using OperationSystem.Component;
 using OperationSystem.Units;
 
-namespace OperationSystem.Containers.Units.Containers.Locks.Accesses
+namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
 {
     public class AccessContainerLock 
-        : AbstractUnit
+        : AbstractComponent
         , IContainerLock
     {
         private readonly int _level;
         
         public AccessContainerLock(int level) 
-            : base(Enumerable.Empty<IUnit>())
         {
             _level = level;
         }
 
-        public IEnumerator CanInteractWithContainer(IUnit unit)
+        public IEnumerator CanInteractWithContainer(Unit unit)
         {
-            var accessLevel = unit.TryFind<IAccessLevel>();
+            var accessLevel = unit.ComponentsData.TryGet<IAccessLevel>();
             
             if (accessLevel == null)
             {

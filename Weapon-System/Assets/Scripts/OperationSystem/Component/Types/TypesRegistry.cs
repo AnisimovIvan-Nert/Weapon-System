@@ -5,61 +5,65 @@ using System.Linq;
 
 namespace OperationSystem.Component.Types
 {
-    public static class ComponentTypesRegistry
+    public static class TypesRegistry<T>
     {
-        private static readonly Dictionary<Type, ComponentType> FromTypeMap;
-        private static readonly Dictionary<ComponentType, Type> ToTypeMap;
+        // ReSharper disable StaticMemberInGenericType
+        private static readonly Dictionary<Type, ComponentType> ComponentTypeMap;
+        private static readonly Dictionary<ComponentType, Type> TypeMap;
         private static readonly ConcurrentDictionary<(ComponentType to, ComponentType from), bool> InheritanceCache;
+        // ReSharper restore StaticMemberInGenericType
 
-        static ComponentTypesRegistry()
+        static TypesRegistry()
         {
             var types = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(GetSafeTypes)
-                .Where(type => typeof(IComponent).IsAssignableFrom(type))
+                .Where(type => typeof(T).IsAssignableFrom(type))
                 .OrderBy(type => type.FullName)
                 .ToArray();
 
-            FromTypeMap = new Dictionary<Type, ComponentType>(types.Length);
-            ToTypeMap = new Dictionary<ComponentType, Type>(types.Length);
+            ComponentTypeMap = new Dictionary<Type, ComponentType>(types.Length);
+            TypeMap = new Dictionary<ComponentType, Type>(types.Length);
             InheritanceCache = new ConcurrentDictionary<(ComponentType to, ComponentType from), bool>();
 
             for (var i = 0; i < types.Length; i++)
             {
                 var componentType = new ComponentType(i);
-                FromTypeMap[types[i]] = componentType;
-                ToTypeMap[componentType] = types[i];
+                ComponentTypeMap[types[i]] = componentType;
+                TypeMap[componentType] = types[i];
             }
         }
+        
+        public static void TriggerConstructor() { }
 
-        public static ComponentType GetComponentType<T>() where T : IComponent
+        public static ComponentType GetComponentType<TType>() where TType : T
         {
-            return GetComponentType(typeof(T));
+            return GetComponentType(typeof(TType));
         }
 
         public static ComponentType GetComponentType(Type type)
         {
-            return FromTypeMap.TryGetValue(type, out var componentType) 
+            return ComponentTypeMap.TryGetValue(type, out var componentType) 
                 ? componentType
                 : throw new ArgumentException($"Type '{type.FullName}' is not registered.");
         }
 
         public static Type GetType(ComponentType componentType)
         {
-            if (ToTypeMap.TryGetValue(componentType, out var type))
+            if (TypeMap.TryGetValue(componentType, out var type))
                 return type;
 
             var id = componentType.Id;
             throw new ArgumentOutOfRangeException(nameof(componentType), id, $"Id '{id}' is not registered.");
         }
 
-        public static bool IsAssignableFrom<T>(ComponentType from) where T : IComponent
+        public static bool IsAssignableFrom<TType>(ComponentType from) where TType : T
         {
-            var to = GetComponentType<T>();
+            var to = GetComponentType<TType>();
             if (to == from)
                 return true;
             
             var type = GetType(from);
-            return InheritanceCache.GetOrAdd((to, from), _ => typeof(T).IsAssignableFrom(type));
+            return InheritanceCache.GetOrAdd((to, from), _ => typeof(TType).IsAssignableFrom(type));
         }
 
         private static IEnumerable<Type> GetSafeTypes(System.Reflection.Assembly assembly)

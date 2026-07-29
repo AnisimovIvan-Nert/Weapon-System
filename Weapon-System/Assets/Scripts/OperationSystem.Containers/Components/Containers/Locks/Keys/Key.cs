@@ -1,12 +1,12 @@
 ﻿using System;
 
-namespace OperationSystem.Containers.Units.Containers.Locks.Keys
+namespace OperationSystem.Containers.Components.Containers.Locks.Keys
 {
     public interface IKey
     {
     }
     
-    public class Key : IKey
+    public readonly struct Key : IKey
     {
         public Guid Identifier { get; }
         

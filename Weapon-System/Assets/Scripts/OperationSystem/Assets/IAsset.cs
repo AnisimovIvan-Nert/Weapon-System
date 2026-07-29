@@ -7,8 +7,10 @@ namespace OperationSystem.Assets
     {
         List<IAsset> Children { get; }
 
+        IEnumerable<IAsset> EnumerateUnitChildren();
+        
         void CreateComponents(Unit unit, UnitWorld world);
-        void ReadComponents(Unit unit, UnitWorld world);
-        void SetComponents(Unit unit, UnitWorld world);
+        void BeforeUpdate(Unit unit, UnitWorld world);
+        void AfterUpdate(Unit unit, UnitWorld world);
     }
 }

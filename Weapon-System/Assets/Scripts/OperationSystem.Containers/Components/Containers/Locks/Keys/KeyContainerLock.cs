@@ -1,25 +1,25 @@
 ﻿using System;
 using System.Collections;
 using System.Linq;
+using OperationSystem.Component;
 using OperationSystem.Units;
 
-namespace OperationSystem.Containers.Units.Containers.Locks.Keys
+namespace OperationSystem.Containers.Components.Containers.Locks.Keys
 {
     public class KeyContainerLock 
-        : AbstractUnit
+        : AbstractComponent
         , IContainerLock
     {
         private readonly Guid _identifier;
 
         public KeyContainerLock(Guid identifier) 
-            : base(Enumerable.Empty<IUnit>())
         {
             _identifier = identifier;
         }
 
-        public IEnumerator CanInteractWithContainer(IUnit unit)
+        public IEnumerator CanInteractWithContainer(Unit unit)
         {
-            var keysStorage = unit.TryFind<IKeysStorage>();
+            var keysStorage = unit.ComponentsData.TryGet<IKeysStorage>();
 
             if (keysStorage == null)
             {

@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using OperationSystem.Containers.Units.Containers;
 using OperationSystem.Handlers.Units;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
@@ -13,15 +11,15 @@ namespace OperationSystem.Containers.Operations
 {
     public class MovingObjectOperation : AbstractOrchestratorOperation
     {
-        private readonly IUnitOperationHandler<IContainer> _sender;
-        private readonly IUnitOperationHandler<IContainer> _receiver;
+        private readonly IUnitOperationHandler _sender;
+        private readonly IUnitOperationHandler _receiver;
 
         public MovingObjectOperation(
-            Guid identifier,
+            OperationIdentifier identifier,
             IOperationExecutor executor,
             IOperationTarget target,
-            IUnitOperationHandler<IContainer> sender,
-            IUnitOperationHandler<IContainer> receiver,
+            IUnitOperationHandler sender,
+            IUnitOperationHandler receiver,
             params IOperationMiddleware[] middlewares)
             : base(identifier, middlewares, executor, target)
         {

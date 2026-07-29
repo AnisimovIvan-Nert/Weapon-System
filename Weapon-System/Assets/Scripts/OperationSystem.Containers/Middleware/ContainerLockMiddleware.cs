@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections;
 using Coroutine;
+using OperationSystem.Containers.Components.Containers.Locks;
 using OperationSystem.Containers.Operations.Tags;
-using OperationSystem.Containers.Units.Containers.Locks;
 using OperationSystem.Handlers.Units;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Middleware
 {
@@ -19,7 +18,9 @@ namespace OperationSystem.Containers.Middleware
             IUnitOperationHandler handler)
         {
             var container = handler.Unit ?? throw new InvalidOperationException();
-            var containerLock = container.TryFind<IContainerLock>();
+            var containerComponents = container.ComponentsData;
+            
+            var containerLock = containerComponents.TryGet<IContainerLock>();
             if (containerLock != null)
                 yield return CanInteract(containerLock, operation);
         }
@@ -30,12 +31,12 @@ namespace OperationSystem.Containers.Middleware
             IUnitOperationHandler handler)
         {
             var container = handler.Unit ?? throw new InvalidOperationException();
-            var containerLock = container.TryFind<IContainerLock>();
+            var containerLock = container.ComponentsData.TryGet<IContainerLock>();
             
             if (containerLock == null)
                 yield break;
             
-            context.Acquire(containerLock, operation);
+            context.Acquire(containerLock, operation.Identifier);
         }
 
         public override IEnumerator Execute(
@@ -43,7 +44,7 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context, 
             IUnitOperationHandler handler)
         {
-            var containerLock = context.TryAccessFirst<IContainerLock>(operation);
+            var containerLock = context.TryAccess<IContainerLock>(operation.Identifier);
             if (containerLock != null)
                 yield return CanInteract(containerLock, operation);
         }

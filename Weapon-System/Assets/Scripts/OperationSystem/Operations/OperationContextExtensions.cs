@@ -1,5 +1,5 @@
 ﻿using System;
-using OperationSystem.Component;
+using OperationSystem.Resource;
 
 namespace OperationSystem.Operations
 {
@@ -13,25 +13,17 @@ namespace OperationSystem.Operations
     
     public static class OperationContextExtensions
     {
-        public static void Acquire(
-            this IOperationContext context,
-            ComponentsData.ComponentResource resource, 
-            Guid owner)
+        public static void Acquire<T>(this IOperationContext context, T resource, OperationIdentifier owner)
+            where T : IResource
         {
             if (!context.TryAcquire(resource, owner))
                 throw new AcquireException();
         }
         
-        public static ComponentsData.ComponentAccess<T> Access<T>(this IOperationContext context, Guid owner)
-            where T : IComponent
+        public static T Access<T>(this IOperationContext context, OperationIdentifier owner)
+            where T : IResource
         {
             return context.TryAccess<T>(owner) ?? throw new AccessException();
-        }
-        
-        public static T Read<T>(this IOperationContext context, Guid owner)
-            where T : IComponent
-        {
-            return context.TryRead<T>(owner) ?? throw new AccessException();
         }
     }
 }

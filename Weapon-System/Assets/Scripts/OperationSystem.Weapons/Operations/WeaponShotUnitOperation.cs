@@ -6,14 +6,14 @@ using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Units;
-using OperationSystem.Weapons.Units;
+using OperationSystem.Weapons.Components;
 
 namespace OperationSystem.Weapons.Operations
 {
     public class WeaponShotUnitOperation : AbstractUnitOperation<IWeapon>
     {
         public WeaponShotUnitOperation(
-            Guid identifier, 
+            OperationIdentifier identifier, 
             IEnumerable<IOperationMiddleware> middlewares,
             params IOperationData[] data) 
             : base(identifier, middlewares, data)
@@ -26,13 +26,10 @@ namespace OperationSystem.Weapons.Operations
 
             yield return AcquireLocks(context);
 
-            var chamberAccess = context.Access<IChamber>(Identifier);
-            var magazineAccess = context.TryAccess<IMagazine>(Identifier);
+            var chamber = context.Access<IChamber>(Identifier);
+            var magazine = context.TryAccess<IMagazine>(Identifier);
 
             RecordPossibleMutation(context);
-
-            var chamber = chamberAccess.Component;
-            var magazine = magazineAccess?.Component;
 
             if (!chamber.HasRound)
             {
@@ -47,13 +44,6 @@ namespace OperationSystem.Weapons.Operations
             }
 
             chamber.HasRound = false;
-
-            chamberAccess.Component = chamber;
-            if (magazineAccess != null && magazine != null)
-            {
-                var magazineAccessValue = magazineAccess.Value;
-                magazineAccessValue.Component = magazine;
-            }
         }
 
         private IEnumerator Validate(IOperationContext context)
@@ -61,8 +51,8 @@ namespace OperationSystem.Weapons.Operations
             var weaponUnit = Handler.Unit ?? throw new InvalidOperationException();
             var componentData = weaponUnit.ComponentsData;
 
-            var chamber = componentData.ReadComponent<IChamber>();
-            var magazine = componentData.TryReadComponent<IMagazine>();
+            var chamber = componentData.Get<IChamber>();
+            var magazine = componentData.TryGet<IMagazine>();
 
             if (!chamber.HasRound && magazine is not { Rounds: > 0 })
                 throw new InvalidOperationException();
@@ -102,20 +92,20 @@ namespace OperationSystem.Weapons.Operations
                 var weaponUnit = Handler.Unit ?? throw new InvalidOperationException();
                 var componentData = weaponUnit.ComponentsData;
                 
-                var chamberResource = componentData.GetResource<IChamber>();
-                var magazineResource = componentData.TryGetResource<Magazine>();
+                var chamber = componentData.Get<IChamber>();
+                var magazine = componentData.TryGet<Magazine>();
                 
-                context.Acquire(chamberResource, Identifier);
+                context.Acquire(chamber, Identifier);
                 
-                if (magazineResource != null)
-                    context.Acquire(magazineResource.Value, Identifier);
+                if (magazine != null)
+                    context.Acquire(magazine, Identifier);
             }
         }
 
         private void RecordPossibleMutation(IOperationContext context)
         {
-            var chamber = context.Read<IChamber>(Identifier);
-            var magazine = context.TryRead<IMagazine>(Identifier);
+            var chamber = context.Access<IChamber>(Identifier);
+            var magazine = context.TryAccess<IMagazine>(Identifier);
 
             if (magazine != null)
             {

@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using OperationSystem.Assets;
 using OperationSystem.Units;
-using OperationSystem.Weapons.Units;
 
 namespace OperationSystem.Weapons.Assets
 {
@@ -10,10 +8,18 @@ namespace OperationSystem.Weapons.Assets
     {
         public List<IAsset> Children { get; } = new();
         
-        public IUnit ToUnit()
+        public IEnumerable<IAsset> EnumerateUnitChildren() => Children;
+        
+        public void CreateComponents(Unit unit, UnitWorld world)
         {
-            var children = Children.Select(o => o.ToUnit()).ToList();
-            return new Weapon(children);
+        }
+
+        public void BeforeUpdate(Unit unit, UnitWorld world)
+        {
+        }
+
+        public void AfterUpdate(Unit unit, UnitWorld world)
+        {
         }
     }
 }

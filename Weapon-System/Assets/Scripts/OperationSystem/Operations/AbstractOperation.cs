@@ -18,13 +18,13 @@ namespace OperationSystem.Operations
         protected readonly IEnumerable<IOperationMiddleware> Middlewares;
         protected YieldCoroutine? Coroutine;
 
-        public Guid Identifier { get; }
+        public OperationIdentifier Identifier { get; }
         public bool IsCompleted { get; protected set; }
         public bool IsCompletedSuccessfully => Exception == null;
         public Exception? Exception { get; private set; }
 
         protected AbstractOperation(
-            Guid identifier, 
+            OperationIdentifier identifier, 
             IEnumerable<IOperationMiddleware> middlewares,
             params IOperationData[] data)
         {

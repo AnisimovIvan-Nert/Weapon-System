@@ -1,6 +1,6 @@
 ﻿using OperationSystem.Component;
 
-namespace OperationSystem.Weapons.Units
+namespace OperationSystem.Weapons.Components
 {
     public interface IMagazine : IComponent
     {

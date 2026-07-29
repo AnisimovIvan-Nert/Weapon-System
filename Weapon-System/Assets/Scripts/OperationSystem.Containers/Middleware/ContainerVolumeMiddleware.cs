@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections;
+using OperationSystem.Containers.Components;
+using OperationSystem.Containers.Components.Containers;
 using OperationSystem.Containers.Operations.Tags;
-using OperationSystem.Containers.Units;
-using OperationSystem.Containers.Units.Containers;
 using OperationSystem.Handlers.Units;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Middleware
 {
@@ -19,7 +18,7 @@ namespace OperationSystem.Containers.Middleware
             IUnitOperationHandler handler)
         {
             var container = handler.Unit ?? throw new InvalidOperationException();
-            var volume = container.TryFind<IContainerVolume>();
+            var volume = container.ComponentsData.TryGet<IContainerVolume>();
             if (volume != null)
                 yield return CanReceive(volume, operation);
         }
@@ -30,12 +29,12 @@ namespace OperationSystem.Containers.Middleware
             IUnitOperationHandler handler)
         {
             var container = handler.Unit ?? throw new InvalidOperationException();
-            var volume = container.TryFind<IContainerVolume>();
+            var volume = container.ComponentsData.TryGet<IContainerVolume>();
             
             if (volume == null)
                 yield break;
             
-            context.Acquire(volume, operation);
+            context.Acquire(volume, operation.Identifier);
         }
 
         public override IEnumerator Execute(
@@ -43,7 +42,7 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context, 
             IUnitOperationHandler handler)
         {
-            var volume = context.TryAccessFirst<IContainerVolume>(operation);
+            var volume = context.TryAccess<IContainerVolume>(operation.Identifier);
             if (volume != null)
                 yield return CanReceive(volume, operation);
         }
@@ -51,7 +50,7 @@ namespace OperationSystem.Containers.Middleware
         private static IEnumerator CanReceive(IContainerVolume volume, IOperation operation)
         {
             var target = operation.GetData<IOperationTarget>();
-            var size = target.Target.TryFind<ISize>();
+            var size = target.Target.ComponentsData.TryGet<ISize>();
             
             if (size == null)
                 yield break;

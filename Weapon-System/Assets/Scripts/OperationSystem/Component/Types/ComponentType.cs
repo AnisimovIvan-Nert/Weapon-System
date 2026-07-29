@@ -13,13 +13,13 @@ namespace OperationSystem.Component.Types
 
         public static ComponentType Create(Type type)
         {
-            return ComponentTypesRegistry.GetComponentType(type);
+            return TypesRegistry<IComponent>.GetComponentType(type);
         }
         
         public static ComponentType Create<T>()
             where T : IComponent
         {
-            return ComponentTypesRegistry.GetComponentType<T>();
+            return TypesRegistry<IComponent>.GetComponentType<T>();
         }
 
         public static bool operator ==(ComponentType value, ComponentType other) => value.Equals(other);

@@ -1,10 +1,12 @@
-﻿using System;
+﻿using OperationSystem.Resource;
 
 namespace OperationSystem.Component
 {
-    public interface IComponent
+    public interface IComponent : IResource
     {
-        Span<byte> GetData();
-        void ReadData(Span<byte> data);
+        bool IsDirty { get; }
+        
+        void SetDirty();
+        void ResetDirty();
     }
 }

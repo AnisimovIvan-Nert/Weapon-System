@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using OperationSystem.Component;
-using OperationSystem.Component.Types;
+using OperationSystem.Resource;
 using UnityEngine;
 
 namespace OperationSystem.Operations
@@ -11,24 +10,24 @@ namespace OperationSystem.Operations
 
     public interface IOperationContext : IDisposable
     {
-        bool TryAcquire(ComponentsData.ComponentResource resource, Guid owner);
+        bool TryAcquire<T>(T resource, OperationIdentifier owner) where T : IResource;
         void RecordUndo(Undo undo);
         void Commit();
         void Rollback();
         void ReleaseAll();
         
-        T? TryRead<T>(Guid owner) where T : IComponent;
-        ComponentsData.ComponentAccess<T>? TryAccess<T>(Guid owner) where T : IComponent;
+        T? TryAccess<T>(OperationIdentifier owner) where T : IResource;
     }
 
     public class OperationContext : IOperationContext
     {
-        private readonly Dictionary<ComponentsData.ComponentResource, Guid> _locks = new();
+        private readonly Dictionary<IResource, OperationIdentifier> _locks = new();
 
         private readonly List<Undo> _undoStack = new();
         private bool _committed;
 
-        public bool TryAcquire(ComponentsData.ComponentResource resource, Guid owner)
+        public bool TryAcquire<T>(T resource, OperationIdentifier owner)
+            where T : IResource
         {
             if (!resource.TryAcquire(owner)) 
                 return false;
@@ -96,26 +95,12 @@ namespace OperationSystem.Operations
             _locks.Clear();
         }
         
-        public T? TryRead<T>(Guid owner)
-            where T : IComponent
-        {
-            var resource = TryGetResource<T>(owner);
-            return resource == null ? default : resource.Value.Read<T>();
-        }
-        
-        public ComponentsData.ComponentAccess<T>? TryAccess<T>(Guid owner)
-            where T : IComponent
-        {
-            var resource = TryGetResource<T>(owner);
-            return resource?.Access<T>();
-        }
-
-        private ComponentsData.ComponentResource? TryGetResource<T>(Guid owner)
-            where T : IComponent
+        public T? TryAccess<T>(OperationIdentifier owner)
+            where T : IResource
         {
             foreach (var (resource, lockOwner) in _locks)
             {
-                if (resource.ComponentType.IsAssignableFrom<T>())
+                if (resource is not T typedResource)
                     continue;
                 
                 if (lockOwner != owner)
@@ -124,10 +109,10 @@ namespace OperationSystem.Operations
                 if (!resource.IsBelongs(owner))
                     continue;
 
-                return resource;
+                return typedResource;
             }
             
-            return null;
+            return default;
         }
     }
 }

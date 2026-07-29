@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Units;
 using OperationSystem.Weapons.Assets;
 using OperationSystem.Weapons.Operations;
 using OperationSystem.Weapons.UnitHandlers;
-using OperationSystem.Weapons.Units;
 
 namespace OperationSystem.Weapons.Tests
 {
@@ -24,21 +21,22 @@ namespace OperationSystem.Weapons.Tests
         public void MultipleSimultaneouslyShotOperations()
         {
             var pistol = new Pistol();
-            pistol.Children.Add(new PistolChamber(false));
-            pistol.Children.Add(new PistolMagazine(Rounds));
+            var chamber = new PistolChamber(false);
+            var magazine = new PistolMagazine(Rounds);
+            pistol.Children.Add(chamber);
+            pistol.Children.Add(magazine);
             
-            var unit = (IWeapon)pistol.ToUnit();
             var operationRunner = new OperationRunner();
 
             var handler = new WeaponUnitHandler(operationRunner);
-            handler.SetUnit(unit).Wait(Timeout);
-            Assert.AreEqual(unit, handler.Unit);
+            handler.SetAsset(pistol).Wait(Timeout);
+            Assert.IsNotNull(handler.Unit);
 
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
             {
-                var guid = Guid.NewGuid();
-                var operation = new WeaponShotUnitOperation(guid, Enumerable.Empty<IOperationMiddleware>());
+                var identifier = OperationIdentifier.CreateNew();
+                var operation = new WeaponShotUnitOperation(identifier, Enumerable.Empty<IOperationMiddleware>());
                 operation.RunOperation(handler);
                 operations.Add(operation);
             }
@@ -55,9 +53,6 @@ namespace OperationSystem.Weapons.Tests
 
             var failedOperation = operations.SingleOrDefault(o => !o.IsCompletedSuccessfully);
             Assert.NotNull(failedOperation);
-
-            var chamber = unit.TryFind<IChamber>() ?? throw new InvalidOperationException();
-            var magazine = unit.TryFind<IMagazine>() ?? throw new InvalidOperationException();
             
             Assert.False(chamber.HasRound);
             Assert.Zero(magazine.Rounds);
@@ -67,60 +62,66 @@ namespace OperationSystem.Weapons.Tests
         public void LoadedChamberPassTest()
         {
             var pistol = new Pistol();
-            pistol.Children.Add(new PistolChamber(true));
-            var (operation, weapon) = RunAndWaitOperation(pistol);
-            AssertPass(operation, weapon, 0, true, true, false);
+            var chamber = new PistolChamber(true);
+            pistol.Children.Add(chamber);
+            var operation = RunAndWaitOperation(pistol);
+            AssertPass(operation, 0, true, chamber, null);
         }
         
         [Test]
         public void EmptyChamberPassTest()
         {
             var pistol = new Pistol();
-            pistol.Children.Add(new PistolChamber(false));
-            pistol.Children.Add(new PistolMagazine(Rounds));
-            var (operation, weapon) = RunAndWaitOperation(pistol);
-            AssertPass(operation, weapon, Rounds, false, true, true);
+            var chamber = new PistolChamber(false);
+            var magazine = new PistolMagazine(Rounds);
+            pistol.Children.Add(chamber);
+            pistol.Children.Add(magazine);
+            var operation = RunAndWaitOperation(pistol);
+            AssertPass(operation, Rounds, false, chamber, magazine);
         }
         
         [Test]
         public void EmptyMagazineFailTest()
         {
             var pistol = new Pistol();
-            pistol.Children.Add(new PistolChamber(false));
-            pistol.Children.Add(new PistolMagazine(0));
-            var (operation, weapon) = RunAndWaitOperation(pistol);
-            AssertFail(operation, weapon, 0, false, true, true);
+            var chamber = new PistolChamber(false);
+            var magazine = new PistolMagazine(0);
+            pistol.Children.Add(chamber);
+            pistol.Children.Add(magazine);
+            var operation = RunAndWaitOperation(pistol);
+            AssertFail(operation, 0, false, chamber, magazine);
         }
         
         [Test]
         public void NoMagazineFailTest()
         {
             var pistol = new Pistol();
-            pistol.Children.Add(new PistolChamber(false));
-            var (operation, weapon) = RunAndWaitOperation(pistol);
-            AssertFail(operation, weapon, 0, false, true, false);
+            var chamber = new PistolChamber(false);
+            pistol.Children.Add(chamber);
+            var operation = RunAndWaitOperation(pistol);
+            AssertFail(operation, 0, false, chamber, null);
         }
         
         [Test]
         public void NoChamberFailTest()
         {
             var pistol = new Pistol();
-            pistol.Children.Add(new PistolMagazine(Rounds));
-            var (operation, weapon) = RunAndWaitOperation(pistol);
-            AssertFail(operation, weapon, Rounds, false, false, true);
+            var magazine = new PistolMagazine(Rounds);
+            pistol.Children.Add(magazine);
+            var operation = RunAndWaitOperation(pistol);
+            AssertFail(operation, Rounds, false, null, magazine);
         }
 
-        private static (IOperation, IWeapon) RunAndWaitOperation(Pistol pistol)
+        private static IOperation RunAndWaitOperation(Pistol pistol)
         {
-            var unit = (IWeapon)pistol.ToUnit();
             var operationRunner = new OperationRunner();
 
             var handler = new WeaponUnitHandler(operationRunner);
-            handler.SetUnit(unit).Wait(Timeout);
-            Assert.AreEqual(unit, handler.Unit);
+            handler.SetAsset(pistol).Wait(Timeout);
+            Assert.IsNotNull(handler.Unit);
 
-            var guid = Guid.NewGuid();
-            var operation = new WeaponShotUnitOperation(guid, Enumerable.Empty<IOperationMiddleware>());
+            var identifier = OperationIdentifier.CreateNew();
+            var operation = new WeaponShotUnitOperation(identifier, Enumerable.Empty<IOperationMiddleware>());
             operation.RunOperation(handler);
 
             var timeout = Timeout;
@@ -130,51 +131,35 @@ namespace OperationSystem.Weapons.Tests
                 handler.Update();
             }
 
-            return (operation, unit);
+            return operation;
         }
         
-        private static void AssertPass(IOperation operation, IWeapon weapon, int rounds, bool hasRound, bool hasChamber, bool hasMagazine)
+        private static void AssertPass(IOperation operation, int rounds, bool hasRound, PistolChamber? chamber, PistolMagazine? magazine)
         {
             Assert.IsTrue(operation.IsCompleted);
 
             if (operation.Exception != null)
                 ExceptionDispatchInfo.Capture(operation.Exception).Throw();
             
-            if (hasChamber)
-            {
-                var chamber = weapon.TryFind<IChamber>();
-                Assert.NotNull(chamber);
-                Assert.AreEqual(false, chamber!.HasRound);
-            }
+            if (chamber != null)
+                Assert.AreEqual(false, chamber.HasRound);
             
-            if (hasMagazine)
-            {
-                var exceptedRounds = hasRound ? rounds : rounds - 1;
-                var magazine = weapon.TryFind<IMagazine>();
-                Assert.NotNull(magazine);
-                Assert.AreEqual(exceptedRounds, magazine!.Rounds);
-            }
+            var exceptedRounds = hasRound ? rounds : rounds - 1;
+            if (magazine != null)
+                Assert.AreEqual(exceptedRounds, magazine.Rounds);
             
             Assert.IsTrue(operation.IsCompletedSuccessfully);
         }
 
-        private static void AssertFail(IOperation operation, IWeapon weapon, int rounds, bool hasRound, bool hasChamber, bool hasMagazine)
+        private static void AssertFail(IOperation operation, int rounds, bool hasRound, PistolChamber? chamber, PistolMagazine? magazine)
         {
             Assert.IsTrue(operation.IsCompleted);
             
-            if (hasChamber)
-            {
-                var chamber = weapon.TryFind<IChamber>();
-                Assert.NotNull(chamber);
-                Assert.AreEqual(hasRound, chamber!.HasRound);
-            }
+            if (chamber != null)
+                Assert.AreEqual(hasRound, chamber.HasRound);
             
-            if (hasMagazine)
-            {
-                var magazine = weapon.TryFind<IMagazine>();
-                Assert.NotNull(magazine);
-                Assert.AreEqual(rounds, magazine!.Rounds);
-            }
+            if (magazine != null)
+                Assert.AreEqual(rounds, magazine.Rounds);
                 
             Assert.IsFalse(operation.IsCompletedSuccessfully);
         }

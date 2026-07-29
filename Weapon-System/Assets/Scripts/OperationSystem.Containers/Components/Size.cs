@@ -1,23 +1,21 @@
-﻿using System.Linq;
-using OperationSystem.Units;
+﻿using OperationSystem.Component;
 
-namespace OperationSystem.Containers.Units
+namespace OperationSystem.Containers.Components
 {
-    public interface ISize : IUnit
+    public interface ISize : IComponent
     {
         int Height { get; }
         int Width { get; }
     }
 
     public class Size
-        : AbstractUnit
+        : AbstractComponent
         , ISize
     {
         public int Height { get; }
         public int Width { get; }
         
         public Size(int height, int width) 
-            : base(Enumerable.Empty<IUnit>())
         {
             Height = height;
             Width = width;
