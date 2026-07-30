@@ -11,32 +11,24 @@ namespace OperationSystem.Component
     public class ComponentArray<T> : IComponentArray<T>
         where T : struct, IComponent
     {
+        private const int InitialCapacity = 64;
+        
         private struct Slot
         {
             public T Component;
             public OperationIdentifier Owner;
         }
 
-        private readonly object _lock;
-        private readonly DirtyTracker _assetDirty;
-        private readonly DirtyTracker _componentDirty;
-        private readonly ConcurrentStack<int> _freeSlots;
-        private readonly ConcurrentDictionary<UnitId, int> _unitToSlot;
+        private readonly object _lock = new();
+        private readonly DirtyTracker _assetDirty = new(InitialCapacity);
+        private readonly DirtyTracker _componentDirty = new(InitialCapacity);
+        private readonly ConcurrentStack<int> _freeSlots = new();
+        private readonly ConcurrentDictionary<UnitId, int> _unitToSlot = new();
 
-        private Slot[] _slots;
+        private Slot[] _slots = new Slot[InitialCapacity];
         private int _count;
 
         public int TypeId => ComponentType<T>.Id;
-
-        public ComponentArray(int initialCapacity = 64)
-        {
-            _slots = new Slot[initialCapacity];
-            _freeSlots = new ConcurrentStack<int>();
-            _unitToSlot = new ConcurrentDictionary<UnitId, int>();
-            _assetDirty = new DirtyTracker(initialCapacity);
-            _componentDirty = new DirtyTracker(initialCapacity);
-            _lock = new object();
-        }
 
         public bool HasComponent(Unit unit) => unit.ComponentMask.Contains<T>();
 

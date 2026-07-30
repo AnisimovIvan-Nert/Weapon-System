@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace OperationSystem.Component.Types
 {
-    public static class ComponentType<T> where T : IComponent
+    public static class ComponentType<T> where T : struct, IComponent
     {
         public static readonly int Id;
 
@@ -18,7 +18,7 @@ namespace OperationSystem.Component.Types
     
     public static class ComponentType
     {
-        private static int _nextId;
+        private static int _nextId = -1;
         private static bool _isWarmedUp;
         private static Type[]? _idToType;
 
@@ -45,7 +45,7 @@ namespace OperationSystem.Component.Types
             
             var types = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(GetSafeTypes)
-                .Where(type => typeof(IComponent).IsAssignableFrom(type))
+                .Where(type => type.IsValueType && typeof(IComponent).IsAssignableFrom(type))
                 .OrderBy(type => type.FullName)
                 .ToArray();
             
@@ -53,12 +53,11 @@ namespace OperationSystem.Component.Types
                 RuntimeHelpers.RunClassConstructor(typeof(ComponentType<>).MakeGenericType(type).TypeHandle);
 
             _idToType = new Type[_nextId + 1];
-            var genericType = typeof(ComponentType<>);
-            var idField = genericType.GetField("Id", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-            foreach (var type in types)
+            for (var i = 0; i < types.Length; i++)
             {
-                var id = (int)idField!.GetValue(genericType.MakeGenericType(type));
-                _idToType[id] = type;
+                var closedType = typeof(ComponentType<>).MakeGenericType(types[i]);
+                var id = (int)closedType.GetField("Id").GetValue(null);
+                _idToType[id] = types[i];
             }
 
             _isWarmedUp = true;

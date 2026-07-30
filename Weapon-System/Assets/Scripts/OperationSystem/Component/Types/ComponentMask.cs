@@ -30,17 +30,17 @@ namespace OperationSystem.Component.Types
             return mask;
         }
 
-        public static ComponentMask Create<T>() where T : IComponent => Create(ComponentType<T>.Id);
+        public static ComponentMask Create<T>() where T : struct, IComponent => Create(ComponentType<T>.Id);
 
         public bool Contains(int typeId) => _typeBits.IsTrue(typeId);
-        public bool Contains<T>() where T : IComponent => Contains(ComponentType<T>.Id);
+        public bool Contains<T>() where T : struct, IComponent => Contains(ComponentType<T>.Id);
         
         public void Add(int typeId) => _typeBits.SetTrue(typeId);
-        public void Add<T>() where T : IComponent => Add(ComponentType<T>.Id);
+        public void Add<T>() where T : struct, IComponent => Add(ComponentType<T>.Id);
 
 
         public void Remove(int typeId) => _typeBits.SetFalse(typeId);
-        public void Remove<T>() where T : IComponent => Remove(ComponentType<T>.Id);
+        public void Remove<T>() where T : struct, IComponent => Remove(ComponentType<T>.Id);
 
         public bool IsEmpty => !_typeBits.Any();
 

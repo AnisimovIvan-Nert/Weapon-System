@@ -1,4 +1,5 @@
-﻿using OperationSystem.Component;
+﻿using System;
+using OperationSystem.Component;
 using OperationSystem.Component.Types;
 
 namespace OperationSystem.Units
@@ -23,7 +24,14 @@ namespace OperationSystem.Units
             var registry = new UnitRegistry();
             
             ComponentType.WarmUp();
-            var componentArrays = new IComponentArray[ComponentType.RegisteredTypeCount];
+            var count = ComponentType.RegisteredTypeCount;
+            var componentArrays = new IComponentArray[count];
+            for (var i = 0; i < count; i++)
+            {
+                var type = ComponentType.GetType(i);
+                var arrayType = typeof(ComponentArray<>).MakeGenericType(type);
+                componentArrays[i] = (IComponentArray)Activator.CreateInstance(arrayType);
+            }
             return new UnitWorld(registry, componentArrays);
         }
         
