@@ -7,9 +7,7 @@ namespace OperationSystem.Containers.Components.Containers
         int MaxIndividualItemVolume { get; }
     }
     
-    public class ContainerVolume 
-        : AbstractComponent
-        , IContainerVolume
+    public struct ContainerVolume : IContainerVolume
     {
         public int MaxIndividualItemVolume { get; }
         

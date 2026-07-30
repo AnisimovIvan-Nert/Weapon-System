@@ -15,12 +15,14 @@ namespace OperationSystem.Shared
 
         private ref ulong[] Words => ref  _wordsReference[0];
 
-        public BitsCollection(int initialCapacity = WordCapacity - 1)
+        private BitsCollection(int initialCapacity)
         {
             var length = initialCapacity / WordCapacity + 1;
             _wordsReference = new []{new ulong[length]};
             _lock = new object();
         }
+
+        public static BitsCollection Create(int initialCapacity = WordCapacity - 1) => new(initialCapacity);
 
         public bool IsTrue(int index)
         {

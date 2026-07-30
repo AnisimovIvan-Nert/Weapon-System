@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using OperationSystem.Component.Types;
-using OperationSystem.Units;
 
 namespace OperationSystem.Assets
 {

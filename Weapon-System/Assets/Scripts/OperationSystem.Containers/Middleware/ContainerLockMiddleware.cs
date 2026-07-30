@@ -18,9 +18,9 @@ namespace OperationSystem.Containers.Middleware
             IUnitOperationHandler handler)
         {
             var container = handler.Unit ?? throw new InvalidOperationException();
-            var containerComponents = container.ComponentsData;
+            var word = container.World;
             
-            var containerLock = containerComponents.TryGet<IContainerLock>();
+            var containerLock = word.GetComponents<>()<IContainerLock>();
             if (containerLock != null)
                 yield return CanInteract(containerLock, operation);
         }

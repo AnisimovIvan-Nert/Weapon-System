@@ -4,9 +4,7 @@ using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
 {
-    public class AccessContainerLock 
-        : AbstractComponent
-        , IContainerLock
+    public readonly struct AccessContainerLock : IContainerLock
     {
         private readonly int _level;
         
@@ -17,7 +15,8 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
 
         public IEnumerator CanInteractWithContainer(Unit unit)
         {
-            var accessLevel = unit.ComponentsData.TryGet<IAccessLevel>();
+            var word = unit.World;
+            var accessLevel =word.GetComponents<AccessLevel>().TryGetComponent(unit);
             
             if (accessLevel == null)
             {
@@ -25,7 +24,7 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
                 yield break;
             }
 
-            yield return accessLevel.Level >= _level;
+            yield return accessLevel.Value.Level >= _level;
         }
     }
 }

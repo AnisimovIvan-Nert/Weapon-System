@@ -7,7 +7,7 @@ using OperationSystem.Units;
 
 namespace OperationSystem.Component
 {
-    public class ComponentArray<T> : IComponentArray
+    public class ComponentArray<T> : IComponentArray<T>
         where T : struct, IComponent
     {
         private struct Slot
@@ -35,17 +35,9 @@ namespace OperationSystem.Component
             _lock = new object();
         }
 
-        public ref T GetRef(UnitId unitId)
-        {
-            lock (_lock)
-            {
-                var index = GetOrAdd(unitId);
-                _componentDirty.SetDirty(index);
-                return ref _slots[index].Component;
-            }
-        }
+        public bool HasComponent(Unit unit) => unit.ComponentMask.Contains<T>();
 
-        public T GetReadOnly(UnitId unitId)
+        public T GetComponent(UnitId unitId)
         {
             lock (_lock)
             {
@@ -53,14 +45,47 @@ namespace OperationSystem.Component
                 return _slots[index].Component;
             }
         }
-
-        public ref OperationIdentifier GetOwner(UnitId unitId)
+        
+        public TComponent GetComponent<TComponent>(UnitId unitId) where TComponent : IComponent
+        {
+            var component = GetComponent(unitId);
+            if (component is not TComponent typedComponent) 
+                throw new InvalidOperationException();
+            return typedComponent;
+        }
+        
+        public void SetComponent(UnitId unitId, T component)
         {
             lock (_lock)
             {
                 var index = GetOrAdd(unitId);
                 _componentDirty.SetDirty(index);
-                return ref _slots[index].Owner;
+                _slots[index].Component = component;
+            }
+        }
+        
+        public void SetComponent<TComponent>(UnitId unitId, TComponent component) where TComponent : IComponent
+        {
+            if (component is not T typedComponent) 
+                throw new InvalidOperationException();
+            SetComponent(unitId, typedComponent);
+        }
+
+        public OperationIdentifier GetOwner(UnitId unitId)
+        {
+            lock (_lock)
+            {
+                var index = GetOrAdd(unitId);
+                return _slots[index].Owner;
+            }
+        }
+        
+        public void SetOwner(UnitId unitId, OperationIdentifier owner)
+        {
+            lock (_lock)
+            {
+                var index = GetOrAdd(unitId);
+                _slots[index].Owner = owner;
             }
         }
 

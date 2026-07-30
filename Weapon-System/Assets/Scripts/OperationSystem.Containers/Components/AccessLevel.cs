@@ -7,9 +7,7 @@ namespace OperationSystem.Containers.Components
         int Level { get; }
     }
     
-    public class AccessLevel
-        : AbstractComponent
-        , IAccessLevel
+    public struct AccessLevel : IAccessLevel
     {
         public int Level { get; }
         

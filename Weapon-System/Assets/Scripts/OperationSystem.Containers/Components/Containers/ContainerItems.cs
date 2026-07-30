@@ -10,9 +10,7 @@ namespace OperationSystem.Containers.Components.Containers
         IList<Unit> Items { get; }
     }
 
-    public class ContainerItems
-        : AbstractComponent
-        , IContainerItems
+    public struct ContainerItems : IContainerItems
     {
         public IList<Unit> Items { get; }
 

@@ -11,7 +11,7 @@ namespace OperationSystem.Component
 
         public DirtyTracker(int initialCapacity = 63)
         {
-            _dirtyBits = new BitsCollection(initialCapacity);
+            _dirtyBits = BitsCollection.Create(initialCapacity);
         }
 
         public void SetDirty(int index) => _dirtyBits.SetTrue(index);

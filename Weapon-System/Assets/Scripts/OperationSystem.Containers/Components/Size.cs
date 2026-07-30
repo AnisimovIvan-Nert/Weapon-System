@@ -8,9 +8,7 @@ namespace OperationSystem.Containers.Components
         int Width { get; }
     }
 
-    public class Size
-        : AbstractComponent
-        , ISize
+    public struct Size : ISize
     {
         public int Height { get; }
         public int Width { get; }

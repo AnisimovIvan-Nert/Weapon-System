@@ -5,6 +5,7 @@ using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Middleware;
+using OperationSystem.Units;
 using OperationSystem.Weapons.Assets;
 using OperationSystem.Weapons.Operations;
 using OperationSystem.Weapons.UnitHandlers;
@@ -23,14 +24,16 @@ namespace OperationSystem.Weapons.Tests
             var pistol = new Pistol();
             var chamber = new PistolChamber(false);
             var magazine = new PistolMagazine(Rounds);
-            pistol.Children.Add(chamber);
-            pistol.Children.Add(magazine);
+            pistol.AddChild(chamber);
+            pistol.AddChild(magazine);
+
+            var world = UnitWorld.Create();
             
             var operationRunner = new OperationRunner();
 
-            var handler = new WeaponUnitHandler(operationRunner);
+            var handler = new WeaponUnitHandler(operationRunner, world);
             handler.SetUnit(pistol).Wait(Timeout);
-            Assert.IsNotNull(handler.NullableUnit);
+            Assert.IsNotNull(handler.Unit);
 
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
@@ -63,7 +66,7 @@ namespace OperationSystem.Weapons.Tests
         {
             var pistol = new Pistol();
             var chamber = new PistolChamber(true);
-            pistol.Children.Add(chamber);
+            pistol.AddChild(chamber);
             var operation = RunAndWaitOperation(pistol);
             AssertPass(operation, 0, true, chamber, null);
         }
@@ -74,8 +77,8 @@ namespace OperationSystem.Weapons.Tests
             var pistol = new Pistol();
             var chamber = new PistolChamber(false);
             var magazine = new PistolMagazine(Rounds);
-            pistol.Children.Add(chamber);
-            pistol.Children.Add(magazine);
+            pistol.AddChild(chamber);
+            pistol.AddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
             AssertPass(operation, Rounds, false, chamber, magazine);
         }
@@ -86,8 +89,8 @@ namespace OperationSystem.Weapons.Tests
             var pistol = new Pistol();
             var chamber = new PistolChamber(false);
             var magazine = new PistolMagazine(0);
-            pistol.Children.Add(chamber);
-            pistol.Children.Add(magazine);
+            pistol.AddChild(chamber);
+            pistol.AddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, 0, false, chamber, magazine);
         }
@@ -97,7 +100,7 @@ namespace OperationSystem.Weapons.Tests
         {
             var pistol = new Pistol();
             var chamber = new PistolChamber(false);
-            pistol.Children.Add(chamber);
+            pistol.AddChild(chamber);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, 0, false, chamber, null);
         }
@@ -107,7 +110,7 @@ namespace OperationSystem.Weapons.Tests
         {
             var pistol = new Pistol();
             var magazine = new PistolMagazine(Rounds);
-            pistol.Children.Add(magazine);
+            pistol.AddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, Rounds, false, null, magazine);
         }
@@ -115,10 +118,11 @@ namespace OperationSystem.Weapons.Tests
         private static IOperation RunAndWaitOperation(Pistol pistol)
         {
             var operationRunner = new OperationRunner();
+            var world = UnitWorld.Create();
 
-            var handler = new WeaponUnitHandler(operationRunner);
+            var handler = new WeaponUnitHandler(operationRunner, world);
             handler.SetUnit(pistol).Wait(Timeout);
-            Assert.IsNotNull(handler.NullableUnit);
+            Assert.IsNotNull(handler.Unit);
 
             var identifier = OperationIdentifier.CreateNew();
             var operation = new WeaponShotUnitOperation(identifier, Enumerable.Empty<IOperationMiddleware>());

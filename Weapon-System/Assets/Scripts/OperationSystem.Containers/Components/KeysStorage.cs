@@ -10,9 +10,7 @@ namespace OperationSystem.Containers.Components
         IList<IKey> Keys { get; }
     }
     
-    public class KeysStorage
-        : AbstractComponent
-        , IKeysStorage
+    public struct KeysStorage : IKeysStorage
     {
         public IList<IKey> Keys { get; }
         

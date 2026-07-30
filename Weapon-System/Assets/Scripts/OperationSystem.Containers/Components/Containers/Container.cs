@@ -6,9 +6,7 @@ namespace OperationSystem.Containers.Components.Containers
     {
     }
 
-    public class Container
-        : AbstractComponent
-        , IContainer
+    public struct Container : IContainer
     {
     }
 }

@@ -33,6 +33,11 @@ namespace OperationSystem.Units
         }
         
         public IComponentArray GetComponents(int typeId) => _componentArrays[typeId];
+        
+        public IComponentArray GetComponents<T>(Unit unit) where T : IComponent
+        {
+            
+        }
 
         public void PullFromAssets(Unit unit)
         {

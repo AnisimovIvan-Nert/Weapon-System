@@ -6,9 +6,7 @@ using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Components.Containers.Locks.Keys
 {
-    public class KeyContainerLock 
-        : AbstractComponent
-        , IContainerLock
+    public readonly struct KeyContainerLock : IContainerLock
     {
         private readonly Guid _identifier;
 
@@ -19,7 +17,8 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Keys
 
         public IEnumerator CanInteractWithContainer(Unit unit)
         {
-            var keysStorage = unit.ComponentsData.TryGet<IKeysStorage>();
+            var word = unit.World;
+            var keysStorage = word.GetComponents<KeysStorage>().TryGetComponent(unit);
 
             if (keysStorage == null)
             {
@@ -27,7 +26,8 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Keys
                 yield break;
             }
 
-            yield return keysStorage.Keys.OfType<Key>().Any(key => key.Identifier == _identifier);
+            var identifier = _identifier;
+            yield return keysStorage.Value.Keys.OfType<Key>().Any(key => key.Identifier == identifier);
         }
     }
 }

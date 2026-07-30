@@ -6,9 +6,7 @@ namespace OperationSystem.Containers.Components
     {
     }
 
-    public class Executor
-        : AbstractComponent
-        , IExecutor
+    public struct Executor : IExecutor
     {
     }
 }

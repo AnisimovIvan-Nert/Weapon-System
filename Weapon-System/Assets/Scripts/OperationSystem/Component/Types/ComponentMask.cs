@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,27 +9,28 @@ namespace OperationSystem.Component.Types
     {
         private readonly BitsCollection _typeBits;
         
-        private ComponentMask(int singleTypeId)
+        private ComponentMask(BitsCollection typeBits)
         {
-            _typeBits = new BitsCollection(singleTypeId + 1);
-            _typeBits.SetTrue(singleTypeId);
+            _typeBits = typeBits;
         }
         
         public static ComponentMask Create(params int[] typeIds)
         {
             if (typeIds.Length == 0)
-                throw new InvalidOperationException();
+            {
+                var emptyBits = BitsCollection.Create();
+                return new ComponentMask(emptyBits);
+            }
+
+            var typeBits = BitsCollection.Create(typeIds.Max() + 1);
             
-            var mask = new ComponentMask(typeIds[0]);
-            foreach (var id in typeIds.Skip(1)) 
+            var mask = new ComponentMask(typeBits);
+            foreach (var id in typeIds) 
 				mask.Add(id);
             return mask;
         }
 
-        public static ComponentMask Create<T>() where T : IComponent
-        {
-            return new ComponentMask(ComponentType<T>.Id);
-        }
+        public static ComponentMask Create<T>() where T : IComponent => Create(ComponentType<T>.Id);
 
         public bool Contains(int typeId) => _typeBits.IsTrue(typeId);
         public bool Contains<T>() where T : IComponent => Contains(ComponentType<T>.Id);
