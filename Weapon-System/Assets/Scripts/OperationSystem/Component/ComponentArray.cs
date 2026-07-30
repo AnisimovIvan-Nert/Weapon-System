@@ -111,9 +111,8 @@ namespace OperationSystem.Component
         {
             lock (_lock)
             {
-                if (!_unitToSlot.TryGetValue(unitId, out var index))
-                    return;
-
+                var index = GetOrAdd(unitId);
+                
                 if (unitRegistry.GetAsset(unitId) is IAssetPull<T> pull)
                     pull.PullInto(ref _slots[index].Component);
                 
@@ -125,8 +124,7 @@ namespace OperationSystem.Component
         {
             lock (_lock)
             {
-                if (!_unitToSlot.TryGetValue(unitId, out var index))
-                    return;
+                var index = GetOrAdd(unitId);;
 
                 if (unitRegistry.GetAsset(unitId) is IAssetPush<T> push)
                     push.PushFrom(in _slots[index].Component);

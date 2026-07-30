@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using OperationSystem.Component;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
@@ -13,8 +14,10 @@ namespace OperationSystem.Weapons.Operations
 {
     public class WeaponShotUnitOperation : AbstractUnitOperation<IWeapon>
     {
-        private Unit WeaponUnit => Handler.Unit ?? throw new InvalidOperationException();
-        private UnitWorld World => WeaponUnit.World;
+        private Unit Weapon => Handler.Unit ?? throw new InvalidOperationException();
+        private Unit Chamber => Weapon.Children.First(unit => unit.ComponentMask.Contains<Chamber>());
+        private Unit? Magazine => Weapon.Children.FirstOrDefault(unit => unit.ComponentMask.Contains<Magazine>());
+        private UnitWorld World => Weapon.World;
 
         private ComponentArray<Chamber> ChamberComponents => World.GetComponents<Chamber>();
         private ComponentArray<Magazine> MagazineComponents => World.GetComponents<Magazine>();
@@ -35,26 +38,30 @@ namespace OperationSystem.Weapons.Operations
 
             RecordPossibleMutation(context);
 
-            var chamber = ChamberComponents.GetComponent(WeaponUnit.Id);
+            var chamber = ChamberComponents.GetComponent(Chamber.Id);
             if (!chamber.HasRound)
             {
-                var nullableMagazine = MagazineComponents.TryGetComponent(WeaponUnit);
-                if (nullableMagazine is not { Rounds: > 0 })
+                if (Magazine == null)
                     throw new InvalidOperationException();
-
-                var magazine = nullableMagazine.Value;
+                
+                var magazine = MagazineComponents.GetComponent(Magazine.Value.Id);
+                if (magazine is not { Rounds: > 0 })
+                    throw new InvalidOperationException();
+                
                 magazine.Rounds--;
-                MagazineComponents.SetComponent(WeaponUnit.Id, magazine);
+                MagazineComponents.SetComponent(Magazine.Value.Id, magazine);
             }
 
             chamber.HasRound = false;
-            ChamberComponents.SetComponent(WeaponUnit.Id, chamber);
+            ChamberComponents.SetComponent(Chamber.Id, chamber);
         }
 
         private IEnumerator Validate(IOperationContext context)
         {
-            var chamber = ChamberComponents.GetComponent(WeaponUnit.Id);
-            var magazine = MagazineComponents.TryGetComponent(WeaponUnit);
+            var chamber = ChamberComponents.GetComponent(Chamber.Id);
+            Magazine? magazine = Magazine != null
+                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
+                : null;
 
             if (!chamber.HasRound && magazine is not { Rounds: > 0 })
                 throw new InvalidOperationException();
@@ -91,22 +98,24 @@ namespace OperationSystem.Weapons.Operations
 
             void Acquire()
             {
-                context.Acquire<Chamber>(WeaponUnit.Id, Identifier);
+                context.Acquire<Chamber>(Chamber.Id, Identifier);
 
-                if (MagazineComponents.HasComponent(WeaponUnit))
-                    context.Acquire<Magazine>(WeaponUnit.Id, Identifier);
+                if (Magazine != null)
+                    context.Acquire<Magazine>(Magazine.Value.Id, Identifier);
             }
         }
 
         private void RecordPossibleMutation(IOperationContext context)
         {
-            var chamber = ChamberComponents.GetComponent(WeaponUnit.Id);
-            var magazine = MagazineComponents.TryGetComponent(WeaponUnit);
+            var chamber = ChamberComponents.GetComponent(Chamber.Id);
+            Magazine? magazine = Magazine != null
+                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
+                : null;
 
-            if (magazine != null)
-                context.RecordUndo(() => MagazineComponents.SetComponent(WeaponUnit.Id, magazine.Value));
+            if (Magazine != null && magazine != null)
+                context.RecordUndo(() => MagazineComponents.SetComponent(Magazine.Value.Id, magazine.Value));
 
-            context.RecordUndo(() => ChamberComponents.SetComponent(WeaponUnit.Id, chamber));
+            context.RecordUndo(() => ChamberComponents.SetComponent(Chamber.Id, chamber));
         }
     }
 }

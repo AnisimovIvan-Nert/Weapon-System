@@ -25,14 +25,16 @@ namespace OperationSystem.Units
             
             ComponentType.WarmUp();
             var count = ComponentType.RegisteredTypeCount;
-            var componentArrays = new IComponentArray[count];
+            var componentArrays = new IComponentArray[count + 1];
             for (var i = 0; i < count; i++)
             {
-                var type = ComponentType.GetType(i);
+                var type = ComponentType.GetType(i + 1);
                 var arrayType = typeof(ComponentArray<>).MakeGenericType(type);
-                componentArrays[i] = (IComponentArray)Activator.CreateInstance(arrayType);
+                componentArrays[i + 1] = (IComponentArray)Activator.CreateInstance(arrayType);
             }
-            return new UnitWorld(registry, componentArrays);
+            var world = new UnitWorld(registry, componentArrays);
+            registry.SetWorld(world);
+            return world;
         }
         
         public ComponentArray<T> GetComponents<T>() where T : struct, IComponent

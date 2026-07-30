@@ -28,6 +28,8 @@ namespace OperationSystem.Units
             _freeSlots = new ConcurrentStack<int>();
         }
 
+        public void SetWorld(UnitWorld world) => _world = world;
+
         public Unit Create(IAsset asset)
         {
             var mask = asset.GetComponentMask();
