@@ -29,7 +29,8 @@ namespace OperationSystem.Operations.Units
             if (NullableHandler != null)
                 throw new InvalidOperationException();
             NullableHandler = handler;
-            handler.OperationRunner.RunOperation(this);
+            var context = handler.CreateContext();
+            handler.OperationRunner.RunOperation(this, context);
         }
 
         public override void RunOperation(IOperationHandler handler)

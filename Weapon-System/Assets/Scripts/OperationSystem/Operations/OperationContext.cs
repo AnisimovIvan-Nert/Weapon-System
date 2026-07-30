@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OperationSystem.Component;
 using OperationSystem.Component.Types;
+using OperationSystem.Units;
 using UnityEngine;
 
 namespace OperationSystem.Operations
@@ -11,35 +12,49 @@ namespace OperationSystem.Operations
 
     public interface IOperationContext : IDisposable
     {
-        bool TryAcquire<T>(T resource, OperationIdentifier owner) where T : IComponentResource;
+        bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner) where T : struct, IComponent;
         void RecordUndo(Undo undo);
         void Commit();
         void Rollback();
         void ReleaseAll();
         
-        IComponentResource? TryAccess<T>(OperationIdentifier owner) where T : IComponent;
-        T? TryRead<T>(OperationIdentifier owner) where T : IComponent;
+        bool IsOwned<T>(in UnitId unitId, in OperationIdentifier owner) where T : struct, IComponent;
+        T? TryGetReadOnly<T>(in UnitId unitId, in OperationIdentifier owner) where T : struct, IComponent;
+        ref T GetRef<T>(in UnitId unitId, in OperationIdentifier owner) where T : struct, IComponent;
     }
 
     public class OperationContext : IOperationContext
     {
-        private readonly Dictionary<IComponentResource, OperationIdentifier> _locks = new();
-
+        private readonly Dictionary<(UnitId unitId, int typeId), OperationIdentifier> _locks = new();
+        
         private readonly List<Undo> _undoStack = new();
+        private readonly UnitWorld _unitWorld;
         private bool _committed;
 
-        public bool TryAcquire<T>(T resource, OperationIdentifier owner)
-            where T : IComponentResource
+        public OperationContext(UnitWorld unitWorld)
         {
-            if (!resource.TryAcquire(owner)) 
+            _unitWorld = unitWorld;
+        }
+
+        public bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner)
+            where T : struct, IComponent
+        {
+            ref var resourceOwner = ref _unitWorld.GetComponents<T>().GetOwner(unitId);
+
+            if (resourceOwner != default && resourceOwner != owner)
                 return false;
+
+            resourceOwner = owner;
+            _locks[(unitId, ComponentType<T>.Id)] = owner;
 
             try
             {
-                _locks[resource] = owner;
+                resourceOwner = owner;
+                _locks[(unitId, ComponentType<T>.Id)] = owner;
             }
             catch (Exception e)
             {
+                resourceOwner = default;
                 Debug.LogError(e);
                 return false;
             }
@@ -83,11 +98,13 @@ namespace OperationSystem.Operations
 
         public void ReleaseAll()
         {
-            foreach (var (resource, owner) in _locks)
+            foreach (var ((unitId, typeId), owner) in _locks)
             {
                 try
                 {
-                    resource.Release(owner);
+                    ref var resourceOwner = ref _unitWorld.GetComponents(typeId).GetOwner(unitId);
+                    if (resourceOwner == owner)
+                        resourceOwner = default;
                 }
                 catch (Exception e)
                 {
@@ -96,34 +113,36 @@ namespace OperationSystem.Operations
             }
             _locks.Clear();
         }
-        
-        public IComponentResource? TryAccess<T>(OperationIdentifier owner)
-            where T : IComponent
-        {
-            foreach (var (resource, lockOwner) in _locks)
-            {
-                if (resource.Type.IsAssignableFrom<T>())
-                    continue;
-                
-                if (lockOwner != owner)
-                    continue;
-                
-                if (!resource.IsBelongs(owner))
-                    continue;
 
-                return resource;
-            }
-            
-            return null;
+        public bool IsOwned<T>(in UnitId unitId, in OperationIdentifier owner)
+            where T : struct, IComponent
+        {
+            var typeId = ComponentType<T>.Id;
+            if (!_locks.TryGetValue((unitId, typeId), out var resourceOwner))
+                return false;
+
+            if (resourceOwner != owner)
+                return false;
+
+            return true;
         }
         
-        public T? TryRead<T>(OperationIdentifier owner)
-            where T : IComponent
+        public T? TryGetReadOnly<T>(in UnitId unitId, in OperationIdentifier owner)
+            where T : struct, IComponent
         {
-            var access = TryAccess<T>(owner);
-            if (access == null)
-                return default;
-            return access.Read<T>();
+            if (IsOwned<T>(unitId, owner))
+                return null;
+            
+            return _unitWorld.GetComponents<T>().GetReadOnly(unitId);
+        }
+        
+        public ref T GetRef<T>(in UnitId unitId, in OperationIdentifier owner)
+            where T : struct, IComponent
+        {
+            if (IsOwned<T>(unitId, owner))
+                throw new InvalidOperationException();
+            
+            return ref _unitWorld.GetComponents<T>().GetRef(unitId);
         }
     }
 }

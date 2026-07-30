@@ -1,7 +1,6 @@
-using OperationSystem.Assets;
 using OperationSystem.Component;
 
-namespace ECS
+namespace OperationSystem.Assets
 {
     public interface IAssetPush<T> : IAsset
         where T : IComponent

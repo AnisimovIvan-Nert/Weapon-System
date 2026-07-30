@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using ECS;
+using OperationSystem.Component.Types;
 using OperationSystem.Units;
 
 namespace OperationSystem.Assets

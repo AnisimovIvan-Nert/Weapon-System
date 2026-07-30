@@ -5,6 +5,8 @@ namespace OperationSystem.Handlers
     public interface IOperationHandler
     {
         IOperationRunner OperationRunner { get; }
+        
         void Update();
+        IOperationContext CreateContext();
     }
 }

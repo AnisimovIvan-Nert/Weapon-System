@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace ECS.Shared
+namespace OperationSystem.Shared
 {
     internal static class BitOperations
     {

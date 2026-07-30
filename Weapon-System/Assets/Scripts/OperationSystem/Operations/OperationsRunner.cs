@@ -41,9 +41,8 @@ namespace OperationSystem.Operations
             }
         }
 
-        public void RunOperation(IOperation operation)
+        public void RunOperation(IOperation operation, IOperationContext context)
         {
-            var context = new OperationContext();
             _add.Add(new OperationWithContext(operation, context));
         }
         

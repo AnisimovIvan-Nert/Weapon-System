@@ -1,21 +1,21 @@
-﻿using ECS;
-using ECS.Units;
-using OperationSystem.Component;
+﻿using OperationSystem.Component;
+using OperationSystem.Component.Types;
 
 namespace OperationSystem.Units
 {
     public readonly struct UnitWorld
     {
         private readonly IComponentArray[] _componentArrays;
-        private readonly object _lock;
 
         public UnitRegistry Registry { get; }
+        
+        public bool IsNull { get; }
 
         private UnitWorld(UnitRegistry registry, IComponentArray[] componentArrays)
         {
             Registry = registry;
             _componentArrays = componentArrays;
-            _lock = new object();
+            IsNull = true;
         }
 
         public static UnitWorld Create()
@@ -27,14 +27,29 @@ namespace OperationSystem.Units
             return new UnitWorld(registry, componentArrays);
         }
         
-        public ComponentArray<T> GetArray<T>() where T : struct, IComponent
+        public ComponentArray<T> GetComponents<T>() where T : struct, IComponent
         {
             return (ComponentArray<T>)_componentArrays[ComponentType<T>.Id];
         }
         
-        public ref T Get<T>(in Unit unit) where T : struct, IComponent
+        public IComponentArray GetComponents(int typeId) => _componentArrays[typeId];
+
+        public void PullFromAssets(Unit unit)
         {
-            return ref GetArray<T>().Get(unit.Id);
+            foreach (var typeId in unit.ComponentMask)
+                _componentArrays[typeId].PullFromAssets(unit.Id, Registry);
+
+            foreach (var child in unit.Children)
+                PullFromAssets(child);
+        }
+
+        public void PushToAssets(Unit unit)
+        {
+            foreach (var typeId in unit.ComponentMask)
+                _componentArrays[typeId].PushToAssets(unit.Id, Registry);
+
+            foreach (var child in unit.Children)
+                PushToAssets(child);
         }
     }
 }

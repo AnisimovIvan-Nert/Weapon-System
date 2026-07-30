@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using OperationSystem.Component;
 
-namespace ECS
+namespace OperationSystem.Component.Types
 {
     public static class ComponentType<T> where T : IComponent
     {

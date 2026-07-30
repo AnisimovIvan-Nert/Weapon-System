@@ -51,7 +51,8 @@ namespace OperationSystem.Operations
 
         public virtual void RunOperation(IOperationHandler handler)
         {
-            handler.OperationRunner.RunOperation(this);
+            var context = handler.CreateContext();
+            handler.OperationRunner.RunOperation(this, context);
         }
 
         public T? TryGetData<T>()

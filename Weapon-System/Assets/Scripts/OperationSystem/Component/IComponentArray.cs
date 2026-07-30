@@ -1,14 +1,16 @@
-using ECS.Units;
+using OperationSystem.Operations;
 using OperationSystem.Units;
 
-namespace ECS
+namespace OperationSystem.Component
 {
     public interface IComponentArray
     {
-        void PullFromAssets(UnitRegistry registry);
-        void PushToAssets(UnitRegistry registry);
+        void PullFromAssets(UnitId unitId, UnitRegistry unitRegistry);
+        void PushToAssets(UnitId unitId, UnitRegistry unitRegistry);
         void OnEntityDestroyed(UnitId unitId);
 
         void SetAssetDirty(UnitId unitId);
+
+        ref OperationIdentifier GetOwner(UnitId unitId);
     }
 }

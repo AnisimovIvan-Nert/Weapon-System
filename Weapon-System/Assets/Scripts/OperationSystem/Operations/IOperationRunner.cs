@@ -5,7 +5,7 @@
         bool AnyRunningOperation { get; }
         
         void Update();
-        void RunOperation(IOperation operation);
+        void RunOperation(IOperation operation, IOperationContext context);
 
         IDelayer DelayOperationRunning();
         void ReleaseOperationRunning(IDelayer delayer);

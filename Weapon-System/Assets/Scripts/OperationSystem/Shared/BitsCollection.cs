@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ECS.Shared
+namespace OperationSystem.Shared
 {
     public readonly struct BitsCollection
     {

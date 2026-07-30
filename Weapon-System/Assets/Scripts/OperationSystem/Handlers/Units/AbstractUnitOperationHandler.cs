@@ -9,14 +9,11 @@ namespace OperationSystem.Handlers.Units
         : AbstractOperationHandler
         , IUnitOperationHandler
     {
-        private readonly UnitWorld _world;
-        
         public Unit? Unit { get; private set; }
 
-        protected AbstractUnitOperationHandler(IOperationRunner operationRunner) 
-            : base(operationRunner)
+        protected AbstractUnitOperationHandler(IOperationRunner operationRunner, UnitWorld unitWorld) 
+            : base(operationRunner, unitWorld)
         {
-            _world = new UnitWorld();
         }
 
         public IEnumerator SetUnit(IAsset? asset)
@@ -29,16 +26,18 @@ namespace OperationSystem.Handlers.Units
                 if (asset == null)
                     Unit = null;
                 else
-                    Unit = _world.CreateUnit(asset);
+                    Unit = UnitWorld.Registry.Create(asset);
             }
             OperationRunner.ReleaseOperationRunning(delayer);
         }
 
         public override void Update()
         {
-            Unit?.ComponentsData.PullData();
+            if (Unit != null)
+                UnitWorld.PullFromAssets(Unit.Value);
             base.Update();
-            Unit?.ComponentsData.PushData();
+            if (Unit != null)
+                UnitWorld.PushToAssets(Unit.Value);
         }
     }
 }

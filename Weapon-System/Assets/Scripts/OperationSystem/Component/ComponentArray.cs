@@ -1,107 +1,147 @@
 using System;
-using ECS.Units;
-using OperationSystem.Component;
+using System.Collections.Concurrent;
+using System.Threading;
+using OperationSystem.Assets;
+using OperationSystem.Operations;
 using OperationSystem.Units;
 
-namespace ECS
+namespace OperationSystem.Component
 {
-    public class ComponentArray<T> : IComponentArray 
+    public class ComponentArray<T> : IComponentArray
         where T : struct, IComponent
     {
+        private struct Slot
+        {
+            public T Component;
+            public OperationIdentifier Owner;
+        }
+
         private readonly object _lock;
         private readonly DirtyTracker _assetDirty;
         private readonly DirtyTracker _componentDirty;
-        
-        private T[] _components;
+        private readonly ConcurrentStack<int> _freeSlots;
+        private readonly ConcurrentDictionary<UnitId, int> _unitToSlot;
+
+        private Slot[] _slots;
+        private int _count;
 
         public ComponentArray(int initialCapacity = 64)
         {
-            _components = new T[initialCapacity];
+            _slots = new Slot[initialCapacity];
+            _freeSlots = new ConcurrentStack<int>();
+            _unitToSlot = new ConcurrentDictionary<UnitId, int>();
             _assetDirty = new DirtyTracker(initialCapacity);
             _componentDirty = new DirtyTracker(initialCapacity);
             _lock = new object();
         }
-        
-        public ref T Get(UnitId unitId)
+
+        public ref T GetRef(UnitId unitId)
         {
             lock (_lock)
             {
-                _componentDirty.SetDirty(unitId);
-                return ref ReadOnly(unitId);
+                var index = GetOrAdd(unitId);
+                _componentDirty.SetDirty(index);
+                return ref _slots[index].Component;
             }
         }
-        
-        public ref T ReadOnly(UnitId unitId)
+
+        public T GetReadOnly(UnitId unitId)
         {
             lock (_lock)
             {
-                EnsureIndexInRange(unitId.Id);
-                return ref _components[unitId.Id];
+                var index = GetOrAdd(unitId);
+                return _slots[index].Component;
             }
         }
-        
+
+        public ref OperationIdentifier GetOwner(UnitId unitId)
+        {
+            lock (_lock)
+            {
+                var index = GetOrAdd(unitId);
+                _componentDirty.SetDirty(index);
+                return ref _slots[index].Owner;
+            }
+        }
+
         public void SetAssetDirty(UnitId unitId)
         {
             lock (_lock)
             {
-                EnsureIndexInRange(unitId.Id);
-                _assetDirty.SetDirty(unitId);
+                var index = GetOrAdd(unitId);
+                _assetDirty.SetDirty(index);
             }
         }
-        
+
         public void OnEntityDestroyed(UnitId unitId)
         {
             lock (_lock)
             {
-                var id = unitId.Id;
-                _assetDirty.Clear(unitId);
-                _componentDirty.Clear(unitId);
-                if (id < _components.Length)
-                    _components[id] = default;
+                if (!_unitToSlot.TryRemove(unitId, out var index))
+                    return;
+
+                _assetDirty.Clear(index);
+                _componentDirty.Clear(index);
+                _slots[index] = default;
+                _freeSlots.Push(index);
             }
         }
 
-        public void PullFromAssets(UnitRegistry registry)
+        public void PullFromAssets(UnitId unitId, UnitRegistry unitRegistry)
         {
             lock (_lock)
             {
-                foreach (var unitId in _assetDirty)
-                {
-                    if (!registry.IsAlive(unitId))
-                        continue;
-                    if (registry.GetAsset(unitId) is IAssetPull<T> pull)
-                        pull.PullInto(ref _components[unitId.Id]);
-                }
+                if (!_unitToSlot.TryGetValue(unitId, out var index))
+                    return;
 
-                _assetDirty.ClearAll();
+                if (unitRegistry.GetAsset(unitId) is IAssetPull<T> pull)
+                    pull.PullInto(ref _slots[index].Component);
+                
+                _assetDirty.Clear(index);
             }
         }
 
-        public void PushToAssets(UnitRegistry registry)
+        public void PushToAssets(UnitId unitId, UnitRegistry unitRegistry)
         {
             lock (_lock)
             {
-                foreach (var unitId in _componentDirty)
-                {
-                    if (!registry.IsAlive(unitId))
-                        continue;
-                    if (registry.GetAsset(unitId) is IAssetPush<T> push)
-                        push.PushFrom(in _components[unitId.Id]);
-                }
+                if (!_unitToSlot.TryGetValue(unitId, out var index))
+                    return;
 
-                _componentDirty.ClearAll();
+                if (unitRegistry.GetAsset(unitId) is IAssetPush<T> push)
+                    push.PushFrom(in _slots[index].Component);
+                
+                _componentDirty.Clear(index);
             }
         }
-        
+
+        private int GetOrAdd(UnitId unitId)
+        {
+            return _unitToSlot.GetOrAdd(unitId, ValueFactory);
+
+            int ValueFactory(UnitId id)
+            {
+                if (!_freeSlots.TryPop(out var slotIndex))
+                {
+                    slotIndex = Interlocked.Increment(ref _count);
+                    if (_count > _slots.Length)
+                        EnsureIndexInRange(_count);
+                }
+
+                _slots[slotIndex] = default;
+                return slotIndex;
+            }
+        }
+
         private void EnsureIndexInRange(int index)
         {
             lock (_lock)
             {
-                if (index < _components.Length)
+                if (index < _slots.Length)
                     return;
 
-                var newCapacity = Math.Max(index + 1, _components.Length * 2);
-                Array.Resize(ref _components, newCapacity);
+                var newCapacity = Math.Max(index + 1, _slots.Length * 2);
+                Array.Resize(ref _slots, newCapacity);
                 _assetDirty.EnsureCapacity(newCapacity);
                 _componentDirty.EnsureCapacity(newCapacity);
             }

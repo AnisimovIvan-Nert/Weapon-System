@@ -1,5 +1,6 @@
 ﻿using System;
 using OperationSystem.Component;
+using OperationSystem.Units;
 
 namespace OperationSystem.Operations
 {
@@ -13,23 +14,17 @@ namespace OperationSystem.Operations
     
     public static class OperationContextExtensions
     {
-        public static void Acquire<T>(this IOperationContext context, T resource, OperationIdentifier owner)
-            where T : IComponentResource
+        public static void Acquire<T>(this IOperationContext context, in UnitId unitId, in OperationIdentifier owner)
+            where T : struct, IComponent
         {
-            if (!context.TryAcquire(resource, owner))
+            if (!context.TryAcquire<T>(unitId, owner))
                 throw new AcquireException();
         }
         
-        public static IComponentResource Access<T>(this IOperationContext context, OperationIdentifier owner)
-            where T : IComponent
+        public static T GetReadOnly<T>(this IOperationContext context, in UnitId unitId, in OperationIdentifier owner)
+            where T : struct, IComponent
         {
-            return context.TryAccess<T>(owner) ?? throw new AccessException();
-        }
-        
-        public static T Read<T>(this IOperationContext context, OperationIdentifier owner)
-            where T : IComponent
-        {
-            return context.TryRead<T>(owner) ?? throw new AccessException();
+            return context.TryGetReadOnly<T>(unitId, owner) ?? throw new AccessException();
         }
     }
 }

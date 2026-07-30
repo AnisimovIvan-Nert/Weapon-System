@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using OperationSystem.Assets;
-using OperationSystem.Units;
 
-namespace ECS.Units
+namespace OperationSystem.Units
 {
     public class UnitRegistry
     {
@@ -13,16 +13,14 @@ namespace ECS.Units
         {
             public bool Alive;
             public IAsset Asset;
-            public ComponentMask Mask;
         }
 
         private readonly object _lock = new();
         private readonly ConcurrentStack<int> _freeSlots;
-
+        
+        private UnitWorld _world;
         private Slot[] _slots;
         private int _count;
-
-        public int Capacity => _slots.Length;
 
         public UnitRegistry(int initialCapacity = 1024)
         {
@@ -44,12 +42,12 @@ namespace ECS.Units
             _slots[id] = new Slot
             {
                 Alive = true,
-                Asset = asset,
-                Mask = mask,
+                Asset = asset
             };
 
+            var children = asset.Children.Select(Create);
             var unitId = new UnitId(id);
-            return new Unit(unitId);
+            return new Unit(unitId, mask, _world, children.ToArray());
         }
 
         public void Destroy(UnitId unitId)
@@ -71,7 +69,6 @@ namespace ECS.Units
         }
         
         public IAsset GetAsset(UnitId unitId) => _slots[unitId.Id].Asset;
-        public ComponentMask GetMask(UnitId unitId) => _slots[unitId.Id].Mask;
 
         public IEnumerable<UnitId> EnumerateAlive()
         {

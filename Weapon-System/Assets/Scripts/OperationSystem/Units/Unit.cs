@@ -1,15 +1,22 @@
 ﻿using System;
-using OperationSystem.Component;
+using System.Collections.Generic;
+using OperationSystem.Component.Types;
 
 namespace OperationSystem.Units
 {
     public readonly struct Unit : IEquatable<Unit>
     {
         public UnitId Id { get; }
+        public ComponentMask ComponentMask { get; }
+        public IList<Unit> Children { get; }
+        public UnitWorld World { get; }
         
-        public Unit(UnitId id)
+        public Unit(UnitId id, ComponentMask componentMask, UnitWorld world, params Unit[] children)
         {
             Id = id;
+            ComponentMask = componentMask;
+            World = world;
+            Children = children;
         }
         
         public static bool operator ==(Unit left, Unit right) => left.Equals(right);

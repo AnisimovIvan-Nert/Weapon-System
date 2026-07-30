@@ -1,9 +1,10 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
-using ECS.Shared;
-using OperationSystem.Component;
+using OperationSystem.Shared;
 
-namespace ECS
+namespace OperationSystem.Component.Types
 {
     public readonly struct ComponentMask
     {
@@ -42,5 +43,30 @@ namespace ECS
         public void Remove<T>() where T : IComponent => Remove(ComponentType<T>.Id);
 
         public bool IsEmpty => !_typeBits.Any();
+
+        public ComponentTypeEnumerator GetEnumerator() => new(_typeBits);
+        
+        public struct ComponentTypeEnumerator : IEnumerator<int>
+        {
+            private BitsCollection.TrueBitsEnumerator _trueBitsEnumerator;
+
+            internal ComponentTypeEnumerator(BitsCollection bitsCollection)
+            {
+                _trueBitsEnumerator = bitsCollection.GetEnumerator();
+            }
+            
+            public void Reset() => _trueBitsEnumerator.Reset();
+
+            public bool MoveNext() => _trueBitsEnumerator.MoveNext();
+
+            public int Current => _trueBitsEnumerator.Current;
+            
+            object IEnumerator.Current => Current;
+
+            public void Dispose()
+            {
+                _trueBitsEnumerator.Dispose();
+            }
+        }
     }
 }
