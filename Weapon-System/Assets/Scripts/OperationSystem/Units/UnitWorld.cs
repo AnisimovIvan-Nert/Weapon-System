@@ -34,9 +34,15 @@ namespace OperationSystem.Units
         
         public IComponentArray GetComponents(int typeId) => _componentArrays[typeId];
         
-        public IComponentArray GetComponents<T>(Unit unit) where T : IComponent
+        public IComponentArray? TryGetComponents<T>(Unit unit) where T : IComponent
         {
-            
+            foreach (var componentType in unit.ComponentMask)
+            {
+                if (ComponentType.IsAssignableFrom<T>(componentType))
+                    return GetComponents(componentType);
+            }
+
+            return null;
         }
 
         public void PullFromAssets(Unit unit)

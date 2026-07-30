@@ -13,6 +13,7 @@ namespace OperationSystem.Operations
     public interface IOperationContext : IDisposable
     {
         bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner) where T : struct, IComponent;
+        bool TryAcquire(int typeId, in UnitId unitId, in OperationIdentifier owner);
         void RecordUndo(Undo undo);
         void Commit();
         void Rollback();
@@ -35,23 +36,28 @@ namespace OperationSystem.Operations
         public bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner)
             where T : struct, IComponent
         {
-            var resourceOwner = _unitWorld.GetComponents<T>().GetOwner(unitId);
+            return TryAcquire(ComponentType<T>.Id, unitId, owner);
+        }
+        
+        public bool TryAcquire(int typeId, in UnitId unitId, in OperationIdentifier owner)
+        {
+            var resourceOwner = _unitWorld.GetComponents(typeId).GetOwner(unitId);
 
             if (resourceOwner != default && resourceOwner != owner)
                 return false;
             
             try
             {
-                _locks[(unitId, ComponentType<T>.Id)] = owner;
+                _locks[(unitId, typeId)] = owner;
             }
             catch (Exception e)
             {
-                _locks.Remove((unitId, ComponentType<T>.Id));
+                _locks.Remove((unitId, typeId));
                 Debug.LogError(e);
                 return false;
             }
             
-            _unitWorld.GetComponents<T>().SetOwner(unitId, resourceOwner);
+            _unitWorld.GetComponents(typeId).SetOwner(unitId, resourceOwner);
             
             return true;
         }

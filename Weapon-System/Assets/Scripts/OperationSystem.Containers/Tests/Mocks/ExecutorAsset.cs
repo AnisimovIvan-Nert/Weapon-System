@@ -1,0 +1,45 @@
+﻿using OperationSystem.Assets;
+using OperationSystem.Component.Types;
+using OperationSystem.Containers.Components;
+
+namespace OperationSystem.Containers.Tests.Mocks
+{
+    public class ExecutorAsset 
+        : AbstractAsset
+        , IAssetPull<KeysStorage>
+        , IAssetPull<AccessLevel>
+    {
+        private readonly KeysStorage? _keysStorage;
+        private readonly AccessLevel? _accessLevel;
+
+        public ExecutorAsset(KeysStorage? keysStorage = null, AccessLevel? accessLevel = null)
+        {
+            _keysStorage = keysStorage;
+            _accessLevel = accessLevel;
+        }
+
+        public override ComponentMask GetComponentMask()
+        {
+            var mask = ComponentMask.Create<Executor>();
+            
+            if (_keysStorage != null)
+                mask.Add<KeysStorage>();
+            if (_accessLevel != null)
+                mask.Add<AccessLevel>();
+
+            return mask;
+        }
+        
+        public void PullInto(ref KeysStorage component)
+        {
+            if (_keysStorage.HasValue)
+                component = _keysStorage.Value;
+        }
+
+        public void PullInto(ref AccessLevel component)
+        {
+            if (_accessLevel.HasValue)
+                component = _accessLevel.Value;
+        }
+    }
+}

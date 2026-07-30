@@ -5,6 +5,8 @@ namespace OperationSystem.Component
 {
     public interface IComponentArray
     {
+        int TypeId { get; }
+        
         bool HasComponent(Unit unit);
         
         void PullFromAssets(UnitId unitId, UnitRegistry unitRegistry);

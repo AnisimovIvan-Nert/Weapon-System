@@ -17,12 +17,15 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context,
             IUnitOperationHandler handler)
         {
-            var container = handler.Unit ?? throw new InvalidOperationException();
-            var word = container.World;
+            var unit = handler.Unit ?? throw new InvalidOperationException();
+            var world = unit.World;
             
-            var containerLock = word.GetComponents<>()<IContainerLock>();
-            if (containerLock != null)
-                yield return CanInteract(containerLock, operation);
+            var componentsArray = world.TryGetComponents<IContainerLock>(unit);
+            if (componentsArray == null)
+                yield break;
+
+            var component = componentsArray.GetComponent<IContainerLock>(unit.Id);
+            yield return CanInteract(component, operation);
         }
 
         public override IEnumerator TryAcquireLocks(
@@ -30,13 +33,14 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context,
             IUnitOperationHandler handler)
         {
-            var container = handler.Unit ?? throw new InvalidOperationException();
-            var containerLock = container.ComponentsData.TryGet<IContainerLock>();
+            var unit = handler.Unit ?? throw new InvalidOperationException();
+            var world = unit.World;
             
-            if (containerLock == null)
+            var componentsArray = world.TryGetComponents<IContainerLock>(unit);
+            if (componentsArray == null)
                 yield break;
             
-            context.Acquire(containerLock, operation.Identifier);
+            context.Acquire(componentsArray.TypeId, unit.Id, operation.Identifier);
         }
 
         public override IEnumerator Execute(
@@ -44,9 +48,15 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context, 
             IUnitOperationHandler handler)
         {
-            var containerLock = context.TryAccess<IContainerLock>(operation.Identifier);
-            if (containerLock != null)
-                yield return CanInteract(containerLock, operation);
+            var unit = handler.Unit ?? throw new InvalidOperationException();
+            var world = unit.World;
+            
+            var componentsArray = world.TryGetComponents<IContainerLock>(unit);
+            if (componentsArray == null)
+                yield break;
+
+            var component = componentsArray.GetComponent<IContainerLock>(unit.Id);
+            yield return CanInteract(component, operation);
         }
 
         private static IEnumerator CanInteract(IContainerLock containerLock, IOperation operation)
@@ -60,5 +70,6 @@ namespace OperationSystem.Containers.Middleware
             if (canInteract is not true) 
                 throw new InvalidOperationException();
         }
+        
     }
 }

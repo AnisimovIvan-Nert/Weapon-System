@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -21,9 +20,19 @@ namespace OperationSystem.Component.Types
     {
         private static int _nextId;
         private static bool _isWarmedUp;
+        private static Type[]? _idToType;
+
+        private static Type[] IdToType => _idToType ?? throw new InvalidOperationException();
 
         public static int RegisteredTypeCount => _nextId;
-            
+
+        public static Type GetType(int typeId) => IdToType[typeId];
+
+        public static bool IsAssignableFrom<T>(int typeId)
+        {
+            return typeof(T).IsAssignableFrom(IdToType[typeId]);
+        }
+
         public static int Register()
         {
             return Interlocked.Increment(ref _nextId);
@@ -42,6 +51,15 @@ namespace OperationSystem.Component.Types
             
             foreach (var type in types)
                 RuntimeHelpers.RunClassConstructor(typeof(ComponentType<>).MakeGenericType(type).TypeHandle);
+
+            _idToType = new Type[_nextId + 1];
+            var genericType = typeof(ComponentType<>);
+            var idField = genericType.GetField("Id", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            foreach (var type in types)
+            {
+                var id = (int)idField!.GetValue(genericType.MakeGenericType(type));
+                _idToType[id] = type;
+            }
 
             _isWarmedUp = true;
         }

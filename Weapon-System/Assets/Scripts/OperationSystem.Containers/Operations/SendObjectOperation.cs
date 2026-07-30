@@ -7,11 +7,17 @@ using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Units;
+using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
 {
     public class SendObjectUnitOperation : AbstractStagedUnitOperation, ISendOperationTag
     {
+        private Unit Unit => Handler.Unit ?? throw new InvalidOperationException();
+        private UnitWorld World => Unit.World;
+
+        private ComponentArray<ContainerItems> ItemsComponents => World.GetComponents<ContainerItems>();
+        
         public SendObjectUnitOperation(
             OperationIdentifier identifier, 
             IOperationExecutor executor, 
@@ -25,11 +31,9 @@ namespace OperationSystem.Containers.Operations
         {
             yield return base.ValidateEnumerator();
             
-            var container = Handler.Unit ?? throw new InvalidOperationException();
             var target = this.GetData<IOperationTarget>();
 
-            var containerItems = container.ComponentsData.Get<IContainerItems>();
-
+            var containerItems = ItemsComponents.GetComponent(Unit.Id);
             if (!containerItems.Items.Contains(target.Target))
                 throw new InvalidOperationException();
         }
@@ -38,9 +42,7 @@ namespace OperationSystem.Containers.Operations
         {
             yield return base.TryAcquireLocksEnumerator();
             
-            var container = Handler.Unit ?? throw new InvalidOperationException();
-            var containerItems = container.ComponentsData.Get<IContainerItems>();
-            Context.Acquire(containerItems, Identifier);
+            Context.Acquire<ContainerItems>(Unit.Id, Identifier);
         }
 
         protected override IEnumerator RecordPossibleMutationsEnumerator()
@@ -49,18 +51,18 @@ namespace OperationSystem.Containers.Operations
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
-            var items = Context.Access<IContainerItems>(Identifier);
-            var index = items.Items.IndexOf(target);
+            var containerItems = ItemsComponents.GetComponent(Unit.Id);
+            var index = containerItems.Items.IndexOf(target);
 
             if (index == -1)
                 throw new InvalidOperationException();
             
             Context.RecordUndo(() =>
             {
-                if (items.Items.Contains(target))
-                    items.Items.Remove(target);
+                if (containerItems.Items.Contains(target))
+                    containerItems.Items.Remove(target);
                 
-                items.Items.Insert(index, target);
+                containerItems.Items.Insert(index, target);
             });
         }
 
@@ -68,10 +70,11 @@ namespace OperationSystem.Containers.Operations
         {
             yield return base.ExecuteEnumerator();
             
-            var items = Context.Access<IContainerItems>(Identifier);
             var target = this.GetData<IOperationTarget>();
-
-            items.Items.Remove(target.Target);
+            
+            var containerItems = ItemsComponents.GetComponent(Unit.Id);
+            containerItems.Items.Remove(target.Target);
+            ItemsComponents.SetComponent(Unit.Id, containerItems);
         }
     }
 }

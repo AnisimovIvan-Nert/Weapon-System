@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using OperationSystem.Assets;
+using OperationSystem.Component.Types;
 using OperationSystem.Operations;
 using OperationSystem.Units;
 
@@ -24,6 +25,8 @@ namespace OperationSystem.Component
 
         private Slot[] _slots;
         private int _count;
+
+        public int TypeId => ComponentType<T>.Id;
 
         public ComponentArray(int initialCapacity = 64)
         {

@@ -20,5 +20,15 @@ namespace OperationSystem.Operations
             if (!context.TryAcquire<T>(unitId, owner))
                 throw new AcquireException();
         }
+        
+        public static void Acquire(
+            this IOperationContext context, 
+            int typeId, 
+            in UnitId unitId, 
+            in OperationIdentifier owner)
+        {
+            if (!context.TryAcquire(typeId, unitId, owner))
+                throw new AcquireException();
+        }
     }
 }

@@ -8,6 +8,7 @@ using OperationSystem.Containers.Components.Containers.Locks.Accesses;
 using OperationSystem.Containers.Components.Containers.Locks.Keys;
 using OperationSystem.Containers.Middleware;
 using OperationSystem.Containers.Operations;
+using OperationSystem.Containers.Tests.Mocks;
 using OperationSystem.Containers.UnitHandlers;
 using OperationSystem.Handlers;
 using OperationSystem.Operations;
@@ -24,63 +25,75 @@ namespace OperationSystem.Containers.Tests
         [Test]
         public void SimplePassTest()
         {
-            var target = n
-
+            var world = UnitWorld.Create();
+            
+            var targetAsset = new FooAsset();
+            var target = world.Registry.Create(targetAsset);
+            
             var senderItems = new ContainerItems(target);
-            var sender = new Container(senderItems);
+            var sender = new ContainerAsset(senderItems);
 
             var receiverItems = new ContainerItems();
-            var receiver = new Container(receiverItems);
-
-            var executor = new Executor();
-
-            var operation = RunAndWaitOperation(executor, target, sender, receiver);
+            var receiver = new ContainerAsset(receiverItems);
             
-            AssertPass(operation, senderItems, receiverItems, target);
+            var executorAsset = new ExecutorAsset();
+            var executor = world.Registry.Create(executorAsset);
+
+            var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
+            
+            AssertPass(operation, sender, receiver, target);
         }
         
         [Test]
         public void SenderLockFailTest()
         {
-            var target = new FooUnit();
-
+            var world = UnitWorld.Create();
+            
+            var targetAsset = new FooAsset();
+            var target = world.Registry.Create(targetAsset);
+            
             var keyIdentifier = Guid.NewGuid();
             
             var senderItems = new ContainerItems(target);
             var senderLock = new KeyContainerLock(keyIdentifier);
-            var sender = new Container(senderItems, senderLock);
+            var sender = new ContainerAsset(senderItems, senderLock);
 
             var receiverItems = new ContainerItems();
-            var receiver = new Container(receiverItems);
-
-            var executor = new Executor();
-
-            var operation = RunAndWaitOperation(executor, target, sender, receiver);
+            var receiver = new ContainerAsset(receiverItems);
             
-            AssertFail(operation, senderItems, receiverItems, target);
+            var executorAsset = new ExecutorAsset();
+            var executor = world.Registry.Create(executorAsset);
+
+            var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
+            
+            AssertFail(operation, sender, receiver, target);
         }
         
         [Test]
         public void SenderLockPassTest()
         {
-            var target = new FooUnit();
-
+            var world = UnitWorld.Create();
+            
+            var targetAsset = new FooAsset();
+            var target = world.Registry.Create(targetAsset);
+            
             var keyIdentifier = Guid.NewGuid();
             
             var senderItems = new ContainerItems(target);
             var senderLock = new KeyContainerLock(keyIdentifier);
-            var sender = new Container(senderItems, senderLock);
+            var sender = new ContainerAsset(senderItems, senderLock);
 
             var receiverItems = new ContainerItems();
-            var receiver = new Container(receiverItems);
+            var receiver = new ContainerAsset(receiverItems);
 
             var key = new Key(keyIdentifier);
-            var keysStorage = new KeysStorage(key);
-            var executor = new Executor(keysStorage);
+            var keyStorage = new KeysStorage(key);
+            var executorAsset = new ExecutorAsset(keyStorage);
+            var executor = world.Registry.Create(executorAsset);
 
-            var operation = RunAndWaitOperation(executor, target, sender, receiver);
+            var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertPass(operation, senderItems, receiverItems, target);
+            AssertPass(operation, sender, receiver, target);
         }
         
         [Test]
@@ -88,21 +101,25 @@ namespace OperationSystem.Containers.Tests
         {
             const int accessLevel = 2;
             
-            var target = new FooUnit();
+            var world = UnitWorld.Create();
+            
+            var targetAsset = new FooAsset();
+            var target = world.Registry.Create(targetAsset);
             
             var senderItems = new ContainerItems(target);
-            var sender = new Container(senderItems);
+            var sender = new ContainerAsset(senderItems);
 
             var receiverItems = new ContainerItems();
             var receiverLock = new AccessContainerLock(accessLevel);
-            var receiver = new Container(receiverItems, receiverLock);
-
-            var access = new AccessLevel(accessLevel - 1);
-            var executor = new Executor(access);
-
-            var operation = RunAndWaitOperation(executor, target, sender, receiver);
+            var receiver = new ContainerAsset(receiverItems, null, receiverLock);
             
-            AssertFail(operation, senderItems, receiverItems, target);
+            var access = new AccessLevel(accessLevel - 1);
+            var executorAsset = new ExecutorAsset(null, access);
+            var executor = world.Registry.Create(executorAsset);
+
+            var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
+            
+            AssertFail(operation, sender, receiver, target);
         }
         
         [Test]
@@ -110,22 +127,26 @@ namespace OperationSystem.Containers.Tests
         {
             const int accessLevel = 2;
             
-            var target = new FooUnit();
+            var world = UnitWorld.Create();
+            
+            var targetAsset = new FooAsset();
+            var target = world.Registry.Create(targetAsset);
             
             var senderItems = new ContainerItems(target);
             var senderLock =  new AccessContainerLock(accessLevel + 1);
-            var sender = new Container(senderItems, senderLock);
+            var sender = new ContainerAsset(senderItems, null, senderLock);
 
             var receiverItems = new ContainerItems();
             var receiverLock = new AccessContainerLock(accessLevel);
-            var receiver = new Container(receiverItems, receiverLock);
-
-            var access = new AccessLevel(accessLevel + 1);
-            var executor = new Executor(access);
-
-            var operation = RunAndWaitOperation(executor, target, sender, receiver);
+            var receiver = new ContainerAsset(receiverItems, null, receiverLock);
             
-            AssertPass(operation, senderItems, receiverItems, target);
+            var access = new AccessLevel(accessLevel + 1);
+            var executorAsset = new ExecutorAsset(null, access);
+            var executor = world.Registry.Create(executorAsset);
+
+            var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
+            
+            AssertPass(operation, sender, receiver, target);
         }
         
         [Test]
@@ -134,22 +155,26 @@ namespace OperationSystem.Containers.Tests
             const int height = 5;
             const int width = 10;
             const int volume = height * width;
-
+            
+            var world = UnitWorld.Create();
+            
             var size = new Size(height, width);
-            var target = new FooUnit(size);
-
+            var targetAsset = new FooAsset(size);
+            var target = world.Registry.Create(targetAsset);
+            
             var senderItems = new ContainerItems(target);
-            var sender = new Container(senderItems);
+            var sender = new ContainerAsset(senderItems);
 
             var receiverItems = new ContainerItems();
             var receiverVolume = new ContainerVolume(volume - 1);
-            var receiver = new Container(receiverItems, receiverVolume);
-
-            var executor = new Executor();
-
-            var operation = RunAndWaitOperation(executor, target, sender, receiver);
+            var receiver = new ContainerAsset(receiverItems, null, null, receiverVolume);
             
-            AssertFail(operation, senderItems, receiverItems, target);
+            var executorAsset = new ExecutorAsset();
+            var executor = world.Registry.Create(executorAsset);
+
+            var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
+            
+            AssertFail(operation, sender, receiver, target);
         }
         
         [Test]
@@ -158,29 +183,34 @@ namespace OperationSystem.Containers.Tests
             const int height = 5;
             const int width = 10;
             const int volume = height * width;
-
+            
+            var world = UnitWorld.Create();
+            
             var size = new Size(height, width);
-            var target = new FooUnit(size);
-
+            var targetAsset = new FooAsset(size);
+            var target = world.Registry.Create(targetAsset);
+            
             var senderItems = new ContainerItems(target);
-            var sender = new Container(senderItems);
+            var sender = new ContainerAsset(senderItems);
 
             var receiverItems = new ContainerItems();
             var receiverVolume = new ContainerVolume(volume);
-            var receiver = new Container(receiverItems, receiverVolume);
-
-            var executor = new Executor();
-
-            var operation = RunAndWaitOperation(executor, target, sender, receiver);
+            var receiver = new ContainerAsset(receiverItems, null, null, receiverVolume);
             
-            AssertPass(operation, senderItems, receiverItems, target);
+            var executorAsset = new ExecutorAsset();
+            var executor = world.Registry.Create(executorAsset);
+
+            var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
+            
+            AssertPass(operation, sender, receiver, target);
         }
         
         private static IOperation RunAndWaitOperation(
-            IUnit executor,
-            IUnit target, 
-            IContainer sender, 
-            IContainer receiver)
+            Unit executor,
+            Unit target, 
+            ContainerAsset sender, 
+            ContainerAsset receiver,
+            UnitWorld unitWorld)
         {
             var middlewares = new IOperationMiddleware[]
             {
@@ -192,18 +222,17 @@ namespace OperationSystem.Containers.Tests
             var targetData = new OperationTarget(target);
             
             var senderRunner = new OperationRunner();
-            var senderHandler = new ContainerHandler(senderRunner);
+            var senderHandler = new ContainerHandler(senderRunner, unitWorld);
             senderHandler.SetUnit(sender).Wait();
             
             var receiverRunner = new OperationRunner();
-            var receiverHandler = new ContainerHandler(receiverRunner);
+            var receiverHandler = new ContainerHandler(receiverRunner, unitWorld);
             receiverHandler.SetUnit(receiver).Wait();
             
             var globalRunner = new OperationRunner();
-            var globalHandler = new OperationHandler(globalRunner);
+            var globalHandler = new OperationHandler(globalRunner, unitWorld);
             
-            var guid = Guid.NewGuid();
-            var operation = new MovingObjectOperation(guid, executorData, targetData, 
+            var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
                 senderHandler, receiverHandler, middlewares);
             
             operation.RunOperation(globalHandler);
@@ -222,31 +251,31 @@ namespace OperationSystem.Containers.Tests
 
         private static void AssertPass(
             IOperation operation, 
-            ContainerItems sender,
-            ContainerItems receiver,
-            IUnit target)
+            ContainerAsset sender,
+            ContainerAsset receiver,
+            Unit target)
         {
             Assert.IsTrue(operation.IsCompleted);
             
             if (operation.Exception != null)
                 ExceptionDispatchInfo.Capture(operation.Exception).Throw();
             
-            Assert.IsFalse(sender.Items.Contains(target));
-            Assert.IsTrue(receiver.Items.Contains(target));
+            Assert.IsFalse(sender.Items.Items.Contains(target));
+            Assert.IsTrue(receiver.Items.Items.Contains(target));
 
             Assert.IsTrue(operation.IsCompletedSuccessfully);
         }
         
         private static void AssertFail(
             IOperation operation, 
-            ContainerItems sender,
-            ContainerItems receiver,
-            IUnit target)
+            ContainerAsset sender,
+            ContainerAsset receiver,
+            Unit target)
         {
             Assert.IsTrue(operation.IsCompleted);
             
-            Assert.IsTrue(sender.Items.Contains(target));
-            Assert.IsFalse(receiver.Items.Contains(target));
+            Assert.IsTrue(sender.Items.Items.Contains(target));
+            Assert.IsFalse(receiver.Items.Items.Contains(target));
             
             Assert.IsFalse(operation.IsCompletedSuccessfully);
         }
