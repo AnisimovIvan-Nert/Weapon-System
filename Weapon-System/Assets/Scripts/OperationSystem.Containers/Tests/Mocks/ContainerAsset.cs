@@ -28,6 +28,7 @@ namespace OperationSystem.Containers.Tests.Mocks
             Items = items;
             _keyLock = keyLock;
             _accessLock = accessLock;
+            _volume = containerVolume;
         }
 
         public override ComponentMask GetComponentMask()

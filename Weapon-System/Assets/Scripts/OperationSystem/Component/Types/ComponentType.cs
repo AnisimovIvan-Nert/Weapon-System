@@ -24,7 +24,7 @@ namespace OperationSystem.Component.Types
 
         private static Type[] IdToType => _idToType ?? throw new InvalidOperationException();
 
-        public static int RegisteredTypeCount => _nextId;
+        public static int RegisteredTypeCount => _nextId + 1;
 
         public static Type GetType(int typeId) => IdToType[typeId];
 
@@ -52,7 +52,7 @@ namespace OperationSystem.Component.Types
             foreach (var type in types)
                 RuntimeHelpers.RunClassConstructor(typeof(ComponentType<>).MakeGenericType(type).TypeHandle);
 
-            _idToType = new Type[_nextId + 1];
+            _idToType = new Type[RegisteredTypeCount];
             for (var i = 0; i < types.Length; i++)
             {
                 var closedType = typeof(ComponentType<>).MakeGenericType(types[i]);

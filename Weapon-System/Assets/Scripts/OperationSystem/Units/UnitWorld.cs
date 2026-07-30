@@ -6,17 +6,14 @@ namespace OperationSystem.Units
 {
     public readonly struct UnitWorld
     {
-        private readonly IComponentArray[] _componentArrays;
+        private readonly IComponentArray?[] _componentArrays;
 
         public UnitRegistry Registry { get; }
-        
-        public bool IsNull { get; }
 
         private UnitWorld(UnitRegistry registry, IComponentArray[] componentArrays)
         {
             Registry = registry;
             _componentArrays = componentArrays;
-            IsNull = true;
         }
 
         public static UnitWorld Create()
@@ -25,12 +22,12 @@ namespace OperationSystem.Units
             
             ComponentType.WarmUp();
             var count = ComponentType.RegisteredTypeCount;
-            var componentArrays = new IComponentArray[count + 1];
+            var componentArrays = new IComponentArray[count];
             for (var i = 0; i < count; i++)
             {
-                var type = ComponentType.GetType(i + 1);
+                var type = ComponentType.GetType(i);
                 var arrayType = typeof(ComponentArray<>).MakeGenericType(type);
-                componentArrays[i + 1] = (IComponentArray)Activator.CreateInstance(arrayType);
+                componentArrays[i] = (IComponentArray)Activator.CreateInstance(arrayType);
             }
             var world = new UnitWorld(registry, componentArrays);
             registry.SetWorld(world);
@@ -39,10 +36,10 @@ namespace OperationSystem.Units
         
         public ComponentArray<T> GetComponents<T>() where T : struct, IComponent
         {
-            return (ComponentArray<T>)_componentArrays[ComponentType<T>.Id];
+            return _componentArrays[ComponentType<T>.Id] as ComponentArray<T> ?? throw new InvalidOperationException();
         }
         
-        public IComponentArray GetComponents(int typeId) => _componentArrays[typeId];
+        public IComponentArray GetComponents(int typeId) => _componentArrays[typeId] ?? throw new InvalidOperationException();
         
         public IComponentArray? TryGetComponents<T>(Unit unit) where T : IComponent
         {
@@ -58,7 +55,7 @@ namespace OperationSystem.Units
         public void PullFromAssets(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                _componentArrays[typeId].PullFromAssets(unit.Id, Registry);
+                GetComponents(typeId).PullFromAssets(unit.Id, Registry);
 
             foreach (var child in unit.Children)
                 PullFromAssets(child);
@@ -67,7 +64,7 @@ namespace OperationSystem.Units
         public void PushToAssets(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                _componentArrays[typeId].PushToAssets(unit.Id, Registry);
+                GetComponents(typeId).PushToAssets(unit.Id, Registry);
 
             foreach (var child in unit.Children)
                 PushToAssets(child);

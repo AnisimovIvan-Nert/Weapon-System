@@ -212,6 +212,9 @@ namespace OperationSystem.Containers.Tests
             ContainerAsset receiver,
             UnitWorld unitWorld)
         {
+            unitWorld.PullFromAssets(executor);
+            unitWorld.PullFromAssets(target);
+            
             var middlewares = new IOperationMiddleware[]
             {
                 new ContainerLockMiddleware(),
@@ -273,11 +276,10 @@ namespace OperationSystem.Containers.Tests
             Unit target)
         {
             Assert.IsTrue(operation.IsCompleted);
+            Assert.IsFalse(operation.IsCompletedSuccessfully);
             
             Assert.IsTrue(sender.Items.Items.Contains(target));
             Assert.IsFalse(receiver.Items.Items.Contains(target));
-            
-            Assert.IsFalse(operation.IsCompletedSuccessfully);
         }
     }
 }
