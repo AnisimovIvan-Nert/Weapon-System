@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 
 namespace Coroutine.Instructions
 {
@@ -18,7 +19,7 @@ namespace Coroutine.Instructions
 
             var exception = _task.Exception;
             if (exception != null)
-                throw exception;
+                ExceptionDispatchInfo.Capture(exception).Throw();
 
             return true;
         }
