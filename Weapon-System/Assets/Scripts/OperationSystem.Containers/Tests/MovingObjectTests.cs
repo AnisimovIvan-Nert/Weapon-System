@@ -30,10 +30,10 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = new FooAsset();
             var target = world.Registry.Create(targetAsset);
             
-            var senderItems = new ContainerItems(target);
+            var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
 
-            var receiverItems = new ContainerItems();
+            var receiverItems = ContainerItems.Create();
             var receiver = new ContainerAsset(receiverItems);
             
             var executorAsset = new ExecutorAsset();
@@ -54,11 +54,11 @@ namespace OperationSystem.Containers.Tests
             
             var keyIdentifier = Guid.NewGuid();
             
-            var senderItems = new ContainerItems(target);
+            var senderItems = ContainerItems.Create(target);
             var senderLock = new KeyContainerLock(keyIdentifier);
             var sender = new ContainerAsset(senderItems, senderLock);
 
-            var receiverItems = new ContainerItems();
+            var receiverItems = ContainerItems.Create();
             var receiver = new ContainerAsset(receiverItems);
             
             var executorAsset = new ExecutorAsset();
@@ -79,11 +79,11 @@ namespace OperationSystem.Containers.Tests
             
             var keyIdentifier = Guid.NewGuid();
             
-            var senderItems = new ContainerItems(target);
+            var senderItems = ContainerItems.Create(target);
             var senderLock = new KeyContainerLock(keyIdentifier);
             var sender = new ContainerAsset(senderItems, senderLock);
 
-            var receiverItems = new ContainerItems();
+            var receiverItems = ContainerItems.Create();
             var receiver = new ContainerAsset(receiverItems);
 
             var key = new Key(keyIdentifier);
@@ -106,10 +106,10 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = new FooAsset();
             var target = world.Registry.Create(targetAsset);
             
-            var senderItems = new ContainerItems(target);
+            var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
 
-            var receiverItems = new ContainerItems();
+            var receiverItems = ContainerItems.Create();
             var receiverLock = new AccessContainerLock(accessLevel);
             var receiver = new ContainerAsset(receiverItems, null, receiverLock);
             
@@ -132,11 +132,11 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = new FooAsset();
             var target = world.Registry.Create(targetAsset);
             
-            var senderItems = new ContainerItems(target);
+            var senderItems = ContainerItems.Create(target);
             var senderLock =  new AccessContainerLock(accessLevel + 1);
             var sender = new ContainerAsset(senderItems, null, senderLock);
 
-            var receiverItems = new ContainerItems();
+            var receiverItems = ContainerItems.Create();
             var receiverLock = new AccessContainerLock(accessLevel);
             var receiver = new ContainerAsset(receiverItems, null, receiverLock);
             
@@ -162,10 +162,10 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = new FooAsset(size);
             var target = world.Registry.Create(targetAsset);
             
-            var senderItems = new ContainerItems(target);
+            var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
 
-            var receiverItems = new ContainerItems();
+            var receiverItems = ContainerItems.Create();
             var receiverVolume = new ContainerVolume(volume - 1);
             var receiver = new ContainerAsset(receiverItems, null, null, receiverVolume);
             
@@ -190,10 +190,10 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = new FooAsset(size);
             var target = world.Registry.Create(targetAsset);
             
-            var senderItems = new ContainerItems(target);
+            var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
 
-            var receiverItems = new ContainerItems();
+            var receiverItems = ContainerItems.Create();
             var receiverVolume = new ContainerVolume(volume);
             var receiver = new ContainerAsset(receiverItems, null, null, receiverVolume);
             

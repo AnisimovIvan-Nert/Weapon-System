@@ -14,9 +14,14 @@ namespace OperationSystem.Containers.Components.Containers
     {
         public IList<Unit> Items { get; }
 
-        public ContainerItems(params Unit[] children) 
+        private ContainerItems(IList<Unit> item)
         {
-            Items = children.ToList();
+            Items = item;
+        }
+
+        public static ContainerItems Create(params Unit[] children)
+        {
+            return new ContainerItems(children.ToList());
         }
     }
 }
