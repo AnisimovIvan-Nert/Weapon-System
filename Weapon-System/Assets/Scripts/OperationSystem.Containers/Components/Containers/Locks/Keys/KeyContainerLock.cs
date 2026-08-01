@@ -8,11 +8,11 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Keys
 {
     public readonly struct KeyContainerLock : IContainerLock
     {
-        private readonly Guid _identifier;
+        public Guid Identifier { get; }
 
         public KeyContainerLock(Guid identifier) 
         {
-            _identifier = identifier;
+            Identifier = identifier;
         }
 
         public IEnumerator CanInteractWithContainer(Unit unit)
@@ -26,7 +26,7 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Keys
                 yield break;
             }
 
-            var identifier = _identifier;
+            var identifier = Identifier;
             yield return keysStorage.Value.Keys.OfType<Key>().Any(key => key.Identifier == identifier);
         }
     }

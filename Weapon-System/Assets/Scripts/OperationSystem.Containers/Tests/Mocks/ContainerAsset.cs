@@ -13,9 +13,9 @@ namespace OperationSystem.Containers.Tests.Mocks
         , IAssetPull<AccessContainerLock>
         , IAssetPull<ContainerVolume>
     {
-        private readonly KeyContainerLock? _keyLock;
-        private readonly AccessContainerLock? _accessLock;
-        private readonly ContainerVolume? _volume;
+        public KeyContainerLock? KeyLock { get; }
+        public AccessContainerLock? AccessLock { get; }
+        public ContainerVolume? Volume { get; }
         
         public ContainerItems Items { get; private set; }
 
@@ -26,9 +26,9 @@ namespace OperationSystem.Containers.Tests.Mocks
             ContainerVolume? containerVolume = null)
         {
             Items = items;
-            _keyLock = keyLock;
-            _accessLock = accessLock;
-            _volume = containerVolume;
+            KeyLock = keyLock;
+            AccessLock = accessLock;
+            Volume = containerVolume;
         }
 
         public override ComponentMask GetComponentMask()
@@ -36,11 +36,11 @@ namespace OperationSystem.Containers.Tests.Mocks
             var mask = ComponentMask.Create<Container>();
             mask.Add<ContainerItems>();
             
-            if (_keyLock.HasValue)
+            if (KeyLock.HasValue)
                 mask.Add<KeyContainerLock>();
-            if (_accessLock.HasValue)
+            if (AccessLock.HasValue)
                 mask.Add<AccessContainerLock>();
-            if (_volume.HasValue)
+            if (Volume.HasValue)
                 mask.Add<ContainerVolume>();
 
             return mask;
@@ -58,20 +58,20 @@ namespace OperationSystem.Containers.Tests.Mocks
 
         public void PullInto(ref KeyContainerLock component)
         {
-            if (_keyLock.HasValue)
-                component = _keyLock.Value;
+            if (KeyLock.HasValue)
+                component = KeyLock.Value;
         }
 
         public void PullInto(ref AccessContainerLock component)
         {
-            if (_accessLock.HasValue)
-                component = _accessLock.Value;
+            if (AccessLock.HasValue)
+                component = AccessLock.Value;
         }
         
         public void PullInto(ref ContainerVolume component)
         {
-            if (_volume.HasValue)
-                component = _volume.Value;
+            if (Volume.HasValue)
+                component = Volume.Value;
         }
     }
 }

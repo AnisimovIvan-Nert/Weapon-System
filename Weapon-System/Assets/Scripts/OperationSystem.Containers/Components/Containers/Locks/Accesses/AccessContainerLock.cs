@@ -6,11 +6,11 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
 {
     public readonly struct AccessContainerLock : IContainerLock
     {
-        private readonly int _level;
+        public int Level { get; }
 
         public AccessContainerLock(int level)
         {
-            _level = level;
+            Level = level;
         }
 
         public IEnumerator CanInteractWithContainer(Unit unit)
@@ -24,7 +24,7 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
                 yield break;
             }
 
-            yield return accessLevel.Value.Level >= _level;
+            yield return accessLevel.Value.Level >= Level;
         }
     }
 }
