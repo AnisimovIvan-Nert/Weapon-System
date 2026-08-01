@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using OperationSystem.Component;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
@@ -12,11 +11,11 @@ using OperationSystem.Weapons.Components;
 
 namespace OperationSystem.Weapons.Operations
 {
-    public class WeaponShotUnitOperation : AbstractUnitOperation<IWeapon>
+    public class WeaponShotUnitOperation : AbstractUnitOperation
     {
         private Unit Weapon => Handler.Unit ?? throw new InvalidOperationException();
-        private Unit Chamber => Weapon.Children.First(unit => unit.ComponentMask.Contains<Chamber>());
-        private Unit? Magazine => Weapon.Children.FirstOrDefault(unit => unit.ComponentMask.Contains<Magazine>());
+        private Unit Chamber => Weapon.GetChild<Chamber>();
+        private Unit? Magazine => Weapon.TryGetChild<Magazine>();
         private UnitWorld World => Weapon.World;
 
         private ComponentArray<Chamber> ChamberComponents => World.GetComponents<Chamber>();
