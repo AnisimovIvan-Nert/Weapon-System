@@ -142,8 +142,8 @@ namespace OperationSystem.Component
                 if (!_freeSlots.TryPop(out var slotIndex))
                 {
                     slotIndex = Interlocked.Increment(ref _count);
-                    if (_count > _slots.Length)
-                        EnsureIndexInRange(_count);
+                    if (slotIndex >= _slots.Length)
+                        EnsureIndexInRange(slotIndex);
                 }
 
                 _slots[slotIndex] = default;
