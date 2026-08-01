@@ -14,6 +14,7 @@ using OperationSystem.Handlers;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
+using OperationSystem.Tests;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Tests
@@ -238,16 +239,9 @@ namespace OperationSystem.Containers.Tests
             var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
                 senderHandler, receiverHandler, middlewares);
             
+            var handlers = new IOperationHandler[] { globalHandler, senderHandler, receiverHandler };
             operation.RunOperation(globalHandler);
-            
-            var timeout = Timeout;
-            while (!operation.IsCompleted && timeout > 0)
-            {
-                timeout--;
-                globalHandler.Update();
-                senderHandler.Update();
-                receiverHandler.Update();
-            }
+            handlers.UpdateUntilComplete(operation, Timeout).Wait();
 
             return operation;
         }
@@ -259,14 +253,13 @@ namespace OperationSystem.Containers.Tests
             Unit target)
         {
             Assert.IsTrue(operation.IsCompleted);
+            Assert.IsTrue(operation.IsCompletedSuccessfully);
             
             if (operation.Exception != null)
                 ExceptionDispatchInfo.Capture(operation.Exception).Throw();
             
             Assert.IsFalse(sender.Items.Items.Contains(target));
             Assert.IsTrue(receiver.Items.Items.Contains(target));
-
-            Assert.IsTrue(operation.IsCompletedSuccessfully);
         }
         
         private static void AssertFail(

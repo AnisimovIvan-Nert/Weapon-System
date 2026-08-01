@@ -5,6 +5,7 @@ using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Middleware;
+using OperationSystem.Tests;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Assets;
 using OperationSystem.Weapons.Operations;
@@ -44,15 +45,7 @@ namespace OperationSystem.Weapons.Tests
                 operations.Add(operation);
             }
 
-            var timeout = Timeout;
-            while (operations.Any(o => !o.IsCompleted) && timeout > 0)
-            {
-                timeout--;
-                handler.Update();
-            }
-
-            if (operations.Any(o => !o.IsCompleted))
-                Assert.Fail();
+            handler.UpdateUntilComplete(operations.ToArray(), Timeout).Wait();
 
             var failedOperation = operations.SingleOrDefault(o => !o.IsCompletedSuccessfully);
             Assert.NotNull(failedOperation);
@@ -127,20 +120,15 @@ namespace OperationSystem.Weapons.Tests
             var identifier = OperationIdentifier.CreateNew();
             var operation = new WeaponShotUnitOperation(identifier, Enumerable.Empty<IOperationMiddleware>());
             operation.RunOperation(handler);
-
-            var timeout = Timeout;
-            while (!operation.IsCompleted && timeout > 0)
-            {
-                timeout--;
-                handler.Update();
-            }
-
+            handler.UpdateUntilComplete(operation, Timeout).Wait();
+            
             return operation;
         }
         
         private static void AssertPass(IOperation operation, int rounds, bool hasRound, PistolChamber? chamber, PistolMagazine? magazine)
         {
             Assert.IsTrue(operation.IsCompleted);
+            Assert.IsTrue(operation.IsCompletedSuccessfully);
 
             if (operation.Exception != null)
                 ExceptionDispatchInfo.Capture(operation.Exception).Throw();
@@ -151,21 +139,18 @@ namespace OperationSystem.Weapons.Tests
             var exceptedRounds = hasRound ? rounds : rounds - 1;
             if (magazine != null)
                 Assert.AreEqual(exceptedRounds, magazine.Rounds);
-            
-            Assert.IsTrue(operation.IsCompletedSuccessfully);
         }
 
         private static void AssertFail(IOperation operation, int rounds, bool hasRound, PistolChamber? chamber, PistolMagazine? magazine)
         {
             Assert.IsTrue(operation.IsCompleted);
+            Assert.IsFalse(operation.IsCompletedSuccessfully);
             
             if (chamber != null)
                 Assert.AreEqual(hasRound, chamber.HasRound);
             
             if (magazine != null)
                 Assert.AreEqual(rounds, magazine.Rounds);
-                
-            Assert.IsFalse(operation.IsCompletedSuccessfully);
         }
     }
 }
