@@ -9,7 +9,7 @@ namespace Coroutine
 
         public static void Wait(this IEnumerator enumerator, int? timeout = null)
         {
-            while (enumerator.MoveNext() && timeout is null or > 0)
+            while (enumerator.MoveNext() && timeout-- is null or > 0)
             {
             }
         }

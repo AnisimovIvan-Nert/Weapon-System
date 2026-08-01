@@ -7,7 +7,7 @@ using OperationSystem.Operations.Middleware;
 
 namespace OperationSystem.Operations.Units
 {
-    public abstract class AbstractUnitOperation<T> 
+    public abstract class AbstractUnitOperation 
         : AbstractOperation
         , IUnitOperation
     {
