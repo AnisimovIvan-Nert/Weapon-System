@@ -241,7 +241,7 @@ namespace OperationSystem.Containers.Tests
             
             var handlers = new IOperationHandler[] { globalHandler, senderHandler, receiverHandler };
             operation.RunOperation(globalHandler);
-            handlers.UpdateUntilComplete(operation, Timeout).Wait();
+            handlers.UpdateUntilComplete(operation, Timeout);
 
             return operation;
         }
@@ -252,12 +252,10 @@ namespace OperationSystem.Containers.Tests
             ContainerAsset receiver,
             Unit target)
         {
-            Assert.IsTrue(operation.IsCompleted);
-            Assert.IsTrue(operation.IsCompletedSuccessfully);
-            
             if (operation.Exception != null)
                 ExceptionDispatchInfo.Capture(operation.Exception).Throw();
             
+            operation.AssertPass();
             Assert.IsFalse(sender.Items.Items.Contains(target));
             Assert.IsTrue(receiver.Items.Items.Contains(target));
         }
@@ -268,9 +266,7 @@ namespace OperationSystem.Containers.Tests
             ContainerAsset receiver,
             Unit target)
         {
-            Assert.IsTrue(operation.IsCompleted);
-            Assert.IsFalse(operation.IsCompletedSuccessfully);
-            
+            operation.AssertFail();
             Assert.IsTrue(sender.Items.Items.Contains(target));
             Assert.IsFalse(receiver.Items.Items.Contains(target));
         }

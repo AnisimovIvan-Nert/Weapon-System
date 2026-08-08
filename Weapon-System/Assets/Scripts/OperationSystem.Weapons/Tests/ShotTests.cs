@@ -45,7 +45,7 @@ namespace OperationSystem.Weapons.Tests
                 operations.Add(operation);
             }
 
-            handler.UpdateUntilComplete(operations.ToArray(), Timeout).Wait();
+            handler.UpdateUntilComplete(operations.ToArray(), Timeout);
 
             var failedOperation = operations.SingleOrDefault(o => !o.IsCompletedSuccessfully);
             Assert.NotNull(failedOperation);
@@ -120,18 +120,17 @@ namespace OperationSystem.Weapons.Tests
             var identifier = OperationIdentifier.CreateNew();
             var operation = new WeaponShotUnitOperation(identifier, Enumerable.Empty<IOperationMiddleware>());
             operation.RunOperation(handler);
-            handler.UpdateUntilComplete(operation, Timeout).Wait();
+            handler.UpdateUntilComplete(operation, Timeout);
             
             return operation;
         }
         
         private static void AssertPass(IOperation operation, int rounds, bool hasRound, PistolChamber? chamber, PistolMagazine? magazine)
         {
-            Assert.IsTrue(operation.IsCompleted);
-            Assert.IsTrue(operation.IsCompletedSuccessfully);
-
             if (operation.Exception != null)
                 ExceptionDispatchInfo.Capture(operation.Exception).Throw();
+            
+            operation.AssertPass();
             
             if (chamber != null)
                 Assert.AreEqual(false, chamber.HasRound);
@@ -143,8 +142,7 @@ namespace OperationSystem.Weapons.Tests
 
         private static void AssertFail(IOperation operation, int rounds, bool hasRound, PistolChamber? chamber, PistolMagazine? magazine)
         {
-            Assert.IsTrue(operation.IsCompleted);
-            Assert.IsFalse(operation.IsCompletedSuccessfully);
+            operation.AssertFail();
             
             if (chamber != null)
                 Assert.AreEqual(hasRound, chamber.HasRound);

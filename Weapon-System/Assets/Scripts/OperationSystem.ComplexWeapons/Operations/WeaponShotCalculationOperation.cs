@@ -11,14 +11,14 @@ using OperationSystem.Units;
 
 namespace OperationSystem.ComplexWeapons.Operations
 {
-    public class WeaponShotOperation : AbstractUnitOperation
+    public class WeaponShotCalculationOperation : AbstractStagedUnitOperation
     {
         public class MagazineIsEmptyException : OperationException {}
         
         private Unit Weapon => Handler.Unit ?? throw new InvalidOperationException();
         private Unit Magazine => Weapon.GetChild<Magazine>();
 
-        public WeaponShotOperation(
+        public WeaponShotCalculationOperation(
             OperationIdentifier identifier,
             IEnumerable<IOperationMiddleware> middlewares,
             params IOperationData[] data)
@@ -26,58 +26,28 @@ namespace OperationSystem.ComplexWeapons.Operations
         {
         }
 
-        protected override IEnumerator IncrementEnumerator(IOperationContext context)
+        protected override IEnumerator ValidateEnumerator()
         {
-            Validate();
-            yield return AcquireLocks(context);
-            RecordPossibleMutations(context);
-            Execute();
-        }
-
-        private void Validate()
-        {
+            yield return base.ValidateEnumerator();
+            
             var magazine = Magazine.GetComponent<Magazine>();
             if (magazine is not { Rounds: > 0 })
                 throw new MagazineIsEmptyException();
         }
         
-        private IEnumerator AcquireLocks(IOperationContext context)
+        protected override IEnumerator TryAcquireLocksEnumerator()
         {
-            var timer = AcquireLocksTimeout;
-
-            while (timer > 0)
-            {
-                timer--;
-
-                var success = true;
-                try
-                {
-                    Acquire();
-                }
-                catch (AcquireException)
-                {
-                    success = false;
-                    context.ReleaseAll();
-                }
-
-                if (success)
-                    yield break;
-
-                yield return null;
-            }
-
-            throw new InvalidOperationException();
+            yield return base.TryAcquireLocksEnumerator();
             
-            void Acquire()
-            {
-                context.Acquire<Magazine>(Magazine.Id, Identifier);
-            }
+            Context.Acquire<Magazine>(Magazine.Id, Identifier);
         }
 
-        private void RecordPossibleMutations(IOperationContext context)
+        protected override IEnumerator RecordPossibleMutationsEnumerator()
         {
-            context.RecordUndo(Undo);
-            return;
+            yield return base.RecordPossibleMutationsEnumerator();
+            
+            Context.RecordUndo(Undo);
+            yield break;
 
             void Undo()
             {
@@ -87,8 +57,10 @@ namespace OperationSystem.ComplexWeapons.Operations
             }
         }
         
-        private void Execute()
+        protected override IEnumerator ExecuteEnumerator()
         {
+            yield return base.ExecuteEnumerator();
+            
             var magazine = Magazine.GetComponent<Magazine>();
             if (magazine is not { Rounds: > 0 })
                 throw new MagazineIsEmptyException();

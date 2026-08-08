@@ -14,6 +14,7 @@ using OperationSystem.Handlers;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
+using OperationSystem.Tests;
 using OperationSystem.Units;
 using UnityEngine;
 using Random = System.Random;
@@ -142,8 +143,10 @@ namespace OperationSystem.Containers.Tests
             {
                 var failOperation = i % 7 == 0;
                 
-                Assert.IsTrue(operations[i].IsCompleted);
-                Assert.AreNotEqual(failOperation, operations[i].IsCompletedSuccessfully);
+                if (failOperation)
+                    operations[i].AssertFail();
+                else
+                    operations[i].AssertPass();
 
                 var senderAsset = (i & 1) == 1 ? containerAssets[i].Item1 : containerAssets[i].Item2;
                 var receiverAsset = (i & 1) == 1 ? containerAssets[i].Item2 : containerAssets[i].Item1;

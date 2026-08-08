@@ -1,9 +1,10 @@
 ﻿using System.Collections.Generic;
 using OperationSystem.Component.Types;
+using UnityEngine;
 
 namespace OperationSystem.Assets
 {
-    public abstract class AbstractAsset : IAsset
+    public abstract class AbstractAsset : MonoBehaviour, IAsset
     {
         protected List<IAsset> ChildrenList = new();
 
