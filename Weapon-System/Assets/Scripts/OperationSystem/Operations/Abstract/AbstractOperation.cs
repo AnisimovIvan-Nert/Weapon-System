@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Coroutine;
@@ -7,19 +6,21 @@ using OperationSystem.Handlers;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 
-namespace OperationSystem.Operations
+namespace OperationSystem.Operations.Abstract
 {
-    public abstract class AbstractOperation : IOperation
+    public abstract partial class AbstractOperation : IOperation
     {
-        protected const int AcquireLocksTimeout = 10;
+        private const int AcquireLocksTimeout = 10;
         
         private readonly IEnumerable<IOperationData> _data;
         
-        protected readonly IOperationMiddleware[] Middlewares;
-        protected YieldCoroutine? Coroutine;
+        private YieldCoroutine? _coroutine;
+        private OperationStaging _staging;
         
-        protected IOperationHandler? NullableHandler;
-        protected IOperationHandler Handler => NullableHandler ?? throw new InvalidOperationException();
+        protected readonly IOperationMiddleware[] Middlewares;
+
+        protected IOperationHandler Handler = null!;
+        protected IOperationContext Context = null!;
 
         public OperationIdentifier Identifier { get; }
         public bool IsCompleted { get; protected set; }
@@ -27,57 +28,49 @@ namespace OperationSystem.Operations
         public Exception? Exception { get; private set; }
 
         protected AbstractOperation(
-            OperationIdentifier identifier, 
-           IOperationMiddleware[] middlewares,
+            OperationIdentifier identifier,
+            IOperationMiddleware[] middlewares,
             params IOperationData[] data)
         {
             Identifier = identifier;
             _data = data;
             Middlewares = middlewares;
         }
-        
-        public virtual void RunOperation(IOperationHandler handler)
+
+        public virtual void RunOperation(IOperationHandler handler, OperationStaging staging = OperationStaging.Auto)
         {
-            if (NullableHandler != null)
+            if (Handler != null)
                 throw new InvalidOperationException();
-            
-            NullableHandler = handler;
+
+            _staging = staging;
+
+            Handler = handler;
             var context = handler.CreateContext();
             handler.OperationRunner.RunOperation(this, context);
         }
 
-        public virtual void Increment(IOperationContext context)
+        public void Increment(IOperationContext operationContext)
         {
-            Coroutine ??= IncrementEnumerator(context).ToCoroutine();
-
-            while (Coroutine.MoveNext())
+            Context = operationContext;
+            
+            switch (_staging)
             {
-                if (Coroutine.InContinueState())
-                    continue;
-
-                return;
+                case OperationStaging.Manual:
+                    IncrementManual();
+                    break;
+                case OperationStaging.Auto:
+                    IncrementAuto();
+                    break;
+                case OperationStaging.None:
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
-
-            IsCompleted = true;
-            AppendException(Coroutine.Exception);
         }
-
+        
         public T? TryGetData<T>()
             where T : IOperationData
         {
             return _data.OfType<T>().FirstOrDefault();
-        }
-
-        protected abstract IEnumerator IncrementEnumerator(IOperationContext context);
-
-        protected IEnumerator WaitCoroutine(YieldCoroutine coroutine)
-        {
-            yield return coroutine;
-
-            var isCompletedSuccessfully = coroutine.IsCompletedSuccessfully();
-
-            if (!isCompletedSuccessfully)
-                AppendException(coroutine.Exception);
         }
 
         protected void AppendException(Exception? exception)

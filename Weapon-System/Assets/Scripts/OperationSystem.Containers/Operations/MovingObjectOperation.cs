@@ -1,10 +1,9 @@
 ﻿using System.Collections.Generic;
 using OperationSystem.Handlers;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Operations.Orchestrator;
-using OperationSystem.Operations.Staged;
 
 namespace OperationSystem.Containers.Operations
 {
@@ -26,7 +25,7 @@ namespace OperationSystem.Containers.Operations
             _receiver = receiver;
         }
 
-        protected override ICollection<IStagedOperation> CreateAndRunOrchestratedOperations()
+        protected override ICollection<IOperation> CreateAndRunOrchestratedOperations()
         {
             var executor = this.GetData<IOperationExecutor>();
             var target = this.GetData<IOperationTarget>();
@@ -34,10 +33,10 @@ namespace OperationSystem.Containers.Operations
             var sendOperation = new SendObjectUnitOperation(Identifier, executor, target, Middlewares);
             var receiveObjectOperation = new ReceiveObjectOperation(Identifier, executor, target, Middlewares);
 
-            sendOperation.RunOperation(_sender);
-            receiveObjectOperation.RunOperation(_receiver);
+            sendOperation.RunOperation(_sender, OperationStaging.Manual);
+            receiveObjectOperation.RunOperation(_receiver, OperationStaging.Manual);
 
-            return new List<IStagedOperation> { sendOperation, receiveObjectOperation };
+            return new List<IOperation> { sendOperation, receiveObjectOperation };
         }
     }
 }

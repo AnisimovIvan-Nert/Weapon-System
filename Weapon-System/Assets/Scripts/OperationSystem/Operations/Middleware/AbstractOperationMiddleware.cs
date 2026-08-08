@@ -12,34 +12,42 @@ namespace OperationSystem.Operations.Middleware
             return operation is T;
         }
 
-        public virtual IEnumerator Validate(
-            IOperation operation, 
-            IOperationContext context, 
-            IOperationHandler handler)
+        public IEnumerator Initialization(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
         }
 
-        public virtual IEnumerator TryAcquireLocks(
-            IOperation operation, 
-            IOperationContext context, 
-            IOperationHandler handler)
+        public virtual IEnumerator Validate(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
         }
 
-        public virtual IEnumerator RecordPossibleMutations(
-            IOperation operation, 
-            IOperationContext context, 
-            IOperationHandler handler)
+        public virtual IEnumerator TryAcquireLocks(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
         }
 
-        public virtual IEnumerator Execute(
-            IOperation operation,
-            IOperationContext context,
-            IOperationHandler handler)
+        public IEnumerator ReleaseLocks(IOperation operation, IOperationContext context, IOperationHandler handler)
+        {
+            yield break;
+        }
+
+        public virtual IEnumerator RecordMutations(IOperation operation, IOperationContext context, IOperationHandler handler)
+        {
+            yield break;
+        }
+
+        public virtual IEnumerator Execute(IOperation operation, IOperationContext context, IOperationHandler handler)
+        {
+            yield break;
+        }
+
+        public IEnumerator Complete(IOperation operation, IOperationContext context, IOperationHandler handler)
+        {
+            yield break;
+        }
+
+        public IEnumerator Cancel(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
         }

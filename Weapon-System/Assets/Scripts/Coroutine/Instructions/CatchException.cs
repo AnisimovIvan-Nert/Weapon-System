@@ -26,4 +26,9 @@ namespace Coroutine.Instructions
             }
         }
     }
+    
+    public static class CatchExceptionExtensions
+    {
+        public static CatchException CatchExceptionInstruction(this IYieldInstruction instruction) => new(instruction);
+    }
 }

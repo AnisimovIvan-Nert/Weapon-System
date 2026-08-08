@@ -2,15 +2,15 @@
 using System.Collections;
 using OperationSystem.ComplexWeapons.Components;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
-using OperationSystem.Operations.Staged;
 using OperationSystem.Units;
 
 namespace OperationSystem.ComplexWeapons.Operations
 {
-    public class WeaponShotCalculationOperation : AbstractStagedOperation
+    public class WeaponShotCalculationOperation : AbstractOperation
     {
         public class MagazineIsEmptyException : OperationException {}
         
@@ -41,9 +41,9 @@ namespace OperationSystem.ComplexWeapons.Operations
             Context.Acquire<Magazine>(Magazine.Id, Identifier);
         }
 
-        protected override IEnumerator RecordPossibleMutationsEnumerator()
+        protected override IEnumerator RecordMutationsEnumerator()
         {
-            yield return base.RecordPossibleMutationsEnumerator();
+            yield return base.RecordMutationsEnumerator();
             
             Context.RecordUndo(Undo);
             yield break;

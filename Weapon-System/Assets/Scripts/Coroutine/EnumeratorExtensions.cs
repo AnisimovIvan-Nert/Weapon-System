@@ -31,5 +31,20 @@ namespace Coroutine
 
             return false;
         }
+
+        public static YieldCoroutine CatchException<T>(this IEnumerator enumerator)
+            where T : Exception
+        {
+            return new YieldCoroutine(enumerator, OnMoveNext);
+
+            bool OnMoveNext(YieldCoroutine coroutine, bool moveNext)
+            {
+                if (coroutine.Exception is not T)
+                    return moveNext;
+
+                coroutine.StopExceptionPropagation();
+                return false;
+            }
+        }
     }
 }

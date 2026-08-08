@@ -2,6 +2,7 @@
 using System.Collections;
 using OperationSystem.Component;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Units;
@@ -26,14 +27,48 @@ namespace OperationSystem.Weapons.Operations
         {
         }
 
-        protected override IEnumerator IncrementEnumerator(IOperationContext context)
+        protected override IEnumerator ValidateEnumerator()
         {
-            yield return Validate(context);
+            yield return base.ValidateEnumerator();
+            
+            var chamber = ChamberComponents.GetComponent(Chamber.Id);
+            Magazine? magazine = Magazine != null
+                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
+                : null;
 
-            yield return AcquireLocks(context);
+            if (!chamber.HasRound && magazine is not { Rounds: > 0 })
+                throw new InvalidOperationException();
+        }
 
-            RecordPossibleMutation(context);
+        protected override IEnumerator TryAcquireLocksEnumerator()
+        {
+            yield return base.TryAcquireLocksEnumerator();
+            
+            Context.Acquire<Chamber>(Chamber.Id, Identifier);
 
+            if (Magazine != null)
+                Context.Acquire<Magazine>(Magazine.Value.Id, Identifier);
+        }
+
+        protected override IEnumerator RecordMutationsEnumerator()
+        {
+            yield return base.RecordMutationsEnumerator();
+            
+            var chamber = ChamberComponents.GetComponent(Chamber.Id);
+            Magazine? magazine = Magazine != null
+                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
+                : null;
+
+            if (Magazine != null && magazine != null)
+                Context.RecordUndo(() => MagazineComponents.SetComponent(Magazine.Value.Id, magazine.Value));
+
+            Context.RecordUndo(() => ChamberComponents.SetComponent(Chamber.Id, chamber));
+        }
+
+        protected override IEnumerator ExecuteEnumerator()
+        {
+            yield return base.ExecuteEnumerator();
+            
             var chamber = ChamberComponents.GetComponent(Chamber.Id);
             if (!chamber.HasRound)
             {
@@ -50,68 +85,6 @@ namespace OperationSystem.Weapons.Operations
 
             chamber.HasRound = false;
             ChamberComponents.SetComponent(Chamber.Id, chamber);
-        }
-
-        private IEnumerator Validate(IOperationContext context)
-        {
-            var chamber = ChamberComponents.GetComponent(Chamber.Id);
-            Magazine? magazine = Magazine != null
-                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
-                : null;
-
-            if (!chamber.HasRound && magazine is not { Rounds: > 0 })
-                throw new InvalidOperationException();
-
-            yield break;
-        }
-
-        private IEnumerator AcquireLocks(IOperationContext context)
-        {
-            var timer = AcquireLocksTimeout;
-
-            while (timer > 0)
-            {
-                timer--;
-
-                var success = true;
-                try
-                {
-                    Acquire();
-                }
-                catch (AcquireException)
-                {
-                    success = false;
-                    context.ReleaseAll();
-                }
-
-                if (success)
-                    yield break;
-
-                yield return null;
-            }
-
-            throw new InvalidOperationException();
-
-            void Acquire()
-            {
-                context.Acquire<Chamber>(Chamber.Id, Identifier);
-
-                if (Magazine != null)
-                    context.Acquire<Magazine>(Magazine.Value.Id, Identifier);
-            }
-        }
-
-        private void RecordPossibleMutation(IOperationContext context)
-        {
-            var chamber = ChamberComponents.GetComponent(Chamber.Id);
-            Magazine? magazine = Magazine != null
-                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
-                : null;
-
-            if (Magazine != null && magazine != null)
-                context.RecordUndo(() => MagazineComponents.SetComponent(Magazine.Value.Id, magazine.Value));
-
-            context.RecordUndo(() => ChamberComponents.SetComponent(Chamber.Id, chamber));
         }
     }
 }

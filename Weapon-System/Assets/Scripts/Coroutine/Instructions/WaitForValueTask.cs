@@ -23,4 +23,9 @@ namespace Coroutine.Instructions
             return true;
         }
     }
+    
+    public static class WaitForValueTaskExtensions
+    {
+        public static WaitForValueTask WaitInstruction(this ValueTask task) => new(task);
+    }
 }

@@ -4,14 +4,14 @@ using OperationSystem.Component;
 using OperationSystem.Containers.Components.Containers;
 using OperationSystem.Containers.Operations.Tags;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Operations.Staged;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
 {
-    public class SendObjectUnitOperation : AbstractStagedOperation, ISendOperationTag
+    public class SendObjectUnitOperation : AbstractOperation, ISendOperationTag
     {
         private Unit Unit => Handler.OperationUnit ?? throw new InvalidOperationException();
         private UnitWorld World => Unit.World;
@@ -45,9 +45,9 @@ namespace OperationSystem.Containers.Operations
             Context.Acquire<ContainerItems>(Unit.Id, Identifier);
         }
 
-        protected override IEnumerator RecordPossibleMutationsEnumerator()
+        protected override IEnumerator RecordMutationsEnumerator()
         {
-            yield return base.RecordPossibleMutationsEnumerator();
+            yield return base.RecordMutationsEnumerator();
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
