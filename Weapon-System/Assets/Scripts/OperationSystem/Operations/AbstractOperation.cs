@@ -15,7 +15,7 @@ namespace OperationSystem.Operations
         
         private readonly IEnumerable<IOperationData> _data;
         
-        protected readonly IEnumerable<IOperationMiddleware> Middlewares;
+        protected readonly IOperationMiddleware[] Middlewares;
         protected YieldCoroutine? Coroutine;
 
         public OperationIdentifier Identifier { get; }
@@ -25,7 +25,7 @@ namespace OperationSystem.Operations
 
         protected AbstractOperation(
             OperationIdentifier identifier, 
-            IEnumerable<IOperationMiddleware> middlewares,
+           IOperationMiddleware[] middlewares,
             params IOperationData[] data)
         {
             Identifier = identifier;

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using OperationSystem.Handlers.Units;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
@@ -27,24 +26,18 @@ namespace OperationSystem.Containers.Operations
             _receiver = receiver;
         }
 
-        protected override ICollection<IStagedOperation> GetOrchestratedOperations()
+        protected override ICollection<IStagedOperation> CreateAndRunOrchestratedOperations()
         {
             var executor = this.GetData<IOperationExecutor>();
             var target = this.GetData<IOperationTarget>();
-            
-            var sendOperation = new SendObjectUnitOperation(Identifier,  executor, target, Middlewares.ToArray());
-            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, executor, target, Middlewares.ToArray());
-            return new IStagedOperation[] { sendOperation, receiveObjectOperation };
-        }
 
-        protected override void RunOrchestratedOperations(ICollection<IStagedOperation> operations)
-        {
-            var operationArray = (IStagedOperation[])operations;
-            var sendOperation = operationArray[0];
-            var receiveObjectOperation = operationArray[1];
-            
+            var sendOperation = new SendObjectUnitOperation(Identifier, executor, target, Middlewares);
+            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, executor, target, Middlewares);
+
             sendOperation.RunOperation(_sender);
             receiveObjectOperation.RunOperation(_receiver);
+
+            return new List<IStagedOperation> { sendOperation, receiveObjectOperation };
         }
     }
 }

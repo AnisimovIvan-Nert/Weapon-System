@@ -1,4 +1,4 @@
-﻿using System.Linq;
+﻿using System;
 using Coroutine;
 using NUnit.Framework;
 using OperationSystem.ComplexWeapons.Assets;
@@ -64,7 +64,7 @@ namespace OperationSystem.ComplexWeapons._Tests
             handler.SetUnit(weaponAsset).Wait(Timeout);
 
             var identifier = OperationIdentifier.CreateNew();
-            var operation = new WeaponShotOperation(identifier, Enumerable.Empty<IOperationMiddleware>());
+            var operation = new WeaponShotOperation(identifier, Array.Empty<IOperationMiddleware>());
             operation.RunOperation(handler);
 
             handler.UpdateUntilComplete(operation, Timeout);

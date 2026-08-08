@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using OperationSystem.ComplexWeapons.Components;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
@@ -20,7 +19,7 @@ namespace OperationSystem.ComplexWeapons.Operations
 
         public WeaponShotCalculationOperation(
             OperationIdentifier identifier,
-            IEnumerable<IOperationMiddleware> middlewares,
+            IOperationMiddleware[] middlewares,
             params IOperationData[] data)
             : base(identifier, middlewares, data)
         {

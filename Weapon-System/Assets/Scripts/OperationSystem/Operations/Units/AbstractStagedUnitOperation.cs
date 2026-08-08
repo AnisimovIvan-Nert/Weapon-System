@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using OperationSystem.Handlers;
 using OperationSystem.Handlers.Units;
 using OperationSystem.Operations.Data;
@@ -18,7 +17,7 @@ namespace OperationSystem.Operations.Units
         
         protected AbstractStagedUnitOperation(
             OperationIdentifier identifier, 
-            IEnumerable<IOperationMiddleware> middlewares, 
+            IOperationMiddleware[] middlewares, 
             params IOperationData[] data) 
             : base(identifier, middlewares, data)
         {

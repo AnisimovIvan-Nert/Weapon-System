@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Coroutine;
 using OperationSystem.Operations.Data;
@@ -21,7 +20,7 @@ namespace OperationSystem.Operations.Staged
         
         protected AbstractStagedOperation(
             OperationIdentifier identifier, 
-            IEnumerable<IOperationMiddleware> middlewares, 
+            IOperationMiddleware[] middlewares, 
             params IOperationData[] data) 
             : base(identifier, middlewares, data)
         {
@@ -91,7 +90,7 @@ namespace OperationSystem.Operations.Staged
 
         private async Task CreateCoroutineTask(IEnumerator enumerator)
         {
-            if (_coroutineTask != null)
+            if (_coroutineTask is { IsCompleted: false })
                 await _coroutineTask;
 
             _taskCompletionSource = new TaskCompletionSource<bool>();

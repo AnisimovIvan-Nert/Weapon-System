@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using Coroutine;
 using Coroutine.Instructions;
@@ -13,12 +15,15 @@ namespace OperationSystem.Operations.Orchestrator
     public abstract class AbstractOrchestratorOperation : AbstractOperation
     {
         private ICollection<IStagedOperation>? _operations;
+        private Task[]? _operationTasks;
+        private bool _waitingOrchestratedOperations;
 
         private ICollection<IStagedOperation> Operations => _operations ?? throw new InvalidOperationException();
+        private Task[] OperationTasks => _operationTasks ?? throw new InvalidOperationException();
 
         protected AbstractOrchestratorOperation(
             OperationIdentifier identifier, 
-            IEnumerable<IOperationMiddleware> middlewares, 
+            IOperationMiddleware[] middlewares, 
             params IOperationData[] data) 
             : base(identifier, middlewares, data)
         {
@@ -26,37 +31,50 @@ namespace OperationSystem.Operations.Orchestrator
 
         public override void Increment(IOperationContext context)
         {
-            _operations ??= GetOrchestratedOperations();
-            
-            Coroutine ??= IncrementEnumerator(context).ToCoroutine();
-
-            while (Coroutine.MoveNext())
+            if (!_waitingOrchestratedOperations)
             {
-                if (Coroutine.InContinueState())
-                    continue;
+                Coroutine ??= IncrementEnumerator(context).ToCoroutine();
 
-                return;
+                while (Coroutine.MoveNext())
+                {
+                    if (Coroutine.InContinueState())
+                        continue;
+
+                    return;
+                }
+            
+                AppendException(Coroutine.Exception);
+
+                for (var i = 0; i < Operations.Count; i++)
+                {
+                    var operation = Operations.ElementAt(i);
+                    
+                    if (Exception == null)
+                        OperationTasks[i] = operation.Complete();
+                    else
+                        OperationTasks[i] = operation.Cancel(Exception);
+                }
+                
+                _waitingOrchestratedOperations = true;
             }
+
+            var failedTask = OperationTasks.FirstOrDefault(task => task.IsFaulted);
+            if (failedTask is { Exception: not null })
+                ExceptionDispatchInfo.Capture(failedTask.Exception).Throw();
+
+            if (Operations.Any(operation => !operation.IsCompleted))
+                return;
 
             IsCompleted = true;
-            AppendException(Coroutine.Exception);
-
-            foreach (var operation in Operations)
-            {
-                if (Exception == null)
-                    operation.Complete();
-                else
-                    operation.Cancel(Exception);
-            }
         }
 
-        protected abstract ICollection<IStagedOperation> GetOrchestratedOperations();
-        protected abstract void RunOrchestratedOperations(ICollection<IStagedOperation> operations);
+        protected abstract ICollection<IStagedOperation> CreateAndRunOrchestratedOperations();
         
         protected override IEnumerator IncrementEnumerator(IOperationContext context)
         {
-            RunOrchestratedOperations(Operations);
-
+            _operations = CreateAndRunOrchestratedOperations();
+            _operationTasks = new Task[_operations.Count];
+            
             yield return Validate();
             yield return AcquireLocks();
             yield return RecordPossibleMutations();

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using Coroutine;
@@ -40,7 +41,7 @@ namespace OperationSystem.Weapons.Tests
             for (var i = 0; i < Rounds + 1; i++)
             {
                 var identifier = OperationIdentifier.CreateNew();
-                var operation = new WeaponShotUnitOperation(identifier, Enumerable.Empty<IOperationMiddleware>());
+                var operation = new WeaponShotUnitOperation(identifier, Array.Empty<IOperationMiddleware>());
                 operation.RunOperation(handler);
                 operations.Add(operation);
             }
@@ -118,7 +119,7 @@ namespace OperationSystem.Weapons.Tests
             Assert.IsNotNull(handler.Unit);
 
             var identifier = OperationIdentifier.CreateNew();
-            var operation = new WeaponShotUnitOperation(identifier, Enumerable.Empty<IOperationMiddleware>());
+            var operation = new WeaponShotUnitOperation(identifier, Array.Empty<IOperationMiddleware>());
             operation.RunOperation(handler);
             handler.UpdateUntilComplete(operation, Timeout);
             
