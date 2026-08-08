@@ -17,6 +17,9 @@ namespace OperationSystem.Operations
         
         protected readonly IOperationMiddleware[] Middlewares;
         protected YieldCoroutine? Coroutine;
+        
+        protected IOperationHandler? NullableHandler;
+        protected IOperationHandler Handler => NullableHandler ?? throw new InvalidOperationException();
 
         public OperationIdentifier Identifier { get; }
         public bool IsCompleted { get; protected set; }
@@ -31,6 +34,16 @@ namespace OperationSystem.Operations
             Identifier = identifier;
             _data = data;
             Middlewares = middlewares;
+        }
+        
+        public virtual void RunOperation(IOperationHandler handler)
+        {
+            if (NullableHandler != null)
+                throw new InvalidOperationException();
+            
+            NullableHandler = handler;
+            var context = handler.CreateContext();
+            handler.OperationRunner.RunOperation(this, context);
         }
 
         public virtual void Increment(IOperationContext context)
@@ -47,12 +60,6 @@ namespace OperationSystem.Operations
 
             IsCompleted = true;
             AppendException(Coroutine.Exception);
-        }
-
-        public virtual void RunOperation(IOperationHandler handler)
-        {
-            var context = handler.CreateContext();
-            handler.OperationRunner.RunOperation(this, context);
         }
 
         public T? TryGetData<T>()

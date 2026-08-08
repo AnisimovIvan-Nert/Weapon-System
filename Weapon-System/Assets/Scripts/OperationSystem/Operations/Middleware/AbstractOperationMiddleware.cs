@@ -1,8 +1,6 @@
 ﻿using System.Collections;
-using OperationSystem.Component;
-using OperationSystem.Handlers.Units;
+using OperationSystem.Handlers;
 using OperationSystem.Operations.Tags;
-using OperationSystem.Units;
 
 namespace OperationSystem.Operations.Middleware
 {
@@ -17,7 +15,7 @@ namespace OperationSystem.Operations.Middleware
         public virtual IEnumerator Validate(
             IOperation operation, 
             IOperationContext context, 
-            IUnitOperationHandler handler)
+            IOperationHandler handler)
         {
             yield break;
         }
@@ -25,7 +23,7 @@ namespace OperationSystem.Operations.Middleware
         public virtual IEnumerator TryAcquireLocks(
             IOperation operation, 
             IOperationContext context, 
-            IUnitOperationHandler handler)
+            IOperationHandler handler)
         {
             yield break;
         }
@@ -33,7 +31,7 @@ namespace OperationSystem.Operations.Middleware
         public virtual IEnumerator RecordPossibleMutations(
             IOperation operation, 
             IOperationContext context, 
-            IUnitOperationHandler handler)
+            IOperationHandler handler)
         {
             yield break;
         }
@@ -41,7 +39,7 @@ namespace OperationSystem.Operations.Middleware
         public virtual IEnumerator Execute(
             IOperation operation,
             IOperationContext context,
-            IUnitOperationHandler handler)
+            IOperationHandler handler)
         {
             yield break;
         }

@@ -35,7 +35,7 @@ namespace OperationSystem.Weapons.Tests
 
             var handler = new WeaponUnitHandler(operationRunner, world);
             handler.SetUnit(pistol).Wait(Timeout);
-            Assert.IsNotNull(handler.Unit);
+            Assert.IsNotNull(handler.OperationUnit);
 
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
@@ -116,7 +116,7 @@ namespace OperationSystem.Weapons.Tests
 
             var handler = new WeaponUnitHandler(operationRunner, world);
             handler.SetUnit(pistol).Wait(Timeout);
-            Assert.IsNotNull(handler.Unit);
+            Assert.IsNotNull(handler.OperationUnit);
 
             var identifier = OperationIdentifier.CreateNew();
             var operation = new WeaponShotUnitOperation(identifier, Array.Empty<IOperationMiddleware>());

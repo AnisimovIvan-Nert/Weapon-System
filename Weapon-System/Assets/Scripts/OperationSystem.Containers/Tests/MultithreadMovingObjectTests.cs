@@ -73,7 +73,7 @@ namespace OperationSystem.Containers.Tests
                 var runner = new OperationRunner();
                 var handler = new ContainerHandler(runner, world);
                 handler.SetUnit(assets[index]).Wait();
-                units[index] = handler.Unit ?? throw new InvalidOperationException();
+                units[index] = handler.OperationUnit ?? throw new InvalidOperationException();
                 
                 handler.Update();
                 handler.Update();

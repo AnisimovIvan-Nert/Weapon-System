@@ -5,16 +5,15 @@ using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
-using OperationSystem.Operations.Units;
 using OperationSystem.Units;
 
 namespace OperationSystem.ComplexWeapons.Operations
 {
-    public class WeaponShotOperation : AbstractUnitOperation
+    public class WeaponShotOperation : AbstractOperation
     {
         public class MagazineIsEmptyException : OperationException {}
         
-        private Unit Weapon => Handler.Unit ?? throw new InvalidOperationException();
+        private Unit Weapon => Handler.OperationUnit ?? throw new InvalidOperationException();
         private Unit Magazine => Weapon.GetChild<Magazine>();
 
         public WeaponShotOperation(

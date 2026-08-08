@@ -6,14 +6,14 @@ using OperationSystem.Containers.Operations.Tags;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Operations.Units;
+using OperationSystem.Operations.Staged;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
 {
-    public class ReceiveObjectOperation : AbstractStagedUnitOperation, IReceiveOperationTag
+    public class ReceiveObjectOperation : AbstractStagedOperation, IReceiveOperationTag
     {
-        private Unit Unit => Handler.Unit ?? throw new InvalidOperationException();
+        private Unit Unit => Handler.OperationUnit ?? throw new InvalidOperationException();
         private UnitWorld World => Unit.World;
 
         private ComponentArray<ContainerItems> ItemsComponents => World.GetComponents<ContainerItems>();

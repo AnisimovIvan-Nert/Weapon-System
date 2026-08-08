@@ -3,7 +3,7 @@ using System.Collections;
 using Coroutine;
 using OperationSystem.Containers.Components.Containers.Locks;
 using OperationSystem.Containers.Operations.Tags;
-using OperationSystem.Handlers.Units;
+using OperationSystem.Handlers;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
@@ -15,9 +15,9 @@ namespace OperationSystem.Containers.Middleware
         public override IEnumerator Validate(
             IOperation operation, 
             IOperationContext context,
-            IUnitOperationHandler handler)
+            IOperationHandler handler)
         {
-            var unit = handler.Unit ?? throw new InvalidOperationException();
+            var unit = handler.OperationUnit ?? throw new InvalidOperationException();
             var world = unit.World;
             
             var componentsArray = world.TryGetComponents<IContainerLock>(unit);
@@ -31,9 +31,9 @@ namespace OperationSystem.Containers.Middleware
         public override IEnumerator TryAcquireLocks(
             IOperation operation, 
             IOperationContext context,
-            IUnitOperationHandler handler)
+            IOperationHandler handler)
         {
-            var unit = handler.Unit ?? throw new InvalidOperationException();
+            var unit = handler.OperationUnit ?? throw new InvalidOperationException();
             var world = unit.World;
             
             var componentsArray = world.TryGetComponents<IContainerLock>(unit);
@@ -46,9 +46,9 @@ namespace OperationSystem.Containers.Middleware
         public override IEnumerator Execute(
             IOperation operation, 
             IOperationContext context, 
-            IUnitOperationHandler handler)
+            IOperationHandler handler)
         {
-            var unit = handler.Unit ?? throw new InvalidOperationException();
+            var unit = handler.OperationUnit ?? throw new InvalidOperationException();
             var world = unit.World;
             
             var componentsArray = world.TryGetComponents<IContainerLock>(unit);

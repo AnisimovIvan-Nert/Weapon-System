@@ -4,21 +4,19 @@ using OperationSystem.Component;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Operations.Units;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Components;
 
 namespace OperationSystem.Weapons.Operations
 {
-    public class WeaponShotUnitOperation : AbstractUnitOperation
+    public class WeaponShotUnitOperation : AbstractOperation
     {
-        private Unit Weapon => Handler.Unit ?? throw new InvalidOperationException();
+        private Unit Weapon => Handler.OperationUnit ?? throw new InvalidOperationException();
         private Unit Chamber => Weapon.GetChild<Chamber>();
         private Unit? Magazine => Weapon.TryGetChild<Magazine>();
-        private UnitWorld World => Weapon.World;
 
-        private ComponentArray<Chamber> ChamberComponents => World.GetComponents<Chamber>();
-        private ComponentArray<Magazine> MagazineComponents => World.GetComponents<Magazine>();
+        private ComponentArray<Chamber> ChamberComponents => Weapon.World.GetComponents<Chamber>();
+        private ComponentArray<Magazine> MagazineComponents => Weapon.World.GetComponents<Magazine>();
 
         public WeaponShotUnitOperation(
             OperationIdentifier identifier,

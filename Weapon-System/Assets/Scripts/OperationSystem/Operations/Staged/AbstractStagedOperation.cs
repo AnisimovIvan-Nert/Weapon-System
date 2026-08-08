@@ -7,7 +7,7 @@ using OperationSystem.Operations.Middleware;
 
 namespace OperationSystem.Operations.Staged
 {
-    public abstract class AbstractStagedOperation 
+    public abstract class AbstractStagedOperation
         : AbstractOperation
         , IStagedOperation
     {
@@ -57,9 +57,17 @@ namespace OperationSystem.Operations.Staged
         public Task Complete() => CreateCoroutineTask(CompleteEnumerator());
         public Task Cancel(Exception exception) => CreateCoroutineTask(CancelEnumerator(exception));
 
-        protected abstract IEnumerator ValidateEnumerator();
+        protected virtual IEnumerator ValidateEnumerator()
+        {
+            foreach (var middleware in EnumerateValidMiddlewares())
+                yield return middleware.Validate(this, Context, Handler);
+        }
         
-        protected abstract IEnumerator TryAcquireLocksEnumerator();
+        protected virtual IEnumerator TryAcquireLocksEnumerator()
+        {
+            foreach (var middleware in EnumerateValidMiddlewares())
+                yield return middleware.TryAcquireLocks(this, Context, Handler);
+        }
 
         protected virtual IEnumerator ReleaseLocksEnumerator()
         {
@@ -67,8 +75,17 @@ namespace OperationSystem.Operations.Staged
             yield break;
         }
         
-        protected abstract IEnumerator RecordPossibleMutationsEnumerator();
-        protected abstract IEnumerator ExecuteEnumerator();
+        protected virtual IEnumerator RecordPossibleMutationsEnumerator()
+        {
+            foreach (var middleware in EnumerateValidMiddlewares())
+                yield return middleware.RecordPossibleMutations(this, Context, Handler);
+        }
+        
+        protected virtual IEnumerator ExecuteEnumerator()
+        {
+            foreach (var middleware in EnumerateValidMiddlewares())
+                yield return middleware.Execute(this, Context, Handler);
+        }
 
         protected virtual IEnumerator CompleteEnumerator()
         {
