@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using Coroutine;
 using OperationSystem.ComplexWeapons.Components.Controllers.Hit;
 using OperationSystem.Operations;
@@ -12,13 +11,14 @@ namespace OperationSystem.ComplexWeapons.Operations
 {
     public class HitOperation : AbstractOperation
     {
-        private Unit Unit => Handler.MainUnit ?? throw new InvalidOperationException();
+        private Unit Unit => this.GetData<IOperationUnit>().Unit;
         
         public HitOperation(
-            IOperationExecutor executor, 
-            OperationIdentifier identifier, 
+            OperationIdentifier identifier,
+            IOperationUnit operationUnit,
+            IOperationExecutor executor,
             IOperationMiddleware[] middlewares) 
-            : base(identifier, middlewares, executor)
+            : base(identifier, middlewares, operationUnit, executor)
         {
         }
 
@@ -26,11 +26,11 @@ namespace OperationSystem.ComplexWeapons.Operations
         {
             yield return base.ExecuteEnumerator();
             
-            if (!Unit.HasComponent<HitControllerComponent>())
+            if (!Unit.HasComponent<HitControllerComponent>(Context.World))
                 yield break;
 
             var executor = this.GetData<IOperationExecutor>();
-            var controller = Unit.GetComponent<HitControllerComponent>();
+            var controller = Unit.GetComponent<HitControllerComponent>(Context.World);
             
             yield return controller.HitController.HandleHit(Unit, executor)
                 .GetResult<IHitController.IResult>(SetResult);

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using OperationSystem.Component;
 using OperationSystem.Containers.Components.Containers;
 using OperationSystem.Containers.Operations.Tags;
 using OperationSystem.Operations;
@@ -14,9 +13,6 @@ namespace OperationSystem.Containers.Operations
     public class ReceiveObjectOperation : AbstractOperation, IReceiveOperationTag
     {
         private Unit Unit => this.GetData<IOperationUnit>().Unit;
-        private UnitWorld World => Unit.World;
-
-        private ComponentArray<ContainerItems> ItemsComponents => World.GetComponents<ContainerItems>();
         
         public ReceiveObjectOperation(
             OperationIdentifier identifier,
@@ -34,7 +30,7 @@ namespace OperationSystem.Containers.Operations
             
             var target = this.GetData<IOperationTarget>();
 
-            var containerItems = ItemsComponents.GetComponent(Unit.Id);
+            var containerItems = Unit.GetComponent<ContainerItems>(Context.World);
             if (containerItems.Items.Contains(target.Target))
                 throw new InvalidOperationException();
         }
@@ -52,7 +48,7 @@ namespace OperationSystem.Containers.Operations
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
-            var containerItems = ItemsComponents.GetComponent(Unit.Id);
+            var containerItems = Unit.GetComponent<ContainerItems>(Context.World);
 
             Context.RecordUndo(() =>
             {
@@ -67,9 +63,9 @@ namespace OperationSystem.Containers.Operations
             
             var target = this.GetData<IOperationTarget>();
             
-            var containerItems = ItemsComponents.GetComponent(Unit.Id);
+            var containerItems = Unit.GetComponent<ContainerItems>(Context.World);
             containerItems.Items.Add(target.Target);
-            ItemsComponents.SetComponent(Unit.Id, containerItems);
+            Unit.SetComponent(containerItems, Context.World);
         }
     }
 }

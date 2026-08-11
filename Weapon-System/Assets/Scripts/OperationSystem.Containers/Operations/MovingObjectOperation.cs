@@ -36,8 +36,8 @@ namespace OperationSystem.Containers.Operations
             var receiverUnit = new OperationUnit(_receiver);
             var receiveObjectOperation = new ReceiveObjectOperation(Identifier, receiverUnit, executor, target, Middlewares);
 
-            sendOperation.RunOperation(_sender.OperationHandler, OperationStaging.Manual);
-            receiveObjectOperation.RunOperation(_receiver.OperationHandler, OperationStaging.Manual);
+            sendOperation.RunOperation(Context.World, OperationStaging.Manual);
+            receiveObjectOperation.RunOperation(Context.World, OperationStaging.Manual);
 
             return new List<IOperation> { sendOperation, receiveObjectOperation };
         }

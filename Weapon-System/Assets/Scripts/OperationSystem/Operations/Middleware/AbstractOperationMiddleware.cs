@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using OperationSystem.Handlers;
 using OperationSystem.Operations.Tags;
 
 namespace OperationSystem.Operations.Middleware
@@ -12,47 +11,47 @@ namespace OperationSystem.Operations.Middleware
             return operation is T;
         }
 
-        public virtual IEnumerator Initialization(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Initialization(IOperation operation, IOperationContext context)
         {
             yield break;
         }
 
-        public virtual IEnumerator Validate(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Validate(IOperation operation, IOperationContext context)
         {
             yield break;
         }
 
-        public virtual IEnumerator TryAcquireLocks(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator TryAcquireLocks(IOperation operation, IOperationContext context)
         {
             yield break;
         }
 
-        public virtual IEnumerator ReleaseLocks(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator ReleaseLocks(IOperation operation, IOperationContext context)
         {
             yield break;
         }
 
-        public virtual IEnumerator RecordMutations(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator RecordMutations(IOperation operation, IOperationContext context)
         {
             yield break;
         }
 
-        public virtual IEnumerator Execute(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Execute(IOperation operation, IOperationContext context)
         {
             yield break;
         }
 
-        public virtual IEnumerator Complete(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Complete(IOperation operation, IOperationContext context)
         {
             yield break;
         }
 
-        public virtual IEnumerator Cancel(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Cancel(IOperation operation, IOperationContext context)
         {
             yield break;
         }
         
-        public virtual void Dispose(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual void Dispose(IOperation operation, IOperationContext context)
         {
         }
     }

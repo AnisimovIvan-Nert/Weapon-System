@@ -1,88 +1,74 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace OperationSystem.Operations
 {
     public class OperationRunner : IOperationRunner
     {
-        private readonly List<OperationWithContext> _add = new();
-        private readonly List<OperationWithContext> _operations = new();
-        private readonly object _lock = new();
-
-        private IOperationRunner.ILock? _runningLock;
+        private readonly ConcurrentBag<Operation> _pendingAdd = new();
+        private readonly HashSet<Operation> _operations = new();
 
         public bool AnyRunningOperation => _operations.Any();
 
         public void Update()
         {
-            if (_runningLock == null)
-            {
-                _operations.AddRange(_add);
-                _add.Clear();
-            }
-            
-            for (var i = 0; i < _operations.Count; i++)
-            {
-                var operation = _operations[i].Operation;
-                var context = _operations[i].Context;
+            AddPendingOperations();
 
-                operation.Increment(context);
-                if (!operation.IsCompleted)
-                    continue;
-                
-                if (operation.IsCompletedSuccessfully)
-                    context.Commit();
-                else
-                    context.Rollback();
-                
-                context.Dispose();
-                
-                _operations.RemoveAt(i);
-                i--;
-            }
+            foreach (var operation in _operations)
+                operation.Increment();
+
+            _operations.RemoveWhere(operation => operation.IsCompleted);
         }
 
         public void RunOperation(IOperation operation, IOperationContext context)
         {
-            _add.Add(new OperationWithContext(operation, context));
+            _pendingAdd.Add(new Operation(operation, context));
         }
-        
-        public bool TryLockOperationRunning(out IOperationRunner.ILock? @lock)
-        {
-            @lock = null;
-            
-            if (_runningLock != null)
-                return false;
 
-            lock (_lock)
+        private void AddPendingOperations()
+        {
+            while (_pendingAdd.TryTake(out var operation))
             {
-                if (_runningLock != null)
-                    return false;
+                if (!_operations.Add(operation))
+                    throw new InvalidOperationException("Operation already running");
+            }
+        }
+
+        private readonly struct Operation : IEquatable<Operation>
+        {
+            private readonly IOperation _operation;
+            private readonly IOperationContext _context;
+
+            public bool IsCompleted => _operation.IsCompleted;
+
+            public Operation(IOperation operation, IOperationContext context)
+            {
+                _operation = operation;
+                _context = context;
+            }
+
+            public void Increment()
+            {
+                _operation.Increment(_context);
+                if (!_operation.IsCompleted)
+                    return;
                 
-                _runningLock = new IOperationRunner.Lock();
+                if (_operation.IsCompletedSuccessfully)
+                    _context.Commit();
+                else
+                    _context.Rollback();
+
+                _context.Dispose();
             }
-            @lock = _runningLock;
-            return true;
-        }
 
-        public void ReleaseOperationRunning(IOperationRunner.ILock @lock)
-        {
-            if (_runningLock != @lock)
-                return;
+            public static bool operator ==(Operation left, Operation right) => left.Equals(right);
+            public static bool operator !=(Operation left, Operation right) => !(left == right);
 
-            _runningLock = null;
-        }
-
-        private struct OperationWithContext
-        {
-            public IOperation Operation { get; }
-            public IOperationContext Context { get; }
-            
-            public OperationWithContext(IOperation operation, IOperationContext context)
-            {
-                Operation = operation;
-                Context = context;
-            }
+            public bool Equals(Operation other) => _operation.Equals(other._operation);
+            public override bool Equals(object? obj) => obj is Operation other && Equals(other);
+            public override int GetHashCode() => _operation.GetHashCode();
         }
     }
 }

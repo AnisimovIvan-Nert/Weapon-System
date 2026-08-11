@@ -19,22 +19,34 @@ namespace OperationSystem.Units
             return result == default ? null : result;
         }
 
-        public static T GetComponent<T>(this Unit unit)
+        public static T GetComponent<T>(this Unit unit, UnitWorld world)
             where T : struct, IComponent
         {
-            return unit.World.GetComponents<T>().GetComponent(unit.Id);
-        }
-
-        public static void SetComponent<T>(this Unit unit, T component)
-            where T : struct, IComponent
-        {
-            unit.World.GetComponents<T>().SetComponent(unit.Id, component);
+            return world.GetComponentArray<T>().GetComponent(unit.Id);
         }
         
-        public static bool HasComponent<T>(this Unit unit)
+        public static bool TryGetComponent<T>(this Unit unit, UnitWorld world, out T component)
+            where T : IComponent
+        {
+            component = default!;
+            var componentArray = world.TryGetComponentArray<T>(unit);
+            if (componentArray == null)
+                return false;
+            
+            component = componentArray.GetComponent<T>(unit.Id);
+            return true;
+        }
+
+        public static void SetComponent<T>(this Unit unit, T component, UnitWorld world)
             where T : struct, IComponent
         {
-            return unit.World.GetComponents<T>().HasComponent(unit);
+            world.GetComponentArray<T>().SetComponent(unit.Id, component);
+        }
+        
+        public static bool HasComponent<T>(this Unit unit, UnitWorld world)
+            where T : struct, IComponent
+        {
+            return world.GetComponentArray<T>().HasComponent(unit);
         }
     }
 }

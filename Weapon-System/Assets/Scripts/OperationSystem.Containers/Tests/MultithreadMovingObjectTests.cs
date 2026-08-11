@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Containers.Components;
 using OperationSystem.Containers.Components.Containers;
@@ -9,12 +8,10 @@ using OperationSystem.Containers.Components.Containers.Locks.Keys;
 using OperationSystem.Containers.Middleware;
 using OperationSystem.Containers.Operations;
 using OperationSystem.Containers.Tests.Mocks;
-using OperationSystem.Containers.UnitHandlers;
-using OperationSystem.Handlers;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Tests;
+using OperationSystem.TestExtensions;
 using OperationSystem.Units;
 using UnityEngine;
 using Random = System.Random;
@@ -56,9 +53,9 @@ namespace OperationSystem.Containers.Tests
                 Assert.AreEqual(i, assets[i].AccessLock!.Value.Level);
 
                 var unit = units[i];
-                var unitItems = world.GetComponents<ContainerItems>().GetComponent(unit.Id);
-                var unitLock = world.GetComponents<KeyContainerLock>().GetComponent(unit.Id);
-                var unitAccess = world.GetComponents<AccessContainerLock>().GetComponent(unit.Id);
+                var unitItems = world.GetComponentArray<ContainerItems>().GetComponent(unit.Id);
+                var unitLock = world.GetComponentArray<KeyContainerLock>().GetComponent(unit.Id);
+                var unitAccess = world.GetComponentArray<AccessContainerLock>().GetComponent(unit.Id);
                 
                 Assert.AreEqual(i, unitItems.Items.Count);
                 Assert.AreEqual(keys[i], unitLock.Identifier);
@@ -69,17 +66,7 @@ namespace OperationSystem.Containers.Tests
             async Task Create(int index)
             {
                 await Task.Delay(new Random(RandomSeed + index).Next(100));
-                
-                var runner = new OperationRunner();
-                var handler = new ContainerHandler(runner, world);
-                handler.SetUnit(assets[index]).Wait();
-                units[index] = handler.MainUnit ?? throw new InvalidOperationException();
-                
-                handler.Update();
-                handler.Update();
-                handler.Update();
-                
-                Debug.Log(index);
+                units[index] = world.GetOrCreateUnit(assets[index]);
             }
         }
         
@@ -99,7 +86,7 @@ namespace OperationSystem.Containers.Tests
                 var failOperation = i % 7 == 0;
                 
                 var targetAsset = new FooAsset();
-                targets[i] = world.Registry.Create(targetAsset);
+                targets[i] = world.GetOrCreateUnit(targetAsset);
                 
                 var keyIdentifier = Guid.NewGuid();
 
@@ -120,19 +107,18 @@ namespace OperationSystem.Containers.Tests
                 var keyStorage = new KeysStorage(key);
                 var access = failOperation ? new AccessLevel(-1) : new AccessLevel(i);
                 var executorAsset = new ExecutorAsset(keyStorage, access);
-                var executor = world.Registry.Create(executorAsset);
+                var executor = world.GetOrCreateUnit(executorAsset);
 
                 var (senderAsset, receiverAsset) = (i & 1) == 1 
                     ? (firstContainer, secondContainer) 
                     : (secondContainer, firstContainer);
 
-                var (operation, handler, senderHandler, receiverHandler) =
-                    RunOperation(executor, targets[i], senderAsset, receiverAsset, world);
+                var operation = RunOperation(executor, targets[i], senderAsset, receiverAsset, world);
                 operations[i] = operation;
 
-                var mainTask = WaitOperation(i, handler, RandomSeed + i + 1 * 100);
-                var senderTask = WaitOperation(i, senderHandler, RandomSeed + i + 2 * 100);
-                var receiverTask = WaitOperation(i, receiverHandler, RandomSeed + i + 3 * 100);
+                var mainTask = WaitOperation(i, RandomSeed + i + 1 * 100);
+                var senderTask = WaitOperation(i, RandomSeed + i + 2 * 100);
+                var receiverTask = WaitOperation(i, RandomSeed + i + 3 * 100);
                 var whenAll = Task.WhenAll(mainTask, senderTask, receiverTask);
                 tasks[i] = whenAll;
             }
@@ -166,7 +152,7 @@ namespace OperationSystem.Containers.Tests
             
             return;
             
-            async Task WaitOperation(int index, IOperationHandler handler, int seed)
+            async Task WaitOperation(int index, int seed)
             {
                 var timeout = Timeout;
                 var operation = operations[index];
@@ -175,22 +161,19 @@ namespace OperationSystem.Containers.Tests
                 {
                     await Task.Delay(random.Next(10));
                     timeout--;
-                    handler.Update();
+                    world.Update();
                 }
                 Debug.Log(index);
             }
         }
         
-        private static (IOperation, OperationHandler, ContainerHandler, ContainerHandler) RunOperation(
+        private static IOperation RunOperation(
             Unit executor,
             Unit target, 
             ContainerAsset sender, 
             ContainerAsset receiver,
             UnitWorld unitWorld)
         {
-            unitWorld.PullFromAssets(executor);
-            unitWorld.PullFromAssets(target);
-            
             var middlewares = new IOperationMiddleware[]
             {
                 new ContainerLockMiddleware(),
@@ -200,23 +183,15 @@ namespace OperationSystem.Containers.Tests
             var executorData = new OperationExecutor(executor);
             var targetData = new OperationTarget(target);
             
-            var senderRunner = new OperationRunner();
-            var senderHandler = new ContainerHandler(senderRunner, unitWorld);
-            senderHandler.SetUnit(sender).Wait();
-            
-            var receiverRunner = new OperationRunner();
-            var receiverHandler = new ContainerHandler(receiverRunner, unitWorld);
-            receiverHandler.SetUnit(receiver).Wait();
-            
-            var globalRunner = new OperationRunner();
-            var globalHandler = new OperationHandler(globalRunner, unitWorld);
+            var senderUnit = unitWorld.GetOrCreateUnit(sender);
+            var receiverUnit = unitWorld.GetOrCreateUnit(receiver);
             
             var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
-                senderHandler, receiverHandler, middlewares);
+                senderUnit, receiverUnit, middlewares);
             
-            operation.RunOperation(globalHandler);
+            operation.RunOperation(unitWorld);
 
-            return (operation, globalHandler, senderHandler, receiverHandler);
+            return operation;
         }
     }
 }

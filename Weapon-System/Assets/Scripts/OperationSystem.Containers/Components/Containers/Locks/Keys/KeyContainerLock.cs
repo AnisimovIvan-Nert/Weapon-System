@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Linq;
-using OperationSystem.Component;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Components.Containers.Locks.Keys
@@ -15,19 +14,16 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Keys
             Identifier = identifier;
         }
 
-        public IEnumerator CanInteractWithContainer(Unit unit)
+        public IEnumerator CanInteractWithContainer(Unit unit, UnitWorld world)
         {
-            var word = unit.World;
-            var keysStorage = word.GetComponents<KeysStorage>().TryGetComponent(unit);
-
-            if (keysStorage == null)
+            if (!unit.TryGetComponent<KeysStorage>(world, out var keysStorage))
             {
                 yield return false;
                 yield break;
             }
-
+            
             var identifier = Identifier;
-            yield return keysStorage.Value.Keys.OfType<Key>().Any(key => key.Identifier == identifier);
+            yield return keysStorage.Keys.OfType<Key>().Any(key => key.Identifier == identifier);
         }
     }
 }

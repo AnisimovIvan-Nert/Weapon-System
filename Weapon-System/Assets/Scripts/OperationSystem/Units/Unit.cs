@@ -1,29 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
+using OperationSystem.Assets;
 using OperationSystem.Component.Types;
-using OperationSystem.Handlers;
-
 namespace OperationSystem.Units
 {
+    public class UnitDestroyedException : Exception
+    {
+        public UnitId UnitId { get; }
+        
+        public UnitDestroyedException(UnitId unitId)
+            : base($"Unit with id {unitId} destroyed")
+        {
+            UnitId = unitId;
+        }
+    }
     public readonly struct Unit : IEquatable<Unit>
     {
         public UnitId Id { get; }
         public ComponentMask ComponentMask { get; }
         public IList<Unit> Children { get; }
-        public UnitWorld World { get; }
-        public IOperationHandler OperationHandler { get; }
+        public IAsset Asset { get; }
         
-        public Unit(
-            UnitId id, 
-            ComponentMask componentMask,
-            UnitWorld world,
-            IOperationHandler operationHandler, 
-            params Unit[] children)
+        public Unit(UnitId id, ComponentMask componentMask, IAsset asset, params Unit[] children)
         {
             Id = id;
             ComponentMask = componentMask;
-            World = world;
-            OperationHandler = operationHandler;
+            Asset = asset;
             Children = children;
         }
         

@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using OperationSystem.Component;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
@@ -13,18 +12,15 @@ namespace OperationSystem.Containers.Components.Containers.Locks.Accesses
             Level = level;
         }
 
-        public IEnumerator CanInteractWithContainer(Unit unit)
+        public IEnumerator CanInteractWithContainer(Unit unit, UnitWorld world)
         {
-            var word = unit.World;
-            var accessLevel = word.GetComponents<AccessLevel>().TryGetComponent(unit);
-
-            if (accessLevel == null)
+            if (!unit.TryGetComponent<AccessLevel>(world, out var accessLevel))
             {
                 yield return false;
                 yield break;
             }
 
-            yield return accessLevel.Value.Level >= Level;
+            yield return accessLevel.Level >= Level;
         }
     }
 }

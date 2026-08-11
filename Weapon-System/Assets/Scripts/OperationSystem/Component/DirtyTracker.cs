@@ -1,7 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
 using OperationSystem.Shared;
-using OperationSystem.Units;
 
 namespace OperationSystem.Component
 {
@@ -20,29 +18,6 @@ namespace OperationSystem.Component
         public void ClearAll() => _dirtyBits.Clear();
         public void EnsureCapacity(int capacity) => _dirtyBits.EnsureIndexInRange(capacity - 1);
 
-        public DirtyEnumerator GetEnumerator() => new(_dirtyBits);
-
-        public struct DirtyEnumerator : IEnumerator<UnitId>
-        {
-            private BitsCollection.TrueBitsEnumerator _trueBitsEnumerator;
-
-            internal DirtyEnumerator(BitsCollection bitsCollection)
-            {
-                _trueBitsEnumerator = bitsCollection.GetEnumerator();
-            }
-            
-            public void Reset() => _trueBitsEnumerator.Reset();
-
-            public bool MoveNext() => _trueBitsEnumerator.MoveNext();
-
-            public UnitId Current => new(_trueBitsEnumerator.Current);
-            
-            object IEnumerator.Current => Current;
-
-            public void Dispose()
-            {
-                _trueBitsEnumerator.Dispose();
-            }
-        }
+        public IEnumerator<int> GetEnumerator() => _dirtyBits.GetEnumerator();
     }
 }

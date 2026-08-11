@@ -1,13 +1,12 @@
 ﻿using System;
-using Coroutine;
 using NUnit.Framework;
 using OperationSystem.ComplexWeapons.Assets;
 using OperationSystem.ComplexWeapons.Operations;
-using OperationSystem.ComplexWeapons.UnitHandlers;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
-using OperationSystem.Tests;
+using OperationSystem.TestExtensions;
 using OperationSystem.Units;
 
 namespace OperationSystem.ComplexWeapons._Tests
@@ -58,16 +57,14 @@ namespace OperationSystem.ComplexWeapons._Tests
         private static WeaponShotOperation RunAndWaitOperation(WeaponAsset weaponAsset)
         {
             var world = UnitWorld.Create();
-            var operationRunner = new OperationRunner();
-
-            var handler = new WeaponUnitHandler(operationRunner, world);
-            handler.SetUnit(weaponAsset).Wait(Timeout);
+            var unit = world.GetOrCreateUnit(weaponAsset);
 
             var identifier = OperationIdentifier.CreateNew();
-            var operation = new WeaponShotOperation(identifier, Array.Empty<IOperationMiddleware>());
-            operation.RunOperation(handler);
+            var operationUnit = new OperationUnit(unit);
+            var operation = new WeaponShotOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
+            operation.RunOperation(world);
 
-            handler.UpdateUntilComplete(operation, Timeout);
+            world.UpdateUntilComplete(operation, Timeout);
             return operation;
         }
     }

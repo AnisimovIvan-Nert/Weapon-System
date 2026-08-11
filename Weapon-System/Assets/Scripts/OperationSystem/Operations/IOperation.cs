@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
-using OperationSystem.Handlers;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Result;
+using OperationSystem.Units;
 
 namespace OperationSystem.Operations
 {
@@ -15,7 +15,7 @@ namespace OperationSystem.Operations
         public Exception? Exception { get; }
         public IOperationResult? OperationResult { get; }
         
-        void RunOperation(IOperationHandler handler, OperationStaging staging);
+        void RunOperation(UnitWorld world, OperationStaging staging);
         
         void Increment(IOperationContext operationContext);
         Task RunStage(OperationStage stage);

@@ -14,8 +14,8 @@ namespace OperationSystem.ComplexWeapons.Operations
         private NativeArray<RaycastCommand> _commands;
         private NativeArray<RaycastHit> _results;
         
-        public RaycastOperation(Data operationData, OperationIdentifier identifier, IOperationMiddleware[] middlewares)
-            : base(identifier, middlewares, operationData)
+        public RaycastOperation(OperationIdentifier identifier, Data data, IOperationMiddleware[] middlewares)
+            : base(identifier, middlewares, data)
         {
             _commands = new NativeArray<RaycastCommand>(1, Allocator.Persistent);
             _results = new NativeArray<RaycastHit>(1, Allocator.Persistent);

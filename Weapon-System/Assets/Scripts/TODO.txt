@@ -1,3 +1,5 @@
 ﻿- replace ExceptionDispatchInfo calls with something
 
 - middlewares stored in operation? store in world (and optionaly pass extra middlewares in operation?) ? 
+
+- run operation options: force main, allow split to threads, user runner

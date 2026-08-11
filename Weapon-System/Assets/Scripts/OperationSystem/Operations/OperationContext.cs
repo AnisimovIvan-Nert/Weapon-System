@@ -12,6 +12,8 @@ namespace OperationSystem.Operations
 
     public interface IOperationContext : IDisposable
     {
+        UnitWorld World { get; }
+        
         bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner) where T : struct, IComponent;
         bool TryAcquire(int typeId, in UnitId unitId, in OperationIdentifier owner);
         void RecordUndo(Undo undo);
@@ -25,12 +27,13 @@ namespace OperationSystem.Operations
         private readonly Dictionary<(UnitId unitId, int typeId), OperationIdentifier> _locks = new();
         
         private readonly List<Undo> _undoStack = new();
-        private readonly UnitWorld _unitWorld;
         private bool _committed;
+        
+        public UnitWorld World { get; }
 
         public OperationContext(UnitWorld unitWorld)
         {
-            _unitWorld = unitWorld;
+            World = unitWorld;
         }
 
         public bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner)
@@ -41,9 +44,7 @@ namespace OperationSystem.Operations
         
         public bool TryAcquire(int typeId, in UnitId unitId, in OperationIdentifier owner)
         {
-            var resourceOwner = _unitWorld.GetComponents(typeId).GetOwner(unitId);
-
-            if (resourceOwner != default && resourceOwner != owner)
+            if (!World.GetComponentArray(typeId).TryAcquireComponent(unitId, owner))
                 return false;
             
             try
@@ -52,12 +53,11 @@ namespace OperationSystem.Operations
             }
             catch (Exception e)
             {
+                World.GetComponentArray(typeId).ReleaseComponent(unitId, owner);
                 _locks.Remove((unitId, typeId));
                 Debug.LogError(e);
                 return false;
             }
-            
-            _unitWorld.GetComponents(typeId).SetOwner(unitId, resourceOwner);
             
             return true;
         }
@@ -102,9 +102,7 @@ namespace OperationSystem.Operations
             {
                 try
                 {
-                    var resourceOwner = _unitWorld.GetComponents(typeId).GetOwner(unitId);
-                    if (resourceOwner == owner)
-                        _unitWorld.GetComponents(typeId).SetOwner(unitId, default);
+                    World.GetComponentArray(typeId).ReleaseComponent(unitId, owner);
                 }
                 catch (Exception e)
                 {

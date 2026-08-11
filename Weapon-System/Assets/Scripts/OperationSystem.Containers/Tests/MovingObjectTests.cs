@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Runtime.ExceptionServices;
-using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Containers.Components;
 using OperationSystem.Containers.Components.Containers;
@@ -9,12 +8,10 @@ using OperationSystem.Containers.Components.Containers.Locks.Keys;
 using OperationSystem.Containers.Middleware;
 using OperationSystem.Containers.Operations;
 using OperationSystem.Containers.Tests.Mocks;
-using OperationSystem.Containers.UnitHandlers;
-using OperationSystem.Handlers;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Tests;
+using OperationSystem.TestExtensions;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Tests
@@ -29,7 +26,7 @@ namespace OperationSystem.Containers.Tests
             var world = UnitWorld.Create();
             
             var targetAsset = new FooAsset();
-            var target = world.Registry.Create(targetAsset);
+            var target = world.GetOrCreateUnit(targetAsset);
             
             var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
@@ -38,7 +35,7 @@ namespace OperationSystem.Containers.Tests
             var receiver = new ContainerAsset(receiverItems);
             
             var executorAsset = new ExecutorAsset();
-            var executor = world.Registry.Create(executorAsset);
+            var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
@@ -51,7 +48,7 @@ namespace OperationSystem.Containers.Tests
             var world = UnitWorld.Create();
             
             var targetAsset = new FooAsset();
-            var target = world.Registry.Create(targetAsset);
+            var target = world.GetOrCreateUnit(targetAsset);
             
             var keyIdentifier = Guid.NewGuid();
             
@@ -63,7 +60,7 @@ namespace OperationSystem.Containers.Tests
             var receiver = new ContainerAsset(receiverItems);
             
             var executorAsset = new ExecutorAsset();
-            var executor = world.Registry.Create(executorAsset);
+            var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
@@ -76,7 +73,7 @@ namespace OperationSystem.Containers.Tests
             var world = UnitWorld.Create();
             
             var targetAsset = new FooAsset();
-            var target = world.Registry.Create(targetAsset);
+            var target = world.GetOrCreateUnit(targetAsset);
             
             var keyIdentifier = Guid.NewGuid();
             
@@ -90,7 +87,7 @@ namespace OperationSystem.Containers.Tests
             var key = new Key(keyIdentifier);
             var keyStorage = new KeysStorage(key);
             var executorAsset = new ExecutorAsset(keyStorage);
-            var executor = world.Registry.Create(executorAsset);
+            var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
@@ -105,7 +102,7 @@ namespace OperationSystem.Containers.Tests
             var world = UnitWorld.Create();
             
             var targetAsset = new FooAsset();
-            var target = world.Registry.Create(targetAsset);
+            var target = world.GetOrCreateUnit(targetAsset);
             
             var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
@@ -116,7 +113,7 @@ namespace OperationSystem.Containers.Tests
             
             var access = new AccessLevel(accessLevel - 1);
             var executorAsset = new ExecutorAsset(null, access);
-            var executor = world.Registry.Create(executorAsset);
+            var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
@@ -131,7 +128,7 @@ namespace OperationSystem.Containers.Tests
             var world = UnitWorld.Create();
             
             var targetAsset = new FooAsset();
-            var target = world.Registry.Create(targetAsset);
+            var target = world.GetOrCreateUnit(targetAsset);
             
             var senderItems = ContainerItems.Create(target);
             var senderLock =  new AccessContainerLock(accessLevel + 1);
@@ -143,7 +140,7 @@ namespace OperationSystem.Containers.Tests
             
             var access = new AccessLevel(accessLevel + 1);
             var executorAsset = new ExecutorAsset(null, access);
-            var executor = world.Registry.Create(executorAsset);
+            var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
@@ -161,7 +158,7 @@ namespace OperationSystem.Containers.Tests
             
             var size = new Size(height, width);
             var targetAsset = new FooAsset(size);
-            var target = world.Registry.Create(targetAsset);
+            var target = world.GetOrCreateUnit(targetAsset);
             
             var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
@@ -171,7 +168,7 @@ namespace OperationSystem.Containers.Tests
             var receiver = new ContainerAsset(receiverItems, null, null, receiverVolume);
             
             var executorAsset = new ExecutorAsset();
-            var executor = world.Registry.Create(executorAsset);
+            var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
@@ -189,7 +186,7 @@ namespace OperationSystem.Containers.Tests
             
             var size = new Size(height, width);
             var targetAsset = new FooAsset(size);
-            var target = world.Registry.Create(targetAsset);
+            var target = world.GetOrCreateUnit(targetAsset);
             
             var senderItems = ContainerItems.Create(target);
             var sender = new ContainerAsset(senderItems);
@@ -199,7 +196,7 @@ namespace OperationSystem.Containers.Tests
             var receiver = new ContainerAsset(receiverItems, null, null, receiverVolume);
             
             var executorAsset = new ExecutorAsset();
-            var executor = world.Registry.Create(executorAsset);
+            var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
@@ -213,35 +210,23 @@ namespace OperationSystem.Containers.Tests
             ContainerAsset receiver,
             UnitWorld unitWorld)
         {
-            unitWorld.PullFromAssets(executor);
-            unitWorld.PullFromAssets(target);
-            
             var middlewares = new IOperationMiddleware[]
             {
                 new ContainerLockMiddleware(),
                 new ContainerVolumeMiddleware()
             };
+            
+            var senderUnit = unitWorld.GetOrCreateUnit(sender);
+            var receiverUnit = unitWorld.GetOrCreateUnit(receiver);
 
             var executorData = new OperationExecutor(executor);
             var targetData = new OperationTarget(target);
             
-            var senderRunner = new OperationRunner();
-            var senderHandler = new ContainerHandler(senderRunner, unitWorld);
-            senderHandler.SetUnit(sender).Wait();
-            
-            var receiverRunner = new OperationRunner();
-            var receiverHandler = new ContainerHandler(receiverRunner, unitWorld);
-            receiverHandler.SetUnit(receiver).Wait();
-            
-            var globalRunner = new OperationRunner();
-            var globalHandler = new OperationHandler(globalRunner, unitWorld);
-            
             var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
-                senderHandler, receiverHandler, middlewares);
+                senderUnit, receiverUnit, middlewares);
             
-            var handlers = new IOperationHandler[] { globalHandler, senderHandler, receiverHandler };
-            operation.RunOperation(globalHandler);
-            handlers.UpdateUntilComplete(operation, Timeout);
+            operation.RunOperation(unitWorld);
+            unitWorld.UpdateUntilComplete(operation, Timeout);
 
             return operation;
         }

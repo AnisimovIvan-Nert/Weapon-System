@@ -1,8 +1,8 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using OperationSystem.ComplexWeapons.Components;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
+using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
 using OperationSystem.Operations.Tags;
@@ -20,11 +20,14 @@ namespace OperationSystem.ComplexWeapons.Operations
         {
         }
 
-        private Unit Weapon => Handler.MainUnit ?? throw new InvalidOperationException();
+        private Unit Weapon => this.GetData<IOperationUnit>().Unit;
         private Unit Magazine => Weapon.GetChild<Magazine>();
 
-        public WeaponShotOperation(OperationIdentifier identifier, IOperationMiddleware[] middlewares)
-            : base(identifier, middlewares)
+        public WeaponShotOperation(
+            OperationIdentifier identifier, 
+            IOperationUnit operationUnit, 
+            IOperationMiddleware[] middlewares)
+            : base(identifier, middlewares, operationUnit)
         {
         }
 
@@ -59,28 +62,28 @@ namespace OperationSystem.ComplexWeapons.Operations
 
         private void Validate()
         {
-            var magazine = Magazine.GetComponent<Magazine>();
+            var magazine = Magazine.GetComponent<Magazine>(Context.World);
             if (magazine is not { Rounds: > 0 })
                 throw new MagazineIsEmptyException();
         }
 
         private void PerformMutation()
         {
-            var magazine = Magazine.GetComponent<Magazine>();
+            var magazine = Magazine.GetComponent<Magazine>(Context.World);
             magazine.Rounds--;
-            Magazine.SetComponent(magazine);
+            Magazine.SetComponent(magazine, Context.World);
         }
 
         private void RecordMutationUndo()
         {
-            var magazine = Magazine.GetComponent<Magazine>();
+            var magazine = Magazine.GetComponent<Magazine>(Context.World);
             var rounds = magazine.Rounds;
 
             Context.RecordUndo(() =>
             {
-                Magazine.GetComponent<Magazine>();
+                Magazine.GetComponent<Magazine>(Context.World);
                 magazine.Rounds = rounds;
-                Magazine.SetComponent(magazine);
+                Magazine.SetComponent(magazine, Context.World);
             });
         }
     }

@@ -13,9 +13,9 @@ namespace OperationSystem.ComplexWeapons.Operations
     public class BulletFlightOperation : AbstractOperation
     {
         public BulletFlightOperation(
+            OperationIdentifier identifier,
             Data data,
             IOperationExecutor executor,
-            OperationIdentifier identifier,
             IOperationMiddleware[] middlewares)
             : base(identifier, middlewares, data, executor)
         {
@@ -30,8 +30,8 @@ namespace OperationSystem.ComplexWeapons.Operations
 
             var raycastCommand = new RaycastCommand(data.From, data.Direction, QueryParameters.Default, data.Distance);
             var raycastData = new RaycastOperation.Data(raycastCommand);
-            var raycastOperation = new RaycastOperation(raycastData, Identifier, Middlewares);
-            raycastOperation.RunOperation(Handler);
+            var raycastOperation = new RaycastOperation(Identifier, raycastData, Middlewares);
+            raycastOperation.RunOperation(Context.World);
 
             yield return raycastOperation.WaitEnumerator();
             
@@ -42,9 +42,10 @@ namespace OperationSystem.ComplexWeapons.Operations
                 throw new InvalidOperationException();
 
             var asset = raycastResult.Hit.collider.GetComponentInParent<IAsset>();
-            var unit = Handler.World.Registry.GetUnit(asset);
-
-            var hitOperation = new HitOperation(executor, Identifier, Middlewares);
+            var unit = Context.World.GetOrCreateUnit(asset);
+            
+            var operationUnit = new OperationUnit(unit);
+            var hitOperation = new HitOperation(Identifier, operationUnit, executor, Middlewares);
         }
 
         public readonly struct Data : IOperationData

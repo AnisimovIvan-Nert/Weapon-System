@@ -6,11 +6,10 @@ using NUnit.Framework;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
-using OperationSystem.Tests;
+using OperationSystem.TestExtensions;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Assets;
 using OperationSystem.Weapons.Operations;
-using OperationSystem.Weapons.UnitHandlers;
 
 namespace OperationSystem.Weapons.Tests
 {
@@ -30,23 +29,19 @@ namespace OperationSystem.Weapons.Tests
             pistol.AddChild(magazine);
 
             var world = UnitWorld.Create();
+            var unit = world.GetOrCreateUnit(pistol);
             
-            var operationRunner = new OperationRunner();
-            
-            var handler = new WeaponUnitHandler(operationRunner, world);
-            var unit = handler.SetAndReturnUnit(pistol, Timeout);
-
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
             {
                 var identifier = OperationIdentifier.CreateNew();
                 var operationUnit = new OperationUnit(unit);
                 var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
-                operation.RunOperation(handler);
+                operation.RunOperation(world);
                 operations.Add(operation);
             }
 
-            handler.UpdateUntilComplete(operations.ToArray(), Timeout);
+            world.UpdateUntilComplete(operations.ToArray(), Timeout);
 
             var failedOperation = operations.SingleOrDefault(o => !o.IsCompletedSuccessfully);
             Assert.NotNull(failedOperation);
@@ -111,17 +106,14 @@ namespace OperationSystem.Weapons.Tests
 
         private static IOperation RunAndWaitOperation(Pistol pistol)
         {
-            var operationRunner = new OperationRunner();
             var world = UnitWorld.Create();
-            
-            var handler = new WeaponUnitHandler(operationRunner, world);
-            var unit = handler.SetAndReturnUnit(pistol, Timeout);
+            var unit = world.GetOrCreateUnit(pistol);
 
             var identifier = OperationIdentifier.CreateNew();
             var operationUnit = new OperationUnit(unit);
             var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
-            operation.RunOperation(handler);
-            handler.UpdateUntilComplete(operation, Timeout);
+            operation.RunOperation(world);
+            world.UpdateUntilComplete(operation, Timeout);
             
             return operation;
         }

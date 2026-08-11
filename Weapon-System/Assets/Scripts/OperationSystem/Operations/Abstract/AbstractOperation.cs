@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using Coroutine;
-using OperationSystem.Handlers;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
+using OperationSystem.Units;
 
 namespace OperationSystem.Operations.Abstract
 {
@@ -19,8 +19,7 @@ namespace OperationSystem.Operations.Abstract
         private OperationStaging _staging;
         
         protected readonly IOperationMiddleware[] Middlewares;
-
-        protected IOperationHandler Handler = null!;
+        
         protected IOperationContext Context = null!;
 
         public OperationIdentifier Identifier { get; }
@@ -39,16 +38,10 @@ namespace OperationSystem.Operations.Abstract
             Middlewares = middlewares;
         }
 
-        public virtual void RunOperation(IOperationHandler handler, OperationStaging staging = OperationStaging.Auto)
+        public virtual void RunOperation(UnitWorld world, OperationStaging staging = OperationStaging.Auto)
         {
-            if (Handler != null)
-                throw new InvalidOperationException();
-
             _staging = staging;
-
-            Handler = handler;
-            var context = handler.CreateContext();
-            handler.OperationRunner.RunOperation(this, context);
+            world.RunOperation(this);
         }
 
         public void Increment(IOperationContext operationContext)

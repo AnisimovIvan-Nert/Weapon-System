@@ -7,25 +7,25 @@ namespace OperationSystem.Operations.Abstract
         protected virtual IEnumerator InitializationEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.Initialization(this, Context, Handler);
+                yield return middleware.Initialization(this, Context);
         }
         
         protected virtual IEnumerator ValidateEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.Validate(this, Context, Handler);
+                yield return middleware.Validate(this, Context);
         }
         
         protected virtual IEnumerator TryAcquireLocksEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.TryAcquireLocks(this, Context, Handler);
+                yield return middleware.TryAcquireLocks(this, Context);
         }
 
         protected virtual IEnumerator ReleaseLocksEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.ReleaseLocks(this, Context, Handler);
+                yield return middleware.ReleaseLocks(this, Context);
             
             Context.ReleaseAll();
         }
@@ -33,31 +33,31 @@ namespace OperationSystem.Operations.Abstract
         protected virtual IEnumerator RecordMutationsEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.RecordMutations(this, Context, Handler);
+                yield return middleware.RecordMutations(this, Context);
         }
         
         protected virtual IEnumerator ExecuteEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.Execute(this, Context, Handler);
+                yield return middleware.Execute(this, Context);
         }
 
         protected virtual IEnumerator CompleteEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.Complete(this, Context, Handler);
+                yield return middleware.Complete(this, Context);
         }
 
         protected virtual IEnumerator CancelEnumerator()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                yield return middleware.Cancel(this, Context, Handler);
+                yield return middleware.Cancel(this, Context);
         }
         
         protected virtual void Dispose()
         {
             foreach (var middleware in EnumerateValidMiddlewares())
-                middleware.Dispose(this, Context, Handler);
+                middleware.Dispose(this, Context);
         }
     }
 }

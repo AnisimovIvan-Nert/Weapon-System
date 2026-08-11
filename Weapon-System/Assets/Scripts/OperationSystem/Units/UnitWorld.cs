@@ -1,73 +1,103 @@
 ﻿using System;
+using System.Collections.Generic;
+using OperationSystem.Assets;
 using OperationSystem.Component;
 using OperationSystem.Component.Types;
+using OperationSystem.Operations;
 
 namespace OperationSystem.Units
 {
     public readonly struct UnitWorld
     {
-        private readonly IComponentArray?[] _componentArrays;
+        private readonly UnitRegistry _registry;
+        private readonly IOperationRunner _operationRunner;
+        private readonly HashSet<Unit> _units;
+        private readonly IComponentArray[] _componentArrays;
+        private readonly object _unitsLock;
 
-        public UnitRegistry Registry { get; }
-
-        private UnitWorld(UnitRegistry registry, IComponentArray[] componentArrays)
+        private UnitWorld(IOperationRunner operationRunner, IComponentArray[] componentArrays)
         {
-            Registry = registry;
+            _operationRunner = operationRunner;
             _componentArrays = componentArrays;
+            _registry = new UnitRegistry();
+            _units = new HashSet<Unit>();
+            _unitsLock = new object();
         }
 
-        public static UnitWorld Create()
+        public static UnitWorld Create(IOperationRunner? operationRunner = null)
         {
-            var registry = new UnitRegistry();
+            operationRunner ??= new OperationRunner();
+            var componentArrays = CreateComponentArrays();
+            return new UnitWorld(operationRunner, componentArrays);
+
+            IComponentArray[] CreateComponentArrays()
+            {
+                ComponentType.WarmUp();
+                var count = ComponentType.RegisteredTypeCount;
+                var result = new IComponentArray[count];
+                for (var i = 0; i < count; i++)
+                {
+                    var type = ComponentType.GetType(i);
+                    var arrayType = typeof(ComponentArray<>).MakeGenericType(type);
+                    result[i] = (IComponentArray)Activator.CreateInstance(arrayType);
+                }
+                return result;
+            }
+        }
+
+        public void Update()
+        {
+            lock (_unitsLock)
+                foreach (var unit in _units)
+                    PullFromAssets(unit);
             
-            ComponentType.WarmUp();
-            var count = ComponentType.RegisteredTypeCount;
-            var componentArrays = new IComponentArray[count];
-            for (var i = 0; i < count; i++)
-            {
-                var type = ComponentType.GetType(i);
-                var arrayType = typeof(ComponentArray<>).MakeGenericType(type);
-                componentArrays[i] = (IComponentArray)Activator.CreateInstance(arrayType);
-            }
-            var world = new UnitWorld(registry, componentArrays);
-            registry.SetWorld(world);
-            return world;
-        }
-        
-        public ComponentArray<T> GetComponents<T>() where T : struct, IComponent
-        {
-            return _componentArrays[ComponentType<T>.Id] as ComponentArray<T> ?? throw new InvalidOperationException();
-        }
-        
-        public IComponentArray GetComponents(int typeId) => _componentArrays[typeId] ?? throw new InvalidOperationException();
-        
-        public IComponentArray? TryGetComponents<T>(Unit unit) where T : IComponent
-        {
-            foreach (var componentType in unit.ComponentMask)
-            {
-                if (ComponentType.IsAssignableFrom<T>(componentType))
-                    return GetComponents(componentType);
-            }
-
-            return null;
+            _operationRunner.Update();
+            
+            lock (_unitsLock)
+                foreach (var unit in _units)
+                    PushToAssets(unit);
         }
 
-        public void PullFromAssets(Unit unit)
+        public Unit GetOrCreateUnit(IAsset asset)
+        {
+            var unit = _registry.GetOrCreate(asset);
+            
+            lock (_unitsLock)
+                _units.Add(unit);
+            
+            return unit;
+        }
+        
+        public void DestroyUnit(IAsset asset)
+        {
+            if (!_registry.Destroy(asset, out var unit)) 
+                return;
+            
+            lock (_unitsLock)
+                _units.Remove(unit);
+            
+            foreach (var typeId in unit.ComponentMask)
+                GetComponentArray(typeId).DestroyComponent(unit.Id);
+        }
+        
+        public IComponentArray GetComponentArray(int typeId) => _componentArrays[typeId];
+        
+        internal void RunOperation(IOperation operation)
+        {
+            var context = new OperationContext(this);
+            _operationRunner.RunOperation(operation, context);
+        }
+        
+        private void PullFromAssets(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                GetComponents(typeId).PullFromAssets(unit.Id, Registry);
-
-            foreach (var child in unit.Children)
-                PullFromAssets(child);
+                GetComponentArray(typeId).PullFromAssets(unit);
         }
 
-        public void PushToAssets(Unit unit)
+        private void PushToAssets(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                GetComponents(typeId).PushToAssets(unit.Id, Registry);
-
-            foreach (var child in unit.Children)
-                PushToAssets(child);
+                GetComponentArray(typeId).PushToAssets(unit);
         }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Linq;
 using OperationSystem.Component;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
@@ -17,8 +16,8 @@ namespace OperationSystem.Weapons.Operations
         private Unit Chamber => Weapon.GetChild<Chamber>();
         private Unit? Magazine => Weapon.TryGetChild<Magazine>();
 
-        private ComponentArray<Chamber> ChamberComponents => Weapon.World.GetComponents<Chamber>();
-        private ComponentArray<Magazine> MagazineComponents => Weapon.World.GetComponents<Magazine>();
+        private ComponentArray<Chamber> ChamberComponents => Context.World.GetComponentArray<Chamber>();
+        private ComponentArray<Magazine> MagazineComponents => Context.World.GetComponentArray<Magazine>();
 
         public WeaponShotUnitOperation(
             OperationIdentifier identifier,
@@ -31,10 +30,10 @@ namespace OperationSystem.Weapons.Operations
         protected override IEnumerator ValidateEnumerator()
         {
             yield return base.ValidateEnumerator();
-            
+
             var chamber = ChamberComponents.GetComponent(Chamber.Id);
             Magazine? magazine = Magazine != null
-                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
+                ? MagazineComponents.GetComponent(Magazine.Value.Id)
                 : null;
 
             if (!chamber.HasRound && magazine is not { Rounds: > 0 })
@@ -44,7 +43,7 @@ namespace OperationSystem.Weapons.Operations
         protected override IEnumerator TryAcquireLocksEnumerator()
         {
             yield return base.TryAcquireLocksEnumerator();
-            
+
             Context.Acquire<Chamber>(Chamber.Id, Identifier);
 
             if (Magazine != null)
@@ -54,10 +53,10 @@ namespace OperationSystem.Weapons.Operations
         protected override IEnumerator RecordMutationsEnumerator()
         {
             yield return base.RecordMutationsEnumerator();
-            
+
             var chamber = ChamberComponents.GetComponent(Chamber.Id);
             Magazine? magazine = Magazine != null
-                ? MagazineComponents.GetComponent(Magazine.Value.Id) 
+                ? MagazineComponents.GetComponent(Magazine.Value.Id)
                 : null;
 
             if (Magazine != null && magazine != null)
@@ -69,17 +68,17 @@ namespace OperationSystem.Weapons.Operations
         protected override IEnumerator ExecuteEnumerator()
         {
             yield return base.ExecuteEnumerator();
-            
+
             var chamber = ChamberComponents.GetComponent(Chamber.Id);
             if (!chamber.HasRound)
             {
                 if (Magazine == null)
                     throw new InvalidOperationException();
-                
+
                 var magazine = MagazineComponents.GetComponent(Magazine.Value.Id);
                 if (magazine is not { Rounds: > 0 })
                     throw new InvalidOperationException();
-                
+
                 magazine.Rounds--;
                 MagazineComponents.SetComponent(Magazine.Value.Id, magazine);
             }

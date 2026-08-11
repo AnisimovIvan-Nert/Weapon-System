@@ -2,7 +2,7 @@
 using OperationSystem.Operations;
 using OperationSystem.Operations.Result;
 
-namespace OperationSystem.Tests
+namespace OperationSystem.TestExtensions
 {
     public static class OperationAssertExtensions
     {

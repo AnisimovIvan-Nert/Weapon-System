@@ -9,17 +9,15 @@ namespace OperationSystem.Component
         
         bool HasComponent(Unit unit);
         
-        void PullFromAssets(UnitId unitId, UnitRegistry unitRegistry);
-        void PushToAssets(UnitId unitId, UnitRegistry unitRegistry);
-        void OnEntityDestroyed(UnitId unitId);
-
-        void SetAssetDirty(UnitId unitId);
-
-        OperationIdentifier GetOwner(UnitId unitId);
-        void SetOwner(UnitId unitId, OperationIdentifier owner);
+        void PullFromAssets(Unit unit);
+        void PushToAssets(Unit unit);
+        
+        bool TryAcquireComponent(UnitId unitId, OperationIdentifier owner);
+        void ReleaseComponent(UnitId unitId, OperationIdentifier owner);
 
         T GetComponent<T>(UnitId unitId) where T : IComponent;
         void SetComponent<T>(UnitId unitId, T component) where T : IComponent;
+        void DestroyComponent(UnitId unitId);
     }
     
     public interface IComponentArray<T> : IComponentArray
