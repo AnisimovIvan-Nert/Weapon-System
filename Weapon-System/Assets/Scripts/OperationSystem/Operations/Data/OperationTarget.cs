@@ -7,7 +7,7 @@ namespace OperationSystem.Operations.Data
         Unit Target { get; }
     }
     
-    public class OperationTarget : IOperationTarget
+    public readonly struct OperationTarget : IOperationTarget
     {
         public Unit Target { get; }
         

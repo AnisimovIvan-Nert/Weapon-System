@@ -7,7 +7,7 @@ namespace OperationSystem.Operations.Data
         Unit Executor { get; }
     }
     
-    public class OperationExecutor : IOperationExecutor
+    public readonly struct OperationExecutor : IOperationExecutor
     {
         public Unit Executor { get; }
         

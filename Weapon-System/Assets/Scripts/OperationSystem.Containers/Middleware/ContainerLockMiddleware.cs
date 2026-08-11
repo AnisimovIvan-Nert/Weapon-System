@@ -17,7 +17,7 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context,
             IOperationHandler handler)
         {
-            var unit = handler.OperationUnit ?? throw new InvalidOperationException();
+            var unit = operation.GetData<IOperationUnit>().Unit;
             var world = unit.World;
             
             var componentsArray = world.TryGetComponents<IContainerLock>(unit);
@@ -33,7 +33,7 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context,
             IOperationHandler handler)
         {
-            var unit = handler.OperationUnit ?? throw new InvalidOperationException();
+            var unit = operation.GetData<IOperationUnit>().Unit;
             var world = unit.World;
             
             var componentsArray = world.TryGetComponents<IContainerLock>(unit);
@@ -48,7 +48,7 @@ namespace OperationSystem.Containers.Middleware
             IOperationContext context, 
             IOperationHandler handler)
         {
-            var unit = handler.OperationUnit ?? throw new InvalidOperationException();
+            var unit = operation.GetData<IOperationUnit>().Unit;
             var world = unit.World;
             
             var componentsArray = world.TryGetComponents<IContainerLock>(unit);

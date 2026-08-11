@@ -53,5 +53,11 @@ namespace OperationSystem.Operations.Abstract
             foreach (var middleware in EnumerateValidMiddlewares())
                 yield return middleware.Cancel(this, Context, Handler);
         }
+        
+        protected virtual void Dispose()
+        {
+            foreach (var middleware in EnumerateValidMiddlewares())
+                middleware.Dispose(this, Context, Handler);
+        }
     }
 }

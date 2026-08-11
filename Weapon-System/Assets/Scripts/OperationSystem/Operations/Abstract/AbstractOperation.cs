@@ -5,6 +5,7 @@ using Coroutine;
 using OperationSystem.Handlers;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
+using OperationSystem.Operations.Result;
 
 namespace OperationSystem.Operations.Abstract
 {
@@ -26,6 +27,7 @@ namespace OperationSystem.Operations.Abstract
         public bool IsCompleted { get; protected set; }
         public bool IsCompletedSuccessfully => Exception == null;
         public Exception? Exception { get; private set; }
+        public IOperationResult? OperationResult { get; protected set; }
 
         protected AbstractOperation(
             OperationIdentifier identifier,
@@ -90,6 +92,12 @@ namespace OperationSystem.Operations.Abstract
         protected IEnumerable<IOperationMiddleware> EnumerateValidMiddlewares()
         {
             return Middlewares.Where(middleware => middleware.IsValidTaget(this));
+        }
+
+        protected void SetCompleted()
+        {
+            Dispose();
+            IsCompleted = true;
         }
     }
 }

@@ -8,8 +8,8 @@ namespace OperationSystem.Containers.UnitHandlers
 {
     public class ContainerHandler : AbstractOperationHandler
     {
-        public ContainerHandler(IOperationRunner operationRunner, UnitWorld unitWorld) 
-            : base(operationRunner, unitWorld)
+        public ContainerHandler(IOperationRunner operationRunner, UnitWorld world) 
+            : base(operationRunner, world)
         {
         }
 

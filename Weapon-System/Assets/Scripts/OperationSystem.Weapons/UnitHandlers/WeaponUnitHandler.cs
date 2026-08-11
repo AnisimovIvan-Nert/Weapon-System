@@ -8,8 +8,8 @@ namespace OperationSystem.Weapons.UnitHandlers
 {
     public class WeaponUnitHandler : AbstractOperationHandler
     {
-        public WeaponUnitHandler(IOperationRunner operationRunner, UnitWorld world) 
-            : base(operationRunner, world)
+        public WeaponUnitHandler(UnitWorld world, IOperationRunner? operationRunner = null) 
+            : base(world, operationRunner)
         {
         }
         

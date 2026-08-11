@@ -13,17 +13,18 @@ namespace OperationSystem.Containers.Operations
 {
     public class SendObjectUnitOperation : AbstractOperation, ISendOperationTag
     {
-        private Unit Unit => Handler.OperationUnit ?? throw new InvalidOperationException();
+        private Unit Unit => this.GetData<IOperationUnit>().Unit;
         private UnitWorld World => Unit.World;
 
         private ComponentArray<ContainerItems> ItemsComponents => World.GetComponents<ContainerItems>();
         
         public SendObjectUnitOperation(
-            OperationIdentifier identifier, 
+            OperationIdentifier identifier,
+            IOperationUnit operationUnit,
             IOperationExecutor executor, 
             IOperationTarget target, 
             IOperationMiddleware[] middlewares) 
-            : base(identifier, middlewares, executor, target)
+            : base(identifier, middlewares, operationUnit, executor, target)
         {
         }
 

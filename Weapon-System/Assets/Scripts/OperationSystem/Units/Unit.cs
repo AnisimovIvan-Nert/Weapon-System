@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using OperationSystem.Component.Types;
+using OperationSystem.Handlers;
 
 namespace OperationSystem.Units
 {
@@ -10,12 +11,19 @@ namespace OperationSystem.Units
         public ComponentMask ComponentMask { get; }
         public IList<Unit> Children { get; }
         public UnitWorld World { get; }
+        public IOperationHandler OperationHandler { get; }
         
-        public Unit(UnitId id, ComponentMask componentMask, UnitWorld world, params Unit[] children)
+        public Unit(
+            UnitId id, 
+            ComponentMask componentMask,
+            UnitWorld world,
+            IOperationHandler operationHandler, 
+            params Unit[] children)
         {
             Id = id;
             ComponentMask = componentMask;
             World = world;
+            OperationHandler = operationHandler;
             Children = children;
         }
         

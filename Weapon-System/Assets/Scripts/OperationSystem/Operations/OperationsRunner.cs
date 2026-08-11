@@ -7,14 +7,15 @@ namespace OperationSystem.Operations
     {
         private readonly List<OperationWithContext> _add = new();
         private readonly List<OperationWithContext> _operations = new();
+        private readonly object _lock = new();
 
-        private IOperationRunner.IDelayer? _runningDelayer;
+        private IOperationRunner.ILock? _runningLock;
 
         public bool AnyRunningOperation => _operations.Any();
 
         public void Update()
         {
-            if (_runningDelayer == null)
+            if (_runningLock == null)
             {
                 _operations.AddRange(_add);
                 _add.Clear();
@@ -46,18 +47,30 @@ namespace OperationSystem.Operations
             _add.Add(new OperationWithContext(operation, context));
         }
         
-        public IOperationRunner.IDelayer DelayOperationRunning()
+        public bool TryLockOperationRunning(out IOperationRunner.ILock? @lock)
         {
-            _runningDelayer = new IOperationRunner.Delayer();
-            return _runningDelayer;
+            @lock = null;
+            
+            if (_runningLock != null)
+                return false;
+
+            lock (_lock)
+            {
+                if (_runningLock != null)
+                    return false;
+                
+                _runningLock = new IOperationRunner.Lock();
+            }
+            @lock = _runningLock;
+            return true;
         }
 
-        public void ReleaseOperationRunning(IOperationRunner.IDelayer delayer)
+        public void ReleaseOperationRunning(IOperationRunner.ILock @lock)
         {
-            if (_runningDelayer != delayer)
+            if (_runningLock != @lock)
                 return;
 
-            _runningDelayer = null;
+            _runningLock = null;
         }
 
         private struct OperationWithContext

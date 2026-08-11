@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Linq;
 using OperationSystem.Component;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
@@ -12,7 +13,7 @@ namespace OperationSystem.Weapons.Operations
 {
     public class WeaponShotUnitOperation : AbstractOperation
     {
-        private Unit Weapon => Handler.OperationUnit ?? throw new InvalidOperationException();
+        private Unit Weapon => this.GetData<IOperationUnit>().Unit;
         private Unit Chamber => Weapon.GetChild<Chamber>();
         private Unit? Magazine => Weapon.TryGetChild<Magazine>();
 
@@ -21,9 +22,9 @@ namespace OperationSystem.Weapons.Operations
 
         public WeaponShotUnitOperation(
             OperationIdentifier identifier,
-            IOperationMiddleware[] middlewares,
-            params IOperationData[] data)
-            : base(identifier, middlewares, data)
+            IOperationUnit operationUnit,
+            IOperationMiddleware[] middlewares)
+            : base(identifier, middlewares, operationUnit)
         {
         }
 

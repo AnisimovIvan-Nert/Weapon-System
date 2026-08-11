@@ -7,12 +7,13 @@ namespace OperationSystem.Handlers
 {
     public interface IOperationHandler
     {
-        Unit? OperationUnit { get; }
+        UnitWorld World { get; }
         
         IOperationRunner OperationRunner { get; }
         
         void Update();
         IOperationContext CreateContext();
         IEnumerator SetUnit(IAsset? asset);
+        void AppendChild(Unit unit);
     }
 }

@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.ExceptionServices;
-using Coroutine;
 using NUnit.Framework;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Tests;
 using OperationSystem.Units;
@@ -32,16 +32,16 @@ namespace OperationSystem.Weapons.Tests
             var world = UnitWorld.Create();
             
             var operationRunner = new OperationRunner();
-
+            
             var handler = new WeaponUnitHandler(operationRunner, world);
-            handler.SetUnit(pistol).Wait(Timeout);
-            Assert.IsNotNull(handler.OperationUnit);
+            var unit = handler.SetAndReturnUnit(pistol, Timeout);
 
             var operations = new List<IOperation>();
             for (var i = 0; i < Rounds + 1; i++)
             {
                 var identifier = OperationIdentifier.CreateNew();
-                var operation = new WeaponShotUnitOperation(identifier, Array.Empty<IOperationMiddleware>());
+                var operationUnit = new OperationUnit(unit);
+                var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
                 operation.RunOperation(handler);
                 operations.Add(operation);
             }
@@ -113,13 +113,13 @@ namespace OperationSystem.Weapons.Tests
         {
             var operationRunner = new OperationRunner();
             var world = UnitWorld.Create();
-
+            
             var handler = new WeaponUnitHandler(operationRunner, world);
-            handler.SetUnit(pistol).Wait(Timeout);
-            Assert.IsNotNull(handler.OperationUnit);
+            var unit = handler.SetAndReturnUnit(pistol, Timeout);
 
             var identifier = OperationIdentifier.CreateNew();
-            var operation = new WeaponShotUnitOperation(identifier, Array.Empty<IOperationMiddleware>());
+            var operationUnit = new OperationUnit(unit);
+            var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
             operation.RunOperation(handler);
             handler.UpdateUntilComplete(operation, Timeout);
             

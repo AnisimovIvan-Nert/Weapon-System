@@ -10,12 +10,12 @@ namespace OperationSystem.Operations.Abstract
         private bool _pendingComplete;
         private Task<bool>? _coroutineTask;
         private TaskCompletionSource<bool>? _taskCompletionSource;
-        
+
         private void IncrementManual()
         {
             if (_coroutine == null || _taskCompletionSource == null)
                 return;
-            
+
             while (_coroutine.MoveNext())
             {
                 if (_coroutine.InContinueState())
@@ -30,18 +30,18 @@ namespace OperationSystem.Operations.Abstract
                 _taskCompletionSource.TrySetException(_coroutine.Exception);
 
             if (_pendingComplete)
-                IsCompleted = true;
+                SetCompleted();
 
             _coroutine = null;
             _coroutineTask = null;
             _taskCompletionSource = null;
         }
-        
+
         public Task RunStage(OperationStage stage)
         {
             if (_staging != OperationStaging.Manual)
                 throw new InvalidOperationException();
-            
+
             switch (stage)
             {
                 case OperationStage.Initialization:
@@ -67,7 +67,7 @@ namespace OperationSystem.Operations.Abstract
                     throw new ArgumentOutOfRangeException(nameof(stage), stage, null);
             }
         }
-        
+
         private async Task CreateCoroutineTask(IEnumerator enumerator)
         {
             if (_coroutineTask is { IsCompleted: false })
@@ -75,7 +75,7 @@ namespace OperationSystem.Operations.Abstract
 
             _taskCompletionSource = new TaskCompletionSource<bool>();
             _coroutineTask = _taskCompletionSource.Task;
-            
+
             _coroutine = enumerator.ToCoroutine();
 
             await _coroutineTask;

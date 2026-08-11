@@ -16,7 +16,7 @@ namespace OperationSystem.Operations.Abstract
                 switch (_coroutine.MoveNext())
                 {
                     case false when _inLastStage:
-                        IsCompleted = true;
+                        SetCompleted();
                         return;
                     case false when !_inLastStage:
                     {

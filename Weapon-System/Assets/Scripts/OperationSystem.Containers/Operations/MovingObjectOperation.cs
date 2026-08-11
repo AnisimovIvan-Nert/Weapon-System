@@ -1,23 +1,23 @@
 ﻿using System.Collections.Generic;
-using OperationSystem.Handlers;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
+using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
 {
     public class MovingObjectOperation : AbstractOrchestratorOperation
     {
-        private readonly IOperationHandler _sender;
-        private readonly IOperationHandler _receiver;
+        private readonly Unit _sender;
+        private readonly Unit _receiver;
 
         public MovingObjectOperation(
             OperationIdentifier identifier,
             IOperationExecutor executor,
             IOperationTarget target,
-            IOperationHandler sender,
-            IOperationHandler receiver,
+            Unit sender,
+            Unit receiver,
             params IOperationMiddleware[] middlewares)
             : base(identifier, middlewares, executor, target)
         {
@@ -30,11 +30,14 @@ namespace OperationSystem.Containers.Operations
             var executor = this.GetData<IOperationExecutor>();
             var target = this.GetData<IOperationTarget>();
 
-            var sendOperation = new SendObjectUnitOperation(Identifier, executor, target, Middlewares);
-            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, executor, target, Middlewares);
+            var senderUnit = new OperationUnit(_sender);
+            var sendOperation = new SendObjectUnitOperation(Identifier, senderUnit, executor, target, Middlewares);
 
-            sendOperation.RunOperation(_sender, OperationStaging.Manual);
-            receiveObjectOperation.RunOperation(_receiver, OperationStaging.Manual);
+            var receiverUnit = new OperationUnit(_receiver);
+            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, receiverUnit, executor, target, Middlewares);
+
+            sendOperation.RunOperation(_sender.OperationHandler, OperationStaging.Manual);
+            receiveObjectOperation.RunOperation(_receiver.OperationHandler, OperationStaging.Manual);
 
             return new List<IOperation> { sendOperation, receiveObjectOperation };
         }

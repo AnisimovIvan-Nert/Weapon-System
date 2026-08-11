@@ -5,8 +5,8 @@ namespace OperationSystem.Handlers
 {
     public class OperationHandler : AbstractOperationHandler
     {
-        public OperationHandler(IOperationRunner operationRunner, UnitWorld unitWorld) 
-            : base(operationRunner, unitWorld)
+        public OperationHandler(UnitWorld world, IOperationRunner? runner = null) 
+            : base(world, runner)
         {
         }
     }

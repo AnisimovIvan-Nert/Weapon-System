@@ -7,14 +7,14 @@
         void Update();
         void RunOperation(IOperation operation, IOperationContext context);
 
-        IDelayer DelayOperationRunning();
-        void ReleaseOperationRunning(IDelayer delayer);
+        bool TryLockOperationRunning(out ILock? @lock);
+        void ReleaseOperationRunning(ILock @lock);
 
-        public interface IDelayer
+        public interface ILock
         {
         }
 
-        internal class Delayer : IDelayer
+        internal class Lock : ILock
         {
         }
     }

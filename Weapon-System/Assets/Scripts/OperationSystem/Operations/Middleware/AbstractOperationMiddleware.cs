@@ -12,7 +12,7 @@ namespace OperationSystem.Operations.Middleware
             return operation is T;
         }
 
-        public IEnumerator Initialization(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Initialization(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
         }
@@ -27,7 +27,7 @@ namespace OperationSystem.Operations.Middleware
             yield break;
         }
 
-        public IEnumerator ReleaseLocks(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator ReleaseLocks(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
         }
@@ -42,14 +42,18 @@ namespace OperationSystem.Operations.Middleware
             yield break;
         }
 
-        public IEnumerator Complete(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Complete(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
         }
 
-        public IEnumerator Cancel(IOperation operation, IOperationContext context, IOperationHandler handler)
+        public virtual IEnumerator Cancel(IOperation operation, IOperationContext context, IOperationHandler handler)
         {
             yield break;
+        }
+        
+        public virtual void Dispose(IOperation operation, IOperationContext context, IOperationHandler handler)
+        {
         }
     }
 }

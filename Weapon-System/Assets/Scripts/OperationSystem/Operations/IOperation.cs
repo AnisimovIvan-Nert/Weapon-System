@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using OperationSystem.Handlers;
 using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Result;
 
 namespace OperationSystem.Operations
 {
@@ -12,6 +13,7 @@ namespace OperationSystem.Operations
         bool IsCompleted { get; }
         bool IsCompletedSuccessfully { get; }
         public Exception? Exception { get; }
+        public IOperationResult? OperationResult { get; }
         
         void RunOperation(IOperationHandler handler, OperationStaging staging);
         

@@ -30,5 +30,11 @@ namespace OperationSystem.Units
         {
             unit.World.GetComponents<T>().SetComponent(unit.Id, component);
         }
+        
+        public static bool HasComponent<T>(this Unit unit)
+            where T : struct, IComponent
+        {
+            return unit.World.GetComponents<T>().HasComponent(unit);
+        }
     }
 }

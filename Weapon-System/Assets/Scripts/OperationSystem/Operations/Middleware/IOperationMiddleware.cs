@@ -15,5 +15,6 @@ namespace OperationSystem.Operations.Middleware
         IEnumerator Execute(IOperation operation, IOperationContext context, IOperationHandler handler);
         IEnumerator Complete(IOperation operation, IOperationContext context, IOperationHandler handler);
         IEnumerator Cancel(IOperation operation, IOperationContext context, IOperationHandler handler);
+        void Dispose(IOperation operation, IOperationContext context, IOperationHandler handler);
     }
 }

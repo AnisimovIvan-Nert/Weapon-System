@@ -3,27 +3,28 @@ using System.Collections;
 using OperationSystem.ComplexWeapons.Components;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
-using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
+using OperationSystem.Operations.Tags;
 using OperationSystem.Units;
 
 namespace OperationSystem.ComplexWeapons.Operations
 {
-    public class WeaponShotOperation : AbstractOperation
+    public interface IWeaponShotOperationTag : IOperationTag
+    {
+    }
+
+    public class WeaponShotOperation : AbstractOperation, IWeaponShotOperationTag
     {
         public class MagazineIsEmptyException : OperationException
         {
         }
 
-        private Unit Weapon => Handler.OperationUnit ?? throw new InvalidOperationException();
+        private Unit Weapon => Handler.MainUnit ?? throw new InvalidOperationException();
         private Unit Magazine => Weapon.GetChild<Magazine>();
 
-        public WeaponShotOperation(
-            OperationIdentifier identifier,
-            IOperationMiddleware[] middlewares,
-            params IOperationData[] data)
-            : base(identifier, middlewares, data)
+        public WeaponShotOperation(OperationIdentifier identifier, IOperationMiddleware[] middlewares)
+            : base(identifier, middlewares)
         {
         }
 
@@ -31,9 +32,7 @@ namespace OperationSystem.ComplexWeapons.Operations
         {
             yield return base.ValidateEnumerator();
 
-            var magazine = Magazine.GetComponent<Magazine>();
-            if (magazine is not { Rounds: > 0 })
-                throw new MagazineIsEmptyException();
+            Validate();
         }
 
         protected override IEnumerator TryAcquireLocksEnumerator()
@@ -47,27 +46,42 @@ namespace OperationSystem.ComplexWeapons.Operations
         {
             yield return base.RecordMutationsEnumerator();
 
-            Context.RecordUndo(Undo);
-            yield break;
-
-            void Undo()
-            {
-                var magazine = Magazine.GetComponent<Magazine>();
-                magazine.Rounds += 1;
-                Magazine.SetComponent(magazine);
-            }
+            RecordMutationUndo();
         }
 
         protected override IEnumerator ExecuteEnumerator()
         {
             yield return base.ExecuteEnumerator();
 
+            Validate();
+            PerformMutation();
+        }
+
+        private void Validate()
+        {
             var magazine = Magazine.GetComponent<Magazine>();
             if (magazine is not { Rounds: > 0 })
                 throw new MagazineIsEmptyException();
+        }
 
+        private void PerformMutation()
+        {
+            var magazine = Magazine.GetComponent<Magazine>();
             magazine.Rounds--;
             Magazine.SetComponent(magazine);
+        }
+
+        private void RecordMutationUndo()
+        {
+            var magazine = Magazine.GetComponent<Magazine>();
+            var rounds = magazine.Rounds;
+
+            Context.RecordUndo(() =>
+            {
+                Magazine.GetComponent<Magazine>();
+                magazine.Rounds = rounds;
+                Magazine.SetComponent(magazine);
+            });
         }
     }
 }

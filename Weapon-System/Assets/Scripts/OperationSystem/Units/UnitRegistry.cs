@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using OperationSystem.Assets;
+using OperationSystem.Handlers;
 
 namespace OperationSystem.Units
 {
@@ -13,6 +14,7 @@ namespace OperationSystem.Units
         {
             public bool Alive;
             public IAsset Asset;
+            public Unit Unit;
         }
 
         private readonly object _lock = new();
@@ -30,7 +32,7 @@ namespace OperationSystem.Units
 
         public void SetWorld(UnitWorld world) => _world = world;
 
-        public Unit Create(IAsset asset)
+        public Unit Create(IAsset asset, IOperationHandler handler)
         {
             var mask = asset.GetComponentMask();
             
@@ -47,9 +49,14 @@ namespace OperationSystem.Units
                 Asset = asset
             };
 
-            var children = asset.Children.Select(Create);
             var unitId = new UnitId(id);
-            return new Unit(unitId, mask, _world, children.ToArray());
+            var children = asset.Children.Select(o => Create(o, handler));
+            var unit = new Unit(unitId, mask, _world, handler, children.ToArray());
+            
+            _slots[id].Unit = unit;
+            handler.AppendChild(unit);
+            
+            return unit;
         }
 
         public void Destroy(UnitId unitId)
@@ -64,6 +71,27 @@ namespace OperationSystem.Units
 
         public void Destroy(in Unit unit) => Destroy(unit.Id);
 
+        public void Destroy(IEnumerable<Unit> units)
+        {
+            Exception? exception = null;
+            foreach (var unit in units)
+            {
+                try
+                {
+                    Destroy(unit);
+                }
+                catch (Exception e)
+                {
+                    exception = exception == null
+                        ? new AggregateException(e)
+                        : new AggregateException(exception, e);
+                }
+            }
+
+            if (exception != null)
+                throw exception;
+        }
+
         public bool IsAlive(UnitId unitId)
         {
             var id = unitId.Id;
@@ -71,6 +99,7 @@ namespace OperationSystem.Units
         }
         
         public IAsset GetAsset(UnitId unitId) => _slots[unitId.Id].Asset;
+        public Unit GetUnit(IAsset asset) => _slots.First(slot => slot.Alive && slot.Asset == asset).Unit;
 
         public IEnumerable<UnitId> EnumerateAlive()
         {
