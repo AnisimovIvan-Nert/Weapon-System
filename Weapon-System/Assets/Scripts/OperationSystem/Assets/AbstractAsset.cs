@@ -6,7 +6,8 @@ namespace OperationSystem.Assets
 {
     public abstract class AbstractAsset : MonoBehaviour, IAsset
     {
-        protected List<IAsset> ChildrenList = new();
+        private List<IAsset>? _childrenList;
+        protected List<IAsset> ChildrenList => _childrenList ?? InitializeChildrenList();
 
         public virtual IEnumerable<IAsset> Children => ChildrenList;
         
@@ -14,5 +15,11 @@ namespace OperationSystem.Assets
         public virtual void RemoveChild(IAsset child) => ChildrenList.Remove(child);
         
         public abstract ComponentMask GetComponentMask();
+
+        private List<IAsset> InitializeChildrenList()
+        {
+            _childrenList = new List<IAsset>();
+            return _childrenList;
+        }
     }
 }

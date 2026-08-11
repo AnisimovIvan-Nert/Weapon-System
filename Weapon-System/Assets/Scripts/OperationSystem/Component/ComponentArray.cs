@@ -79,7 +79,7 @@ namespace OperationSystem.Component
                 if (slot.Owner != owner)
                     throw new InvalidOperationException();
 
-                slot.Owner = owner;
+                slot.Owner = default;
             }
         }
 

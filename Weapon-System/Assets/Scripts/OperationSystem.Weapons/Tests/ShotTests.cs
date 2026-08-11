@@ -10,6 +10,7 @@ using OperationSystem.TestExtensions;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Assets;
 using OperationSystem.Weapons.Operations;
+using UnityEngine;
 
 namespace OperationSystem.Weapons.Tests
 {
@@ -22,9 +23,13 @@ namespace OperationSystem.Weapons.Tests
         [Test]
         public void MultipleSimultaneouslyShotOperations()
         {
-            var pistol = new Pistol();
-            var chamber = new PistolChamber(false);
-            var magazine = new PistolMagazine(Rounds);
+            var gameObject = new GameObject();
+            var pistol = gameObject.AddComponent<Pistol>();
+            var chamber = gameObject.AddComponent<PistolChamber>();
+            chamber.HasRound = false;
+            var magazine = gameObject.AddComponent<PistolMagazine>();
+            magazine.Rounds = Rounds;
+            
             pistol.AddChild(chamber);
             pistol.AddChild(magazine);
 
@@ -53,8 +58,11 @@ namespace OperationSystem.Weapons.Tests
         [Test]
         public void LoadedChamberPassTest()
         {
-            var pistol = new Pistol();
-            var chamber = new PistolChamber(true);
+            var gameObject = new GameObject();
+            var pistol = gameObject.AddComponent<Pistol>();
+            var chamber = gameObject.AddComponent<PistolChamber>();
+            chamber.HasRound = true;
+            
             pistol.AddChild(chamber);
             var operation = RunAndWaitOperation(pistol);
             AssertPass(operation, 0, true, chamber, null);
@@ -63,9 +71,13 @@ namespace OperationSystem.Weapons.Tests
         [Test]
         public void EmptyChamberPassTest()
         {
-            var pistol = new Pistol();
-            var chamber = new PistolChamber(false);
-            var magazine = new PistolMagazine(Rounds);
+            var gameObject = new GameObject();
+            var pistol = gameObject.AddComponent<Pistol>();
+            var chamber = gameObject.AddComponent<PistolChamber>();
+            chamber.HasRound = false;
+            var magazine = gameObject.AddComponent<PistolMagazine>();
+            magazine.Rounds = Rounds;
+            
             pistol.AddChild(chamber);
             pistol.AddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
@@ -75,9 +87,13 @@ namespace OperationSystem.Weapons.Tests
         [Test]
         public void EmptyMagazineFailTest()
         {
-            var pistol = new Pistol();
-            var chamber = new PistolChamber(false);
-            var magazine = new PistolMagazine(0);
+            var gameObject = new GameObject();
+            var pistol = gameObject.AddComponent<Pistol>();
+            var chamber = gameObject.AddComponent<PistolChamber>();
+            chamber.HasRound = false;
+            var magazine = gameObject.AddComponent<PistolMagazine>();
+            magazine.Rounds = 0;
+            
             pistol.AddChild(chamber);
             pistol.AddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
@@ -87,8 +103,11 @@ namespace OperationSystem.Weapons.Tests
         [Test]
         public void NoMagazineFailTest()
         {
-            var pistol = new Pistol();
-            var chamber = new PistolChamber(false);
+            var gameObject = new GameObject();
+            var pistol = gameObject.AddComponent<Pistol>();
+            var chamber = gameObject.AddComponent<PistolChamber>();
+            chamber.HasRound = false;
+            
             pistol.AddChild(chamber);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, 0, false, chamber, null);
@@ -97,8 +116,10 @@ namespace OperationSystem.Weapons.Tests
         [Test]
         public void NoChamberFailTest()
         {
-            var pistol = new Pistol();
-            var magazine = new PistolMagazine(Rounds);
+            var gameObject = new GameObject();
+            var pistol = gameObject.AddComponent<Pistol>();
+            var magazine = gameObject.AddComponent<PistolMagazine>();
+            magazine.Rounds = Rounds;
             pistol.AddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, Rounds, false, null, magazine);

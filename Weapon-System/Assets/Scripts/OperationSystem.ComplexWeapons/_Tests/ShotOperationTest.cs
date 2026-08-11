@@ -8,6 +8,7 @@ using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
 using OperationSystem.TestExtensions;
 using OperationSystem.Units;
+using UnityEngine;
 
 namespace OperationSystem.ComplexWeapons._Tests
 {
@@ -20,8 +21,10 @@ namespace OperationSystem.ComplexWeapons._Tests
         {
             const int rounds = 0;
             
-            var magazine = new MagazineAsset(rounds);
-            var weaponAsset = new WeaponAsset();
+            var gameObject = new GameObject();
+            var magazine = gameObject.AddComponent<MagazineAsset>();
+            magazine.Rounds = rounds;
+            var weaponAsset = gameObject.AddComponent<WeaponAsset>();
             weaponAsset.AddChild(magazine);
 
             var operation = RunAndWaitOperation(weaponAsset);
@@ -33,8 +36,10 @@ namespace OperationSystem.ComplexWeapons._Tests
         {
             const int rounds = 1;
             
-            var magazine = new MagazineAsset(rounds);
-            var weaponAsset = new WeaponAsset();
+            var gameObject = new GameObject();
+            var magazine = gameObject.AddComponent<MagazineAsset>();
+            magazine.Rounds = rounds;
+            var weaponAsset = gameObject.AddComponent<WeaponAsset>();
             weaponAsset.AddChild(magazine);
             
             var operation = RunAndWaitOperation(weaponAsset);

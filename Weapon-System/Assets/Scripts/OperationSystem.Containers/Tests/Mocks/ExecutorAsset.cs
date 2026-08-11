@@ -9,10 +9,16 @@ namespace OperationSystem.Containers.Tests.Mocks
         , IAssetPull<KeysStorage>
         , IAssetPull<AccessLevel>
     {
-        private readonly KeysStorage? _keysStorage;
-        private readonly AccessLevel? _accessLevel;
+        private KeysStorage? _keysStorage;
+        private AccessLevel? _accessLevel;
 
         public ExecutorAsset(KeysStorage? keysStorage = null, AccessLevel? accessLevel = null)
+        {
+            _keysStorage = keysStorage;
+            _accessLevel = accessLevel;
+        }
+
+        public void Set(KeysStorage? keysStorage = null, AccessLevel? accessLevel = null)
         {
             _keysStorage = keysStorage;
             _accessLevel = accessLevel;

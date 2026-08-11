@@ -13,15 +13,27 @@ namespace OperationSystem.Containers.Tests.Mocks
         , IAssetPull<AccessContainerLock>
         , IAssetPull<ContainerVolume>
     {
-        public KeyContainerLock? KeyLock { get; }
-        public AccessContainerLock? AccessLock { get; }
-        public ContainerVolume? Volume { get; }
-        
+        public KeyContainerLock? KeyLock { get; private set; }
+        public AccessContainerLock? AccessLock { get; private set; }
+        public ContainerVolume? Volume { get; private set; }
+
         public ContainerItems Items { get; private set; }
 
         public ContainerAsset(
-            ContainerItems items, 
-            KeyContainerLock? keyLock = null, 
+            ContainerItems items,
+            KeyContainerLock? keyLock = null,
+            AccessContainerLock? accessLock = null,
+            ContainerVolume? containerVolume = null)
+        {
+            Items = items;
+            KeyLock = keyLock;
+            AccessLock = accessLock;
+            Volume = containerVolume;
+        }
+
+        public void Set(
+            ContainerItems items,
+            KeyContainerLock? keyLock = null,
             AccessContainerLock? accessLock = null,
             ContainerVolume? containerVolume = null)
         {
@@ -35,7 +47,7 @@ namespace OperationSystem.Containers.Tests.Mocks
         {
             var mask = ComponentMask.Create<Container>();
             mask.Add<ContainerItems>();
-            
+
             if (KeyLock.HasValue)
                 mask.Add<KeyContainerLock>();
             if (AccessLock.HasValue)
@@ -45,7 +57,7 @@ namespace OperationSystem.Containers.Tests.Mocks
 
             return mask;
         }
-        
+
         public void PullInto(ref ContainerItems component)
         {
             component = Items;
@@ -67,7 +79,7 @@ namespace OperationSystem.Containers.Tests.Mocks
             if (AccessLock.HasValue)
                 component = AccessLock.Value;
         }
-        
+
         public void PullInto(ref ContainerVolume component)
         {
             if (Volume.HasValue)

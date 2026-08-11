@@ -8,9 +8,14 @@ namespace OperationSystem.Containers.Tests.Mocks
         : AbstractAsset
         , IAssetPull<Size>
     {
-        private readonly Size? _size;
+        private Size? _size;
 
         public FooAsset(Size? size = null)
+        {
+            _size = size;
+        }
+        
+        public void Set(Size? size = null)
         {
             _size = size;
         }

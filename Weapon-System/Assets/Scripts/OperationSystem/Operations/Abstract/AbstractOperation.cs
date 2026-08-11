@@ -11,7 +11,7 @@ namespace OperationSystem.Operations.Abstract
 {
     public abstract partial class AbstractOperation : IOperation
     {
-        private const int AcquireLocksTimeout = 10;
+        private const int AcquireLocksTimeout = 20;
         
         private readonly IEnumerable<IOperationData> _data;
         

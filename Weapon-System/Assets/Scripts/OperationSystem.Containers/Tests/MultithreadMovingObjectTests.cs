@@ -27,7 +27,8 @@ namespace OperationSystem.Containers.Tests
         public async Task CreateTest()
         {
             const int count = 100;
-            
+
+            var gameObject = new GameObject();
             var world = UnitWorld.Create();
 
             var assets = new ContainerAsset[count];
@@ -40,11 +41,13 @@ namespace OperationSystem.Containers.Tests
                 var items = ContainerItems.Create(new Unit[i]);
                 var containerLock = new KeyContainerLock(keys[i]);
                 var containerAccess = new AccessContainerLock(i);
-                assets[i] = new ContainerAsset(items, containerLock, containerAccess);
+                assets[i] = gameObject.AddComponent<ContainerAsset>();
+                assets[i].Set(items, containerLock, containerAccess);
                 tasks[i] = Create(i);
             }
 
             await Task.WhenAll(tasks);
+            world.Update();
             
             for (var i = 0; i < count; i++)
             {
@@ -75,6 +78,7 @@ namespace OperationSystem.Containers.Tests
         {
             const int executorCount = 100;
             
+            var gameObject = new GameObject();
             var world = UnitWorld.Create();
             
             var targets = new Unit[executorCount];
@@ -85,7 +89,7 @@ namespace OperationSystem.Containers.Tests
             {
                 var failOperation = i % 7 == 0;
                 
-                var targetAsset = new FooAsset();
+                var targetAsset = gameObject.AddComponent<FooAsset>();
                 targets[i] = world.GetOrCreateUnit(targetAsset);
                 
                 var keyIdentifier = Guid.NewGuid();
@@ -95,18 +99,21 @@ namespace OperationSystem.Containers.Tests
 
                 var firstItems = (i & 1) == 1 ? containerItems : emptyItems;
                 var firstLock = new KeyContainerLock(keyIdentifier);
-                var firstContainer = new ContainerAsset(firstItems, firstLock);
+                var firstContainer = gameObject.AddComponent<ContainerAsset>();
+                firstContainer.Set(firstItems, firstLock);
                 
                 var secondItems = (i & 1) == 1 ? emptyItems : containerItems;
                 var secondLock = new AccessContainerLock(i);
-                var secondContainer = new ContainerAsset(secondItems, null, secondLock);
+                var secondContainer = gameObject.AddComponent<ContainerAsset>();
+                secondContainer.Set(secondItems, null, secondLock);
 
                 containerAssets[i] = (firstContainer, secondContainer);
             
                 var key = new Key(keyIdentifier);
                 var keyStorage = new KeysStorage(key);
                 var access = failOperation ? new AccessLevel(-1) : new AccessLevel(i);
-                var executorAsset = new ExecutorAsset(keyStorage, access);
+                var executorAsset = gameObject.AddComponent<ExecutorAsset>();
+                executorAsset.Set(keyStorage, access);
                 var executor = world.GetOrCreateUnit(executorAsset);
 
                 var (senderAsset, receiverAsset) = (i & 1) == 1 
