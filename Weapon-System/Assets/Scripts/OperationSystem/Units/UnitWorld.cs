@@ -9,12 +9,13 @@ namespace OperationSystem.Units
     public readonly struct UnitWorld
     {
         private readonly UnitRegistry _registry;
-        private readonly IOperationRunner _operationRunner;
         private readonly IComponentArray[] _componentArrays;
+        
+        public IOperationRunner OperationRunner { get; }
 
         private UnitWorld(IOperationRunner operationRunner, IComponentArray[] componentArrays)
         {
-            _operationRunner = operationRunner;
+            OperationRunner = operationRunner;
             _componentArrays = componentArrays;
             _registry = new UnitRegistry();
         }
@@ -44,17 +45,17 @@ namespace OperationSystem.Units
         public void Update()
         {
             foreach (var unit in _registry.EnumerateUnits())
-                PullFromAssets(unit);
+                PullFromAsset(unit);
 
-            _operationRunner.Update();
+            OperationRunner.Update();
 
             foreach (var unit in _registry.EnumerateUnits())
-                PushToAssets(unit);
+                PushToAsset(unit);
         }
 
         public Unit GetOrCreateUnit(IAsset asset)
         {
-            return _registry.GetOrCreate(asset);
+            return _registry.GetOrCreate(asset, this);
         }
 
         public void DestroyUnit(IAsset asset)
@@ -68,22 +69,18 @@ namespace OperationSystem.Units
 
         public IComponentArray GetComponentArray(int typeId) => _componentArrays[typeId];
 
-        internal void RunOperation(IOperation operation)
-        {
-            var context = new OperationContext(this);
-            _operationRunner.RunOperation(operation, context);
-        }
-
-        private void PullFromAssets(Unit unit)
+        internal void OnUnitCreated(Unit unit) => PullFromAsset(unit);
+        
+        private void PullFromAsset(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                GetComponentArray(typeId).PullFromAssets(unit);
+                GetComponentArray(typeId).PullFromAsset(unit);
         }
 
-        private void PushToAssets(Unit unit)
+        private void PushToAsset(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                GetComponentArray(typeId).PushToAssets(unit);
+                GetComponentArray(typeId).PushToAsset(unit);
         }
     }
 }

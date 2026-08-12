@@ -40,7 +40,7 @@ namespace OperationSystem.TestExtensions
             }
 
             if (operations.Any(operation => !operation.IsCompleted))
-                throw new InvalidOperationException();
+                throw new TimeoutException();
         }
     }
 }

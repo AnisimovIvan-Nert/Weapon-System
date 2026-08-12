@@ -21,6 +21,7 @@ namespace OperationSystem.Containers.Tests
     public class MultithreadMovingObjectTests
     {
         private const int Timeout = 1000;
+        private const int UpdateDelay = 1;
         private const int RandomSeed = int.MaxValue / 727 / 7;
         
         [Test]
@@ -119,15 +120,8 @@ namespace OperationSystem.Containers.Tests
                 var (senderAsset, receiverAsset) = (i & 1) == 1 
                     ? (firstContainer, secondContainer) 
                     : (secondContainer, firstContainer);
-
-                var operation = RunOperation(executor, targets[i], senderAsset, receiverAsset, world);
-                operations[i] = operation;
-
-                var mainTask = WaitOperation(i, RandomSeed + i + 1 * 100);
-                var senderTask = WaitOperation(i, RandomSeed + i + 2 * 100);
-                var receiverTask = WaitOperation(i, RandomSeed + i + 3 * 100);
-                var whenAll = Task.WhenAll(mainTask, senderTask, receiverTask);
-                tasks[i] = whenAll;
+                
+                (operations[i], tasks[i]) = RunOperation(executor, targets[i], senderAsset, receiverAsset, world);
             }
 
             await Task.WhenAll(tasks);
@@ -156,25 +150,9 @@ namespace OperationSystem.Containers.Tests
                     Assert.IsTrue(receiverAsset.Items.Items.Contains(target));
                 }
             }
-            
-            return;
-            
-            async Task WaitOperation(int index, int seed)
-            {
-                var timeout = Timeout;
-                var operation = operations[index];
-                var random = new Random(seed);
-                while (!operation.IsCompleted && timeout > 0)
-                {
-                    await Task.Delay(random.Next(10));
-                    timeout--;
-                    world.Update();
-                }
-                Debug.Log(index);
-            }
         }
         
-        private static IOperation RunOperation(
+        private static (IOperation, Task) RunOperation(
             Unit executor,
             Unit target, 
             ContainerAsset sender, 
@@ -196,9 +174,8 @@ namespace OperationSystem.Containers.Tests
             var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
                 senderUnit, receiverUnit, middlewares);
             
-            operation.RunOperation(unitWorld);
-
-            return operation;
+            var task = operation.RunOperationAsTask(unitWorld, Timeout, UpdateDelay);
+            return (operation, task);
         }
     }
 }

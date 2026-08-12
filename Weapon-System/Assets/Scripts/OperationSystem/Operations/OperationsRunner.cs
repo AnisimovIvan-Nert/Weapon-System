@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using OperationSystem.Units;
 
 namespace OperationSystem.Operations
 {
@@ -22,8 +23,9 @@ namespace OperationSystem.Operations
             _operations.RemoveWhere(operation => operation.IsCompleted);
         }
 
-        public void RunOperation(IOperation operation, IOperationContext context)
+        public void RunOperation(IOperation operation, UnitWorld world)
         {
+            var context = operation.CreateContext(world);
             _pendingAdd.Add(new Operation(operation, context));
         }
 

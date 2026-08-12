@@ -21,6 +21,7 @@ namespace OperationSystem.Operations.Abstract
         protected readonly IOperationMiddleware[] Middlewares;
         
         protected IOperationContext Context = null!;
+        protected IOperationRunner Runner = null!;
 
         public OperationIdentifier Identifier { get; }
         public bool IsCompleted { get; protected set; }
@@ -38,10 +39,16 @@ namespace OperationSystem.Operations.Abstract
             Middlewares = middlewares;
         }
 
-        public virtual void RunOperation(UnitWorld world, OperationStaging staging = OperationStaging.Auto)
+        public virtual IOperationContext CreateContext(UnitWorld world) => new OperationContext(world);
+
+        public virtual void RunOperation(
+            IOperationRunner operationRunner,
+            UnitWorld world,
+            OperationStaging staging = OperationStaging.Auto)
         {
             _staging = staging;
-            world.RunOperation(this);
+            Runner = operationRunner;
+            operationRunner.RunOperation(this, world);
         }
 
         public void Increment(IOperationContext operationContext)

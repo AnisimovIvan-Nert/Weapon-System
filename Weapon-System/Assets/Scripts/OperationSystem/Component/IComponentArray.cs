@@ -9,8 +9,8 @@ namespace OperationSystem.Component
         
         bool HasComponent(Unit unit);
         
-        void PullFromAssets(Unit unit);
-        void PushToAssets(Unit unit);
+        void PullFromAsset(Unit unit);
+        void PushToAsset(Unit unit);
         
         bool TryAcquireComponent(UnitId unitId, OperationIdentifier owner);
         void ReleaseComponent(UnitId unitId, OperationIdentifier owner);

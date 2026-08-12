@@ -83,7 +83,7 @@ namespace OperationSystem.Component
             }
         }
 
-        public void PullFromAssets(Unit unit)
+        public void PullFromAsset(Unit unit)
         {
             if (unit.Asset is not IAssetPull<T> pull)
                 return;
@@ -94,7 +94,7 @@ namespace OperationSystem.Component
             slot.Component = component;
         }
 
-        public void PushToAssets(Unit unit)
+        public void PushToAsset(Unit unit)
         {
             if (unit.Asset is not IAssetPush<T> push)
                 return;

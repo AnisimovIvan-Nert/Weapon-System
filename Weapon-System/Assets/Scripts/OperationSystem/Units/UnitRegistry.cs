@@ -14,7 +14,10 @@ namespace OperationSystem.Units
         private readonly ConcurrentStack<UnitId> _freeIds = new();
         private int _nextId;
         
-        public Unit GetOrCreate(IAsset asset) => _assetToUnit.GetOrAdd(asset, CreateUnit);
+        public Unit GetOrCreate(IAsset asset, UnitWorld world)
+        {
+            return _assetToUnit.GetOrAdd(asset, o => CreateUnit(o, world));
+        }
 
         public bool Destroy(IAsset asset, out Unit unit)
         {
@@ -34,16 +37,17 @@ namespace OperationSystem.Units
                 return new List<Unit>(_units);
         }
         
-        private Unit CreateUnit(IAsset asset)
+        private Unit CreateUnit(IAsset asset, UnitWorld world)
         {
             var unitId = GetNewId();
             var componentMas = asset.GetComponentMask();
-            var children = asset.Children.Select(GetOrCreate);
+            var children = asset.Children.Select(o => GetOrCreate(o, world));
             var unit = new Unit(unitId, componentMas, asset, children.ToArray());
 
             lock (_unitsLock)
                 _units.Add(unit);
-
+            
+            world.OnUnitCreated(unit);
             return unit;
         }
 

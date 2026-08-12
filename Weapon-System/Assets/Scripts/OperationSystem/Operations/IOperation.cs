@@ -15,12 +15,14 @@ namespace OperationSystem.Operations
         public Exception? Exception { get; }
         public IOperationResult? OperationResult { get; }
         
-        void RunOperation(UnitWorld world, OperationStaging staging);
-        
         void Increment(IOperationContext operationContext);
         Task RunStage(OperationStage stage);
 
         T? TryGetData<T>() where T : IOperationData;
+
+        IOperationContext CreateContext(UnitWorld world);
+        
+        void RunOperation(IOperationRunner runner, UnitWorld world, OperationStaging staging = OperationStaging.Auto);
     }
 
     public enum OperationStaging

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Linq;
+using System.Threading.Tasks;
 using OperationSystem.Operations.Data;
+using OperationSystem.Units;
 
 namespace OperationSystem.Operations
 {
@@ -28,6 +30,40 @@ namespace OperationSystem.Operations
         {
             while (operations.Any(operation => !operation.IsCompleted))
                 yield return null;
+        }
+
+        public static void RunOperationOnWorld(
+            this IOperation operation,
+            UnitWorld world,
+            OperationStaging staging = OperationStaging.Auto)
+        {
+            operation.RunOperation(world.OperationRunner, world, staging);
+        }
+
+        public static Task RunOperationAsTask(
+            this IOperation operation,
+            UnitWorld world,
+            int? timeout = null,
+            int? delay = null,
+            OperationStaging staging = OperationStaging.Auto)
+        {
+            var operationRunner = new OperationRunner();
+            operation.RunOperation(operationRunner, world, staging);
+            return Method(operation, operationRunner, timeout, delay);
+
+            async Task Method(IOperation o, IOperationRunner r, int? t, int? d)
+            {
+                while (!o.IsCompleted || t-- is null or > 0)
+                {
+                    r.Update();
+
+                    if (d != null)
+                        await Task.Delay(d.Value);
+                }
+
+                if (!o.IsCompleted)
+                    throw new TimeoutException();
+            }
         }
     }
 }

@@ -67,7 +67,7 @@ namespace OperationSystem.ComplexWeapons._Tests
             var identifier = OperationIdentifier.CreateNew();
             var operationUnit = new OperationUnit(unit);
             var operation = new WeaponShotOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
-            operation.RunOperation(world);
+            operation.RunOperationOnWorld(world);
 
             world.UpdateUntilComplete(operation, Timeout);
             return operation;

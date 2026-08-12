@@ -42,7 +42,7 @@ namespace OperationSystem.Weapons.Tests
                 var identifier = OperationIdentifier.CreateNew();
                 var operationUnit = new OperationUnit(unit);
                 var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
-                operation.RunOperation(world);
+                operation.RunOperationOnWorld(world);
                 operations.Add(operation);
             }
 
@@ -133,7 +133,7 @@ namespace OperationSystem.Weapons.Tests
             var identifier = OperationIdentifier.CreateNew();
             var operationUnit = new OperationUnit(unit);
             var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
-            operation.RunOperation(world);
+            operation.RunOperationOnWorld(world);
             world.UpdateUntilComplete(operation, Timeout);
             
             return operation;

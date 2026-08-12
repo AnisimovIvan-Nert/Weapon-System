@@ -252,7 +252,7 @@ namespace OperationSystem.Containers.Tests
             var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
                 senderUnit, receiverUnit, middlewares);
             
-            operation.RunOperation(unitWorld);
+            operation.RunOperationOnWorld(unitWorld);
             unitWorld.UpdateUntilComplete(operation, Timeout);
 
             return operation;

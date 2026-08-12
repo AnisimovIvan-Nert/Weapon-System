@@ -31,7 +31,7 @@ namespace OperationSystem.ComplexWeapons.Operations
             var raycastCommand = new RaycastCommand(data.From, data.Direction, QueryParameters.Default, data.Distance);
             var raycastData = new RaycastOperation.Data(raycastCommand);
             var raycastOperation = new RaycastOperation(Identifier, raycastData, Middlewares);
-            raycastOperation.RunOperation(Context.World);
+            raycastOperation.RunOperation(Runner, Context.World);
 
             yield return raycastOperation.WaitEnumerator();
             

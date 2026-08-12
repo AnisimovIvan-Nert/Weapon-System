@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System.Runtime.ExceptionServices;
+using NUnit.Framework;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Result;
 
@@ -8,6 +9,9 @@ namespace OperationSystem.TestExtensions
     {
         public static void AssertPass(this IOperation operation)
         {
+            if (operation.Exception != null)
+                ExceptionDispatchInfo.Capture(operation.Exception).Throw();
+                
             Assert.IsTrue(operation.IsCompleted);
             Assert.IsTrue(operation.IsCompletedSuccessfully);
             Assert.IsNull(operation.Exception);
