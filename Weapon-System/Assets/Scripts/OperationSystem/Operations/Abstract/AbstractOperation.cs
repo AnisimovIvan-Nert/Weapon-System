@@ -18,25 +18,25 @@ namespace OperationSystem.Operations.Abstract
         private YieldCoroutine? _coroutine;
         private OperationStaging _staging;
         
-        protected readonly IOperationMiddleware[] Middlewares;
-        
         protected IOperationContext Context = null!;
         protected IOperationRunner Runner = null!;
+        protected IOperationMiddleware[] UserMiddlewares = null!;
+        
+        private IOperationMiddleware[] _validUserMiddlewares = null!;
+        private IOperationMiddleware[] _worldMiddlewares = null!;
+
+        protected IEnumerable<IOperationMiddleware> Middlewares => _validUserMiddlewares.Concat(_worldMiddlewares);
 
         public OperationIdentifier Identifier { get; }
         public bool IsCompleted { get; protected set; }
-        public bool IsCompletedSuccessfully => Exception == null;
+        public bool IsCompletedSuccessfully => Exception is null or OperationForcedComplete;
         public Exception? Exception { get; private set; }
         public IOperationResult? OperationResult { get; protected set; }
 
-        protected AbstractOperation(
-            OperationIdentifier identifier,
-            IOperationMiddleware[] middlewares,
-            params IOperationData[] data)
+        protected AbstractOperation(OperationIdentifier identifier, params IOperationData[] data)
         {
             Identifier = identifier;
             _data = data;
-            Middlewares = middlewares;
         }
 
         public virtual IOperationContext CreateContext(UnitWorld world) => new OperationContext(world);
@@ -44,10 +44,14 @@ namespace OperationSystem.Operations.Abstract
         public virtual void RunOperation(
             IOperationRunner operationRunner,
             UnitWorld world,
-            OperationStaging staging = OperationStaging.Auto)
+            OperationStaging staging = OperationStaging.Auto,
+            params IOperationMiddleware[] middlewares)
         {
             _staging = staging;
             Runner = operationRunner;
+            UserMiddlewares = middlewares;
+            _validUserMiddlewares = middlewares.Where(middleware => middleware.IsValidTaget(this)).ToArray();
+            _worldMiddlewares = world.Middlewares.Where(middleware => middleware.IsValidTaget(this)).ToArray();
             operationRunner.RunOperation(this, world);
         }
 
@@ -68,7 +72,7 @@ namespace OperationSystem.Operations.Abstract
                     throw new ArgumentOutOfRangeException();
             }
         }
-        
+
         public T? TryGetData<T>()
             where T : IOperationData
         {
@@ -89,15 +93,15 @@ namespace OperationSystem.Operations.Abstract
             Exception = new AggregateException(Exception, exception);
         }
 
-        protected IEnumerable<IOperationMiddleware> EnumerateValidMiddlewares()
-        {
-            return Middlewares.Where(middleware => middleware.IsValidTaget(this));
-        }
-
         protected void SetCompleted()
         {
             Dispose();
             IsCompleted = true;
+        }
+
+        protected void RunOperation(IOperation operation, OperationStaging staging = OperationStaging.Auto)
+        {
+            operation.RunOperation(Runner, Context.World, staging, UserMiddlewares);
         }
     }
 }

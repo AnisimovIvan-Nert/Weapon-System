@@ -30,7 +30,7 @@ namespace OperationSystem.Containers.Tests
             const int count = 100;
 
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
 
             var assets = new ContainerAsset[count];
             var units = new Unit[count];
@@ -73,14 +73,27 @@ namespace OperationSystem.Containers.Tests
                 units[index] = world.GetOrCreateUnit(assets[index]);
             }
         }
-        
+
+        private static UnitWorld CreateWorld()
+        {
+            var middlewares = new IOperationMiddleware[]
+            {
+                new ContainerLockMiddleware(),
+                new ContainerVolumeMiddleware()
+            };
+            
+            var world = UnitWorld.Create();
+            world.AppendMiddlewares(middlewares);
+            return world;
+        }
+
         [Test]
         public async Task ExecutionTest()
         {
             const int executorCount = 100;
             
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var targets = new Unit[executorCount];
             var containerAssets = new (ContainerAsset, ContainerAsset)[executorCount];
@@ -159,12 +172,6 @@ namespace OperationSystem.Containers.Tests
             ContainerAsset receiver,
             UnitWorld unitWorld)
         {
-            var middlewares = new IOperationMiddleware[]
-            {
-                new ContainerLockMiddleware(),
-                new ContainerVolumeMiddleware()
-            };
-
             var executorData = new OperationExecutor(executor);
             var targetData = new OperationTarget(target);
             
@@ -172,7 +179,7 @@ namespace OperationSystem.Containers.Tests
             var receiverUnit = unitWorld.GetOrCreateUnit(receiver);
             
             var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
-                senderUnit, receiverUnit, middlewares);
+                senderUnit, receiverUnit);
             
             var task = operation.RunOperationAsTask(unitWorld, Timeout, UpdateDelay);
             return (operation, task);

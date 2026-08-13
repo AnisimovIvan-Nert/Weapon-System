@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using OperationSystem.Assets;
 using OperationSystem.Component;
 using OperationSystem.Component.Types;
 using OperationSystem.Operations;
+using OperationSystem.Operations.Middleware;
 
 namespace OperationSystem.Units
 {
@@ -10,14 +12,25 @@ namespace OperationSystem.Units
     {
         private readonly UnitRegistry _registry;
         private readonly IComponentArray[] _componentArrays;
+        private readonly List<IOperationMiddleware> _middlewares;
         
         public IOperationRunner OperationRunner { get; }
+
+        public IEnumerable<IOperationMiddleware> Middlewares
+        {
+            get
+            {
+                lock (_middlewares)
+                    return _middlewares.ToArray();
+            }
+        }
 
         private UnitWorld(IOperationRunner operationRunner, IComponentArray[] componentArrays)
         {
             OperationRunner = operationRunner;
             _componentArrays = componentArrays;
             _registry = new UnitRegistry();
+            _middlewares = new List<IOperationMiddleware>();
         }
 
         public static UnitWorld Create(IOperationRunner? operationRunner = null)
@@ -40,6 +53,12 @@ namespace OperationSystem.Units
 
                 return result;
             }
+        }
+
+        public void AppendMiddlewares(params IOperationMiddleware[] middlewares)
+        {
+            lock(_middlewares)
+                _middlewares.AddRange(middlewares);
         }
 
         public void Update()

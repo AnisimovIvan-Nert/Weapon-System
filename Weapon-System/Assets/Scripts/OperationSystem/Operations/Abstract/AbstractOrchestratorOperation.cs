@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Coroutine.Instructions;
 using OperationSystem.Operations.Data;
-using OperationSystem.Operations.Middleware;
 
 namespace OperationSystem.Operations.Abstract
 {
@@ -14,11 +13,8 @@ namespace OperationSystem.Operations.Abstract
 
         private ICollection<IOperation> Operations => _operations ?? throw new InvalidOperationException();
 
-        protected AbstractOrchestratorOperation(
-            OperationIdentifier identifier, 
-            IOperationMiddleware[] middlewares, 
-            params IOperationData[] data) 
-            : base(identifier, middlewares, data)
+        protected AbstractOrchestratorOperation(OperationIdentifier identifier, params IOperationData[] data) 
+            : base(identifier, data)
         {
         }
         

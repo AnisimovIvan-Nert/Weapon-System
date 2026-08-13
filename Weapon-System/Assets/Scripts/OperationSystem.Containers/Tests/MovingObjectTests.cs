@@ -25,7 +25,7 @@ namespace OperationSystem.Containers.Tests
         public void SimplePassTest()
         {
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
@@ -45,12 +45,25 @@ namespace OperationSystem.Containers.Tests
             
             AssertPass(operation, sender, receiver, target);
         }
-        
+
+        private static UnitWorld CreateWorld()
+        {
+            var middlewares = new IOperationMiddleware[]
+            {
+                new ContainerLockMiddleware(),
+                new ContainerVolumeMiddleware()
+            };
+            
+            var world = UnitWorld.Create();
+            world.AppendMiddlewares(middlewares);
+            return world;
+        }
+
         [Test]
         public void SenderLockFailTest()
         {
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
@@ -78,7 +91,7 @@ namespace OperationSystem.Containers.Tests
         public void SenderLockPassTest()
         {
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
@@ -111,7 +124,7 @@ namespace OperationSystem.Containers.Tests
             const int accessLevel = 2;
             
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
@@ -141,7 +154,7 @@ namespace OperationSystem.Containers.Tests
             const int accessLevel = 2;
             
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
@@ -174,7 +187,7 @@ namespace OperationSystem.Containers.Tests
             const int volume = height * width;
             
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var size = new Size(height, width);
             var targetAsset = gameObject.AddComponent<FooAsset>();
@@ -206,7 +219,7 @@ namespace OperationSystem.Containers.Tests
             const int volume = height * width;
             
             var gameObject = new GameObject();
-            var world = UnitWorld.Create();
+            var world = CreateWorld();
             
             var size = new Size(height, width);
             var targetAsset = gameObject.AddComponent<FooAsset>();
@@ -237,12 +250,6 @@ namespace OperationSystem.Containers.Tests
             ContainerAsset receiver,
             UnitWorld unitWorld)
         {
-            var middlewares = new IOperationMiddleware[]
-            {
-                new ContainerLockMiddleware(),
-                new ContainerVolumeMiddleware()
-            };
-            
             var senderUnit = unitWorld.GetOrCreateUnit(sender);
             var receiverUnit = unitWorld.GetOrCreateUnit(receiver);
 
@@ -250,7 +257,7 @@ namespace OperationSystem.Containers.Tests
             var targetData = new OperationTarget(target);
             
             var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
-                senderUnit, receiverUnit, middlewares);
+                senderUnit, receiverUnit);
             
             operation.RunOperationOnWorld(unitWorld);
             unitWorld.UpdateUntilComplete(operation, Timeout);

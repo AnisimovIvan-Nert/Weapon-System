@@ -2,7 +2,6 @@
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
-using OperationSystem.Operations.Middleware;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
@@ -17,9 +16,8 @@ namespace OperationSystem.Containers.Operations
             IOperationExecutor executor,
             IOperationTarget target,
             Unit sender,
-            Unit receiver,
-            params IOperationMiddleware[] middlewares)
-            : base(identifier, middlewares, executor, target)
+            Unit receiver)
+            : base(identifier, executor, target)
         {
             _sender = sender;
             _receiver = receiver;
@@ -31,13 +29,13 @@ namespace OperationSystem.Containers.Operations
             var target = this.GetData<IOperationTarget>();
 
             var senderUnit = new OperationUnit(_sender);
-            var sendOperation = new SendObjectUnitOperation(Identifier, senderUnit, executor, target, Middlewares);
+            var sendOperation = new SendObjectUnitOperation(Identifier, senderUnit, executor, target);
 
             var receiverUnit = new OperationUnit(_receiver);
-            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, receiverUnit, executor, target, Middlewares);
+            var receiveObjectOperation = new ReceiveObjectOperation(Identifier, receiverUnit, executor, target);
 
-            sendOperation.RunOperation(Runner, Context.World, OperationStaging.Manual);
-            receiveObjectOperation.RunOperation(Runner, Context.World, OperationStaging.Manual);
+            RunOperation(sendOperation, OperationStaging.Manual);
+            RunOperation(receiveObjectOperation, OperationStaging.Manual);
 
             return new List<IOperation> { sendOperation, receiveObjectOperation };
         }

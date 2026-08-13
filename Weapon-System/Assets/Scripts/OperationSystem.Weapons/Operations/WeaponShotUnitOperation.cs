@@ -4,7 +4,6 @@ using OperationSystem.Component;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
-using OperationSystem.Operations.Middleware;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Components;
 
@@ -19,11 +18,8 @@ namespace OperationSystem.Weapons.Operations
         private ComponentArray<Chamber> ChamberComponents => Context.World.GetComponentArray<Chamber>();
         private ComponentArray<Magazine> MagazineComponents => Context.World.GetComponentArray<Magazine>();
 
-        public WeaponShotUnitOperation(
-            OperationIdentifier identifier,
-            IOperationUnit operationUnit,
-            IOperationMiddleware[] middlewares)
-            : base(identifier, middlewares, operationUnit)
+        public WeaponShotUnitOperation(OperationIdentifier identifier, IOperationUnit operationUnit)
+            : base(identifier, operationUnit)
         {
         }
 

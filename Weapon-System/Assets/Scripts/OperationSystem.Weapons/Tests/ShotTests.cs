@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using NUnit.Framework;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
-using OperationSystem.Operations.Middleware;
 using OperationSystem.TestExtensions;
 using OperationSystem.Units;
 using OperationSystem.Weapons.Assets;
@@ -41,7 +39,7 @@ namespace OperationSystem.Weapons.Tests
             {
                 var identifier = OperationIdentifier.CreateNew();
                 var operationUnit = new OperationUnit(unit);
-                var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
+                var operation = new WeaponShotUnitOperation(identifier, operationUnit);
                 operation.RunOperationOnWorld(world);
                 operations.Add(operation);
             }
@@ -132,7 +130,7 @@ namespace OperationSystem.Weapons.Tests
 
             var identifier = OperationIdentifier.CreateNew();
             var operationUnit = new OperationUnit(unit);
-            var operation = new WeaponShotUnitOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
+            var operation = new WeaponShotUnitOperation(identifier, operationUnit);
             operation.RunOperationOnWorld(world);
             world.UpdateUntilComplete(operation, Timeout);
             

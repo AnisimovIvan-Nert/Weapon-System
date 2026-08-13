@@ -5,7 +5,6 @@ using OperationSystem.Containers.Operations.Tags;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
-using OperationSystem.Operations.Middleware;
 using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Operations
@@ -18,9 +17,8 @@ namespace OperationSystem.Containers.Operations
             OperationIdentifier identifier,
             IOperationUnit operationUnit,
             IOperationExecutor executor, 
-            IOperationTarget target, 
-            IOperationMiddleware[] middlewares) 
-            : base(identifier, middlewares, operationUnit, executor, target)
+            IOperationTarget target) 
+            : base(identifier, operationUnit, executor, target)
         {
         }
 
