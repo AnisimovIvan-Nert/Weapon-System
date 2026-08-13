@@ -28,6 +28,8 @@ namespace OperationSystem.Operations
             UnitWorld world, 
             OperationStaging staging = OperationStaging.Auto,
             params IOperationMiddleware[] middlewares);
+        
+        void SetResult(IOperationResult? result);
     }
 
     public enum OperationStaging

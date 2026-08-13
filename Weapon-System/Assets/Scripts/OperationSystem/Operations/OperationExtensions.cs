@@ -26,11 +26,11 @@ namespace OperationSystem.Operations
         public static T GetResult<T>(this IOperation operation)
             where T : IOperationResult
         {
-            if (operation.Exception != null)
-                ExceptionDispatchInfo.Capture(operation.Exception).Throw();
+            if (!operation.IsCompletedSuccessfully)
+                ExceptionDispatchInfo.Capture(operation.Exception!).Throw();
 
             if (operation.OperationResult is not T result)
-                throw new InvalidOperationException();
+                throw new InvalidOperationException($"Excepted: {typeof(T).Name}. Was: {operation.OperationResult?.GetType().Name ?? "null"}");
 
             return result;
         }

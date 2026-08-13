@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using Coroutine;
+using OperationSystem.Operations.Result;
 
 namespace OperationSystem.Operations.Abstract
 {
@@ -22,7 +23,7 @@ namespace OperationSystem.Operations.Abstract
                     {
                         _inLastStage = true;
                     
-                        if (_coroutine.IsCompletedSuccessfully())
+                        if (_coroutine.IsCompletedSuccessfully() || _coroutine.Exception is OperationForcedComplete)
                         {
                             _coroutine = CompleteEnumerator().ToCoroutine();
                         }

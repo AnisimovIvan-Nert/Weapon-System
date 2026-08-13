@@ -31,7 +31,7 @@ namespace OperationSystem.Operations.Abstract
         public bool IsCompleted { get; protected set; }
         public bool IsCompletedSuccessfully => Exception is null or OperationForcedComplete;
         public Exception? Exception { get; private set; }
-        public IOperationResult? OperationResult { get; protected set; }
+        public IOperationResult? OperationResult { get; private set; }
 
         protected AbstractOperation(OperationIdentifier identifier, params IOperationData[] data)
         {
@@ -77,6 +77,11 @@ namespace OperationSystem.Operations.Abstract
             where T : IOperationData
         {
             return _data.OfType<T>().FirstOrDefault();
+        }
+        
+        public void SetResult(IOperationResult? result)
+        {
+            OperationResult = result;
         }
 
         protected void AppendException(Exception? exception)
