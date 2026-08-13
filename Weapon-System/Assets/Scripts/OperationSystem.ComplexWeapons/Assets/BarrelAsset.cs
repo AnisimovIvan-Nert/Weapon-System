@@ -8,11 +8,11 @@ namespace OperationSystem.ComplexWeapons.Assets
         : AbstractAsset
         , IAssetPull<Barrel>
     {
-        public override ComponentMask GetComponentMask() => ComponentMask.Create<Magazine>();
+        public override ComponentMask GetComponentMask() => ComponentMask.Create<Barrel>();
         
         public void PullInto(ref Barrel component)
         {
-            component = new Barrel(transform.forward.normalized);
+            component = new Barrel(transform.forward.normalized, transform.position);
         }
     }
 }

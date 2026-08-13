@@ -14,8 +14,8 @@ namespace OperationSystem.Operations
     {
         UnitWorld World { get; }
         
-        bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner) where T : struct, IComponent;
-        bool TryAcquire(int typeId, in UnitId unitId, in OperationIdentifier owner);
+        bool TryAcquire<T>(in Unit unit, in OperationIdentifier owner) where T : struct, IComponent;
+        bool TryAcquire(int typeId, in Unit unit, in OperationIdentifier owner);
         void RecordUndo(Undo undo);
         void Commit();
         void Rollback();
@@ -24,7 +24,7 @@ namespace OperationSystem.Operations
 
     public class OperationContext : IOperationContext
     {
-        private readonly Dictionary<(UnitId unitId, int typeId), OperationIdentifier> _locks = new();
+        private readonly Dictionary<(Unit unit, int typeId), OperationIdentifier> _locks = new();
         
         private readonly List<Undo> _undoStack = new();
         private bool _committed;
@@ -36,25 +36,25 @@ namespace OperationSystem.Operations
             World = unitWorld;
         }
 
-        public bool TryAcquire<T>(in UnitId unitId, in OperationIdentifier owner)
+        public bool TryAcquire<T>(in Unit unit, in OperationIdentifier owner)
             where T : struct, IComponent
         {
-            return TryAcquire(ComponentType<T>.Id, unitId, owner);
+            return TryAcquire(ComponentType<T>.Id, unit, owner);
         }
         
-        public bool TryAcquire(int typeId, in UnitId unitId, in OperationIdentifier owner)
+        public bool TryAcquire(int typeId, in Unit unit, in OperationIdentifier owner)
         {
-            if (!World.GetComponentArray(typeId).TryAcquireComponent(unitId, owner))
+            if (!World.GetComponentArray(typeId).TryAcquireComponent(unit, owner))
                 return false;
             
             try
             {
-                _locks[(unitId, typeId)] = owner;
+                _locks[(unit, typeId)] = owner;
             }
             catch (Exception e)
             {
-                World.GetComponentArray(typeId).ReleaseComponent(unitId, owner);
-                _locks.Remove((unitId, typeId));
+                World.GetComponentArray(typeId).ReleaseComponent(unit, owner);
+                _locks.Remove((unit, typeId));
                 Debug.LogError(e);
                 return false;
             }

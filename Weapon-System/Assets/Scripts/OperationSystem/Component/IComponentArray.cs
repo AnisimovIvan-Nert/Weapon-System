@@ -12,18 +12,18 @@ namespace OperationSystem.Component
         void PullFromAsset(Unit unit);
         void PushToAsset(Unit unit);
         
-        bool TryAcquireComponent(UnitId unitId, OperationIdentifier owner);
-        void ReleaseComponent(UnitId unitId, OperationIdentifier owner);
+        bool TryAcquireComponent(Unit unit, OperationIdentifier owner);
+        void ReleaseComponent(Unit unit, OperationIdentifier owner);
 
-        T GetComponent<T>(UnitId unitId) where T : IComponent;
-        void SetComponent<T>(UnitId unitId, T component) where T : IComponent;
-        void DestroyComponent(UnitId unitId);
+        T GetComponent<T>(Unit unit) where T : IComponent;
+        void SetComponent<T>(Unit unit, T component) where T : IComponent;
+        void DestroyComponent(Unit unit);
     }
     
     public interface IComponentArray<T> : IComponentArray
         where T : IComponent
     {
-        T GetComponent(UnitId unitId);
-        void SetComponent(UnitId unitId, T component);
+        T GetComponent(Unit unit);
+        void SetComponent(Unit unit, T component);
     }
 }

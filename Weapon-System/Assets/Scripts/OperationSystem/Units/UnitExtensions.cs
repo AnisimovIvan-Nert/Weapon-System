@@ -22,7 +22,7 @@ namespace OperationSystem.Units
         public static T GetComponent<T>(this Unit unit, UnitWorld world)
             where T : struct, IComponent
         {
-            return world.GetComponentArray<T>().GetComponent(unit.Id);
+            return world.GetComponentArray<T>().GetComponent(unit);
         }
         
         public static bool TryGetComponent<T>(this Unit unit, UnitWorld world, out T component)
@@ -33,14 +33,14 @@ namespace OperationSystem.Units
             if (componentArray == null)
                 return false;
             
-            component = componentArray.GetComponent<T>(unit.Id);
+            component = componentArray.GetComponent<T>(unit);
             return true;
         }
 
         public static void SetComponent<T>(this Unit unit, T component, UnitWorld world)
             where T : struct, IComponent
         {
-            world.GetComponentArray<T>().SetComponent(unit.Id, component);
+            world.GetComponentArray<T>().SetComponent(unit, component);
         }
         
         public static bool HasComponent<T>(this Unit unit, UnitWorld world)

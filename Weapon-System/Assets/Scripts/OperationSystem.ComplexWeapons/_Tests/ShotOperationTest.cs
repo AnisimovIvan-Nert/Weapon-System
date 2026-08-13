@@ -1,6 +1,7 @@
 ﻿using System;
 using NUnit.Framework;
 using OperationSystem.ComplexWeapons.Assets;
+using OperationSystem.ComplexWeapons.Components;
 using OperationSystem.ComplexWeapons.Operations;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Data;
@@ -24,8 +25,10 @@ namespace OperationSystem.ComplexWeapons._Tests
             var gameObject = new GameObject();
             var magazine = gameObject.AddComponent<MagazineAsset>();
             magazine.Rounds = rounds;
+            var barrel = gameObject.AddComponent<BarrelAsset>();
             var weaponAsset = gameObject.AddComponent<WeaponAsset>();
             weaponAsset.AddChild(magazine);
+            weaponAsset.AddChild(barrel);
 
             var operation = RunAndWaitOperation(weaponAsset);
             AssertFail<WeaponShotOperation.MagazineIsEmptyException>(operation, magazine, rounds);
@@ -39,8 +42,10 @@ namespace OperationSystem.ComplexWeapons._Tests
             var gameObject = new GameObject();
             var magazine = gameObject.AddComponent<MagazineAsset>();
             magazine.Rounds = rounds;
+            var barrel = gameObject.AddComponent<BarrelAsset>();
             var weaponAsset = gameObject.AddComponent<WeaponAsset>();
             weaponAsset.AddChild(magazine);
+            weaponAsset.AddChild(barrel);
             
             var operation = RunAndWaitOperation(weaponAsset);
             AssertPass(operation, magazine, rounds);
@@ -65,8 +70,9 @@ namespace OperationSystem.ComplexWeapons._Tests
             var unit = world.GetOrCreateUnit(weaponAsset);
 
             var identifier = OperationIdentifier.CreateNew();
+            var data = new WeaponShotOperation.Data(10);
             var operationUnit = new OperationUnit(unit);
-            var operation = new WeaponShotOperation(identifier, operationUnit, Array.Empty<IOperationMiddleware>());
+            var operation = new WeaponShotOperation(identifier, data, operationUnit, Array.Empty<IOperationMiddleware>());
             operation.RunOperationOnWorld(world);
 
             world.UpdateUntilComplete(operation, Timeout);

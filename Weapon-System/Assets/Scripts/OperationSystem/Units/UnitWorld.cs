@@ -64,10 +64,10 @@ namespace OperationSystem.Units
                 return;
 
             foreach (var typeId in unit.ComponentMask)
-                GetComponentArray(typeId).DestroyComponent(unit.Id);
+                GetComponentArray(typeId).DestroyComponent(unit);
         }
 
-        public IComponentArray GetComponentArray(int typeId) => _componentArrays[typeId];
+        internal IComponentArray GetComponentArray(int typeId) => _componentArrays[typeId];
 
         internal void OnUnitCreated(Unit unit) => PullFromAsset(unit);
         

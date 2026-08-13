@@ -14,20 +14,20 @@ namespace OperationSystem.Operations
     
     public static class OperationContextExtensions
     {
-        public static void Acquire<T>(this IOperationContext context, in UnitId unitId, in OperationIdentifier owner)
+        public static void Acquire<T>(this IOperationContext context, in Unit unit, in OperationIdentifier owner)
             where T : struct, IComponent
         {
-            if (!context.TryAcquire<T>(unitId, owner))
+            if (!context.TryAcquire<T>(unit, owner))
                 throw new AcquireException();
         }
         
         public static void Acquire(
             this IOperationContext context, 
             int typeId, 
-            in UnitId unitId, 
+            in Unit unit, 
             in OperationIdentifier owner)
         {
-            if (!context.TryAcquire(typeId, unitId, owner))
+            if (!context.TryAcquire(typeId, unit, owner))
                 throw new AcquireException();
         }
     }

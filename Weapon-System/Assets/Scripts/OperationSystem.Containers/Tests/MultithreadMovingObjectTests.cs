@@ -57,9 +57,9 @@ namespace OperationSystem.Containers.Tests
                 Assert.AreEqual(i, assets[i].AccessLock!.Value.Level);
 
                 var unit = units[i];
-                var unitItems = world.GetComponentArray<ContainerItems>().GetComponent(unit.Id);
-                var unitLock = world.GetComponentArray<KeyContainerLock>().GetComponent(unit.Id);
-                var unitAccess = world.GetComponentArray<AccessContainerLock>().GetComponent(unit.Id);
+                var unitItems = world.GetComponentArray<ContainerItems>().GetComponent(unit);
+                var unitLock = world.GetComponentArray<KeyContainerLock>().GetComponent(unit);
+                var unitAccess = world.GetComponentArray<AccessContainerLock>().GetComponent(unit);
                 
                 Assert.AreEqual(i, unitItems.Items.Count);
                 Assert.AreEqual(keys[i], unitLock.Identifier);

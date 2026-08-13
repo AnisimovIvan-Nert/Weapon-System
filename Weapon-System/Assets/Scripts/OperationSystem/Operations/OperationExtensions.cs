@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using OperationSystem.Operations.Data;
+using OperationSystem.Operations.Result;
 using OperationSystem.Units;
 
 namespace OperationSystem.Operations
@@ -11,7 +13,7 @@ namespace OperationSystem.Operations
         where T : IOperationData
     {
     }
-    
+
     public static class OperationExtensions
     {
         public static T GetData<T>(this IOperation operation)
@@ -20,9 +22,24 @@ namespace OperationSystem.Operations
             return operation.TryGetData<T>() ?? throw new OperationDataMissingException<T>();
         }
         
+        public static T GetResult<T>(this IOperation operation)
+            where T : IOperationResult
+        {
+            if (operation.Exception != null)
+                ExceptionDispatchInfo.Capture(operation.Exception).Throw();
+
+            if (operation.OperationResult is not T result)
+                throw new InvalidOperationException();
+
+            return result;
+        }
+    }
+
+    public static class OperationWaitExtensions
+    {
         public static IEnumerator WaitEnumerator(this IOperation operation)
         {
-            var operations = new IOperation[] { operation };
+            var operations = new[] { operation };
             return operations.WaitEnumerator();
         }
 
@@ -31,7 +48,10 @@ namespace OperationSystem.Operations
             while (operations.Any(operation => !operation.IsCompleted))
                 yield return null;
         }
+    }
 
+    public static class OperationRunExtensions
+    {
         public static void RunOperationOnWorld(
             this IOperation operation,
             UnitWorld world,

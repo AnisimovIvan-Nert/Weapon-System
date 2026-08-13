@@ -19,43 +19,43 @@ namespace OperationSystem.Component
 
         public bool HasComponent(Unit unit) => unit.ComponentMask.Contains<T>();
 
-        public T GetComponent(UnitId unitId) => GetOrAddSlot(unitId).Component;
+        public T GetComponent(Unit unit) => GetOrAddSlot(unit).Component;
 
-        public TComponent GetComponent<TComponent>(UnitId unitId) where TComponent : IComponent
+        public TComponent GetComponent<TComponent>(Unit unit) where TComponent : IComponent
         {
-            var component = GetComponent(unitId);
+            var component = GetComponent(unit);
             if (component is not TComponent typedComponent)
                 throw new InvalidOperationException();
             return typedComponent;
         }
 
-        public void SetComponent(UnitId unitId, T component)
+        public void SetComponent(Unit unit, T component)
         {
-            var slot = GetOrAddSlot(unitId);
-            _componentDirty.SetDirty(unitId.Id);
+            var slot = GetOrAddSlot(unit);
+            _componentDirty.SetDirty(unit.Id.Id);
             slot.Component = component;
         }
 
-        public void SetComponent<TComponent>(UnitId unitId, TComponent component) where TComponent : IComponent
+        public void SetComponent<TComponent>(Unit unit, TComponent component) where TComponent : IComponent
         {
             if (component is not T typedComponent)
                 throw new InvalidOperationException();
-            SetComponent(unitId, typedComponent);
+            SetComponent(unit, typedComponent);
         }
 
-        public void DestroyComponent(UnitId unitId)
+        public void DestroyComponent(Unit unit)
         {
-            if (!TryRemoveSlot(unitId))
+            if (!TryRemoveSlot(unit))
                 return;
 
-            var index = unitId.Id;
+            var index = unit.Id.Id;
 
             _componentDirty.Clear(index);
         }
 
-        public bool TryAcquireComponent(UnitId unitId, OperationIdentifier owner)
+        public bool TryAcquireComponent(Unit unit, OperationIdentifier owner)
         {
-            var slot = GetOrAddSlot(unitId);
+            var slot = GetOrAddSlot(unit);
 
             lock (slot.OwnerLock)
             {
@@ -70,9 +70,9 @@ namespace OperationSystem.Component
             }
         }
 
-        public void ReleaseComponent(UnitId unitId, OperationIdentifier owner)
+        public void ReleaseComponent(Unit unit, OperationIdentifier owner)
         {
-            var slot = GetOrAddSlot(unitId);
+            var slot = GetOrAddSlot(unit);
 
             lock (slot.OwnerLock)
             {
@@ -88,7 +88,7 @@ namespace OperationSystem.Component
             if (unit.Asset is not IAssetPull<T> pull)
                 return;
 
-            var slot = GetOrAddSlot(unit.Id);
+            var slot = GetOrAddSlot(unit);
             var component = slot.Component;
             pull.PullInto(ref component);
             slot.Component = component;
@@ -99,7 +99,7 @@ namespace OperationSystem.Component
             if (unit.Asset is not IAssetPush<T> push)
                 return;
 
-            var slot = GetOrAddSlot(unit.Id);
+            var slot = GetOrAddSlot(unit);
             var index = slot.Id.Id;
 
             if (!_componentDirty.IsDirty(index))
@@ -109,27 +109,32 @@ namespace OperationSystem.Component
             _componentDirty.Clear(index);
         }
 
-        private Slot GetOrAddSlot(UnitId unitId)
+        private Slot GetOrAddSlot(Unit unit)
         {
-            var slot = _unitIdToSlot.GetOrAdd(unitId.Id, ValueFactory);
+            var slot = _unitIdToSlot.GetOrAdd(unit.Id.Id, ValueFactory);
 
-            if (slot.Id.Version != unitId.Version)
-                throw new UnitDestroyedException(unitId);
+            if (slot.Id.Version != unit.Id.Version)
+                throw new UnitDestroyedException(unit.Id);
 
             return slot;
 
-            Slot ValueFactory(int id) => new(unitId);
+            Slot ValueFactory(int id)
+            {
+                return unit.ComponentMask.Contains(TypeId) 
+                    ? new Slot(unit.Id) 
+                    : throw new InvalidOperationException();
+            }
         }
 
-        private bool TryRemoveSlot(UnitId unitId)
+        private bool TryRemoveSlot(Unit unit)
         {
-            if (!_unitIdToSlot.TryGetValue(unitId.Id, out var slot))
+            if (!_unitIdToSlot.TryGetValue(unit.Id.Id, out var slot))
                 return false;
 
-            if (slot.Id.Version != unitId.Version)
-                throw new UnitDestroyedException(unitId);
+            if (slot.Id.Version != unit.Id.Version)
+                throw new UnitDestroyedException(unit.Id);
 
-            return _unitIdToSlot.TryRemove(unitId.Id, out _);
+            return _unitIdToSlot.TryRemove(unit.Id.Id, out _);
         }
 
         private class Slot

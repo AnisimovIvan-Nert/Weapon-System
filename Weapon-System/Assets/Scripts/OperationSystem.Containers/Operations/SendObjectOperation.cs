@@ -39,7 +39,7 @@ namespace OperationSystem.Containers.Operations
         {
             yield return base.TryAcquireLocksEnumerator();
             
-            Context.Acquire<ContainerItems>(Unit.Id, Identifier);
+            Context.Acquire<ContainerItems>(Unit, Identifier);
         }
 
         protected override IEnumerator RecordMutationsEnumerator()

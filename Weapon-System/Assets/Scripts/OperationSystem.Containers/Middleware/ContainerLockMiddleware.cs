@@ -32,7 +32,7 @@ namespace OperationSystem.Containers.Middleware
             if (componentsArray == null)
                 yield break;
             
-            context.Acquire(componentsArray.TypeId, unit.Id, operation.Identifier);
+            context.Acquire(componentsArray.TypeId, unit, operation.Identifier);
         }
 
         public override IEnumerator Execute(IOperation operation, IOperationContext context)

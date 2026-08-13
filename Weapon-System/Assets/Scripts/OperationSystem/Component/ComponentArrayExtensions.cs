@@ -10,7 +10,7 @@ namespace OperationSystem.Component
             if (!componentArray.HasComponent(unit))
                 return null;
 
-            return componentArray.GetComponent(unit.Id);
+            return componentArray.GetComponent(unit);
         }
     }
 }
