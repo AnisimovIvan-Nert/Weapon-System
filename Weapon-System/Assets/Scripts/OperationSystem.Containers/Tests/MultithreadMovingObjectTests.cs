@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using OperationSystem.Assets;
 using OperationSystem.Containers.Components;
-using OperationSystem.Containers.Components.Containers;
 using OperationSystem.Containers.Components.Containers.Locks.Accesses;
 using OperationSystem.Containers.Components.Containers.Locks.Keys;
 using OperationSystem.Containers.Middleware;
@@ -13,6 +14,7 @@ using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.TestExtensions;
 using OperationSystem.Units;
+using OperationSystem.Units.Child;
 using UnityEngine;
 using Random = System.Random;
 
@@ -23,7 +25,7 @@ namespace OperationSystem.Containers.Tests
         private const int Timeout = 1000;
         private const int UpdateDelay = 1;
         private const int RandomSeed = int.MaxValue / 727 / 7;
-        
+
         [Test]
         public async Task CreateTest()
         {
@@ -38,33 +40,36 @@ namespace OperationSystem.Containers.Tests
             var tasks = new Task[count];
             for (var i = 0; i < count; i++)
             {
+                var items = new IAsset[i];
+                for (var j = 0; j < i; j++)
+                    items[j] = gameObject.AddComponent<FooAsset>();
                 keys[i] = Guid.NewGuid();
-                var items = ContainerItems.Create(new Unit[i]);
                 var containerLock = new KeyContainerLock(keys[i]);
                 var containerAccess = new AccessContainerLock(i);
                 assets[i] = gameObject.AddComponent<ContainerAsset>();
-                assets[i].Set(items, containerLock, containerAccess);
+                assets[i].Set(containerLock, containerAccess, children: items);
                 tasks[i] = Create(i);
             }
 
             await Task.WhenAll(tasks);
             world.Update();
-            
+
             for (var i = 0; i < count; i++)
             {
-                Assert.AreEqual(i, assets[i].Items.Items.Count);
+                Assert.AreEqual(i, assets[i].Children.Count());
                 Assert.AreEqual(keys[i], assets[i].KeyLock!.Value.Identifier);
                 Assert.AreEqual(i, assets[i].AccessLock!.Value.Level);
 
                 var unit = units[i];
-                var unitItems = world.GetComponentArray<ContainerItems>().GetComponent(unit);
+                var children = world.GetComponentArray<ChildrenComponent>().GetComponent(unit);
                 var unitLock = world.GetComponentArray<KeyContainerLock>().GetComponent(unit);
                 var unitAccess = world.GetComponentArray<AccessContainerLock>().GetComponent(unit);
-                
-                Assert.AreEqual(i, unitItems.Items.Count);
+
+                Assert.AreEqual(i, children.Children.Count());
                 Assert.AreEqual(keys[i], unitLock.Identifier);
                 Assert.AreEqual(i, unitAccess.Level);
             }
+
             return;
 
             async Task Create(int index)
@@ -81,7 +86,7 @@ namespace OperationSystem.Containers.Tests
                 new ContainerLockMiddleware(),
                 new ContainerVolumeMiddleware()
             };
-            
+
             var world = UnitWorld.Create();
             world.AppendMiddlewares(middlewares);
             return world;
@@ -91,10 +96,10 @@ namespace OperationSystem.Containers.Tests
         public async Task ExecutionTest()
         {
             const int executorCount = 100;
-            
+
             var gameObject = new GameObject();
             var world = CreateWorld();
-            
+
             var targets = new Unit[executorCount];
             var containerAssets = new (ContainerAsset, ContainerAsset)[executorCount];
             var operations = new IOperation[executorCount];
@@ -102,27 +107,27 @@ namespace OperationSystem.Containers.Tests
             for (var i = 0; i < executorCount; i++)
             {
                 var failOperation = i % 7 == 0;
-                
+
                 var targetAsset = gameObject.AddComponent<FooAsset>();
                 targets[i] = world.GetOrCreateUnit(targetAsset);
-                
+
                 var keyIdentifier = Guid.NewGuid();
 
-                var containerItems = ContainerItems.Create(targets[i]);
-                var emptyItems = ContainerItems.Create();
+                var containerItems = new IAsset[] { targetAsset };
+                var emptyItems = Array.Empty<IAsset>();
 
                 var firstItems = (i & 1) == 1 ? containerItems : emptyItems;
                 var firstLock = new KeyContainerLock(keyIdentifier);
                 var firstContainer = gameObject.AddComponent<ContainerAsset>();
-                firstContainer.Set(firstItems, firstLock);
-                
+                firstContainer.Set(firstLock, children: firstItems);
+
                 var secondItems = (i & 1) == 1 ? emptyItems : containerItems;
                 var secondLock = new AccessContainerLock(i);
                 var secondContainer = gameObject.AddComponent<ContainerAsset>();
-                secondContainer.Set(secondItems, null, secondLock);
+                secondContainer.Set(null, secondLock, children: secondItems);
 
                 containerAssets[i] = (firstContainer, secondContainer);
-            
+
                 var key = new Key(keyIdentifier);
                 var keyStorage = new KeysStorage(key);
                 var access = failOperation ? new AccessLevel(-1) : new AccessLevel(i);
@@ -130,10 +135,10 @@ namespace OperationSystem.Containers.Tests
                 executorAsset.Set(keyStorage, access);
                 var executor = world.GetOrCreateUnit(executorAsset);
 
-                var (senderAsset, receiverAsset) = (i & 1) == 1 
-                    ? (firstContainer, secondContainer) 
+                var (senderAsset, receiverAsset) = (i & 1) == 1
+                    ? (firstContainer, secondContainer)
                     : (secondContainer, firstContainer);
-                
+
                 (operations[i], tasks[i]) = RunOperation(executor, targets[i], senderAsset, receiverAsset, world);
             }
 
@@ -142,7 +147,7 @@ namespace OperationSystem.Containers.Tests
             for (var i = 0; i < executorCount; i++)
             {
                 var failOperation = i % 7 == 0;
-                
+
                 if (failOperation)
                     operations[i].AssertFail();
                 else
@@ -154,33 +159,33 @@ namespace OperationSystem.Containers.Tests
 
                 if (failOperation)
                 {
-                    Assert.IsTrue(senderAsset.Items.Items.Contains(target));
-                    Assert.IsFalse(receiverAsset.Items.Items.Contains(target));
+                    Assert.IsTrue(senderAsset.Children.Contains(target.Asset));
+                    Assert.IsFalse(receiverAsset.Children.Contains(target.Asset));
                 }
                 else
                 {
-                    Assert.IsFalse(senderAsset.Items.Items.Contains(target));
-                    Assert.IsTrue(receiverAsset.Items.Items.Contains(target));
+                    Assert.IsFalse(senderAsset.Children.Contains(target.Asset));
+                    Assert.IsTrue(receiverAsset.Children.Contains(target.Asset));
                 }
             }
         }
-        
+
         private static (IOperation, Task) RunOperation(
             Unit executor,
-            Unit target, 
-            ContainerAsset sender, 
+            Unit target,
+            ContainerAsset sender,
             ContainerAsset receiver,
             UnitWorld unitWorld)
         {
             var executorData = new OperationExecutor(executor);
             var targetData = new OperationTarget(target);
-            
+
             var senderUnit = unitWorld.GetOrCreateUnit(sender);
             var receiverUnit = unitWorld.GetOrCreateUnit(receiver);
-            
-            var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData, 
+
+            var operation = new MovingObjectOperation(OperationIdentifier.CreateNew(), executorData, targetData,
                 senderUnit, receiverUnit);
-            
+
             var task = operation.RunOperationAsTask(unitWorld, Timeout, UpdateDelay);
             return (operation, task);
         }

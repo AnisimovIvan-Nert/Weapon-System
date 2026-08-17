@@ -7,9 +7,9 @@ namespace OperationSystem.Assets
     {
         IEnumerable<IAsset> Children { get; }
 
-        void AddChild(IAsset child);
-        void RemoveChild(IAsset child);
-
+        bool TryAddChild(IAsset child);
+        bool TryRemoveChild(IAsset child);
+        
         ComponentMask GetComponentMask();
     }
 }

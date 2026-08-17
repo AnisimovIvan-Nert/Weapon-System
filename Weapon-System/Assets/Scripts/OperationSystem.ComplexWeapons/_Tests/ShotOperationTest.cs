@@ -141,8 +141,8 @@ namespace OperationSystem.ComplexWeapons._Tests
             magazine.Rounds = rounds;
             var barrel = gameObject.AddComponent<BarrelAsset>();
             var weaponAsset = gameObject.AddComponent<WeaponAsset>();
-            weaponAsset.AddChild(magazine);
-            weaponAsset.AddChild(barrel);
+            weaponAsset.TryAddChild(magazine);
+            weaponAsset.TryAddChild(barrel);
             return weaponAsset;
         }
         

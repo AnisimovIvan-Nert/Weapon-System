@@ -83,18 +83,30 @@ namespace OperationSystem.Component
             }
         }
 
-        public void PullFromAsset(Unit unit)
+        public void PullFromAsset(Unit unit, UnitWorld world)
         {
             if (unit.Asset is not IAssetPull<T> pull)
                 return;
-
+            
+            if (!TryAcquireComponent(unit, world.WorldIdentifier))
+                return;
+            
             var slot = GetOrAddSlot(unit);
             var component = slot.Component;
-            pull.PullInto(ref component);
+
+            try
+            {
+                pull.PullInto(ref component, world);
+            }
+            finally
+            {
+                ReleaseComponent(unit, world.WorldIdentifier);
+            }
+            
             slot.Component = component;
         }
 
-        public void PushToAsset(Unit unit)
+        public void PushToAsset(Unit unit, UnitWorld world)
         {
             if (unit.Asset is not IAssetPush<T> push)
                 return;
@@ -105,7 +117,18 @@ namespace OperationSystem.Component
             if (!_componentDirty.IsDirty(index))
                 return;
 
-            push.PushFrom(slot.Component);
+            if (!TryAcquireComponent(unit, world.WorldIdentifier))
+                return;
+
+            try
+            {
+                push.PushFrom(slot.Component, world);
+            }
+            finally
+            {
+                ReleaseComponent(unit, world.WorldIdentifier);
+            }
+            
             _componentDirty.Clear(index);
         }
 

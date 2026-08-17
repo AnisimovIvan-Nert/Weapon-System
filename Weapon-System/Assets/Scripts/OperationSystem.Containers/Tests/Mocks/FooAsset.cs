@@ -1,6 +1,7 @@
 ﻿using OperationSystem.Assets;
 using OperationSystem.Component.Types;
 using OperationSystem.Containers.Components;
+using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Tests.Mocks
 {
@@ -22,13 +23,14 @@ namespace OperationSystem.Containers.Tests.Mocks
 
         public override ComponentMask GetComponentMask()
         {
+            var mask = base.GetComponentMask();
             if (_size.HasValue)
-                return ComponentMask.Create<Size>();
+                mask.Add<Size>();
 
-            return ComponentMask.Create();
+            return mask;
         }
         
-        public void PullInto(ref Size component)
+        public void PullInto(ref Size component, UnitWorld world)
         {
             if (_size.HasValue)
                 component = _size.Value;

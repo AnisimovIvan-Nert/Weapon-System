@@ -1,21 +1,33 @@
 ﻿using System;
 using System.Linq;
 using OperationSystem.Component;
+using OperationSystem.Units.Child;
 
 namespace OperationSystem.Units
 {
     public static class UnitExtensions
     {
-        public static Unit GetChild<T>(this Unit unit)
+        public static bool TryAddChild(this Unit unit, Unit child)
+        {
+            return unit.Asset.TryAddChild(child.Asset);
+        }
+        
+        public static bool TryRemoveChild(this Unit unit, Unit child)
+        {
+            return unit.Asset.TryRemoveChild(child.Asset);
+        }
+        
+        public static Unit GetChild<T>(this Unit unit, UnitWorld world)
             where T : struct, IComponent
         {
-            return unit.TryGetChild<T>() ?? throw new InvalidOperationException();
+            return unit.TryGetChild<T>(world) ?? throw new InvalidOperationException();
         }
 
-        public static Unit? TryGetChild<T>(this Unit unit)
+        public static Unit? TryGetChild<T>(this Unit unit, UnitWorld world)
             where T : struct, IComponent
         {
-            var result = unit.Children.FirstOrDefault(child => child.ComponentMask.Contains<T>());
+            var children = unit.GetComponent<ChildrenComponent>(world);
+            var result = children.Children.FirstOrDefault(child => child.ComponentMask.Contains<T>());
             return result == default ? null : result;
         }
 

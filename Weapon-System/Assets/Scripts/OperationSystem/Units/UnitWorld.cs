@@ -14,6 +14,7 @@ namespace OperationSystem.Units
         private readonly IComponentArray[] _componentArrays;
         private readonly List<IOperationMiddleware> _middlewares;
         
+        internal OperationIdentifier WorldIdentifier { get; }
         public IOperationRunner OperationRunner { get; }
 
         public IEnumerable<IOperationMiddleware> Middlewares
@@ -27,6 +28,7 @@ namespace OperationSystem.Units
 
         private UnitWorld(IOperationRunner operationRunner, IComponentArray[] componentArrays)
         {
+            WorldIdentifier = OperationIdentifier.CreateNew();
             OperationRunner = operationRunner;
             _componentArrays = componentArrays;
             _registry = new UnitRegistry();
@@ -93,13 +95,13 @@ namespace OperationSystem.Units
         private void PullFromAsset(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                GetComponentArray(typeId).PullFromAsset(unit);
+                GetComponentArray(typeId).PullFromAsset(unit, this);
         }
 
         private void PushToAsset(Unit unit)
         {
             foreach (var typeId in unit.ComponentMask)
-                GetComponentArray(typeId).PushToAsset(unit);
+                GetComponentArray(typeId).PushToAsset(unit, this);
         }
     }
 }

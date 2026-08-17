@@ -3,12 +3,12 @@ using OperationSystem.Component.Types;
 using OperationSystem.Containers.Components.Containers;
 using OperationSystem.Containers.Components.Containers.Locks.Accesses;
 using OperationSystem.Containers.Components.Containers.Locks.Keys;
+using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Tests.Mocks
 {
     public class ContainerAsset
         : AbstractAsset
-        , IAssetSync<ContainerItems>
         , IAssetPull<KeyContainerLock>
         , IAssetPull<AccessContainerLock>
         , IAssetPull<ContainerVolume>
@@ -17,36 +17,33 @@ namespace OperationSystem.Containers.Tests.Mocks
         public AccessContainerLock? AccessLock { get; private set; }
         public ContainerVolume? Volume { get; private set; }
 
-        public ContainerItems Items { get; private set; }
-
         public ContainerAsset(
-            ContainerItems items,
             KeyContainerLock? keyLock = null,
             AccessContainerLock? accessLock = null,
             ContainerVolume? containerVolume = null)
         {
-            Items = items;
             KeyLock = keyLock;
             AccessLock = accessLock;
             Volume = containerVolume;
         }
 
         public void Set(
-            ContainerItems items,
             KeyContainerLock? keyLock = null,
             AccessContainerLock? accessLock = null,
-            ContainerVolume? containerVolume = null)
+            ContainerVolume? containerVolume = null,
+            params IAsset[] children)
         {
-            Items = items;
             KeyLock = keyLock;
             AccessLock = accessLock;
             Volume = containerVolume;
+            foreach (var child in children)
+                TryAddChild(child);
         }
 
         public override ComponentMask GetComponentMask()
         {
-            var mask = ComponentMask.Create<Container>();
-            mask.Add<ContainerItems>();
+            var mask = base.GetComponentMask();
+            mask.Add<Container>();
 
             if (KeyLock.HasValue)
                 mask.Add<KeyContainerLock>();
@@ -58,29 +55,19 @@ namespace OperationSystem.Containers.Tests.Mocks
             return mask;
         }
 
-        public void PullInto(ref ContainerItems component)
-        {
-            component = Items;
-        }
-
-        public void PushFrom(in ContainerItems component)
-        {
-            Items = component;
-        }
-
-        public void PullInto(ref KeyContainerLock component)
+        public void PullInto(ref KeyContainerLock component, UnitWorld world)
         {
             if (KeyLock.HasValue)
                 component = KeyLock.Value;
         }
 
-        public void PullInto(ref AccessContainerLock component)
+        public void PullInto(ref AccessContainerLock component, UnitWorld world)
         {
             if (AccessLock.HasValue)
                 component = AccessLock.Value;
         }
 
-        public void PullInto(ref ContainerVolume component)
+        public void PullInto(ref ContainerVolume component, UnitWorld world)
         {
             if (Volume.HasValue)
                 component = Volume.Value;

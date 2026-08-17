@@ -28,8 +28,8 @@ namespace OperationSystem.Weapons.Tests
             var magazine = gameObject.AddComponent<PistolMagazine>();
             magazine.Rounds = Rounds;
             
-            pistol.AddChild(chamber);
-            pistol.AddChild(magazine);
+            pistol.TryAddChild(chamber);
+            pistol.TryAddChild(magazine);
 
             var world = UnitWorld.Create();
             var unit = world.GetOrCreateUnit(pistol);
@@ -61,7 +61,7 @@ namespace OperationSystem.Weapons.Tests
             var chamber = gameObject.AddComponent<PistolChamber>();
             chamber.HasRound = true;
             
-            pistol.AddChild(chamber);
+            pistol.TryAddChild(chamber);
             var operation = RunAndWaitOperation(pistol);
             AssertPass(operation, 0, true, chamber, null);
         }
@@ -76,8 +76,8 @@ namespace OperationSystem.Weapons.Tests
             var magazine = gameObject.AddComponent<PistolMagazine>();
             magazine.Rounds = Rounds;
             
-            pistol.AddChild(chamber);
-            pistol.AddChild(magazine);
+            pistol.TryAddChild(chamber);
+            pistol.TryAddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
             AssertPass(operation, Rounds, false, chamber, magazine);
         }
@@ -92,8 +92,8 @@ namespace OperationSystem.Weapons.Tests
             var magazine = gameObject.AddComponent<PistolMagazine>();
             magazine.Rounds = 0;
             
-            pistol.AddChild(chamber);
-            pistol.AddChild(magazine);
+            pistol.TryAddChild(chamber);
+            pistol.TryAddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, 0, false, chamber, magazine);
         }
@@ -106,7 +106,7 @@ namespace OperationSystem.Weapons.Tests
             var chamber = gameObject.AddComponent<PistolChamber>();
             chamber.HasRound = false;
             
-            pistol.AddChild(chamber);
+            pistol.TryAddChild(chamber);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, 0, false, chamber, null);
         }
@@ -118,7 +118,7 @@ namespace OperationSystem.Weapons.Tests
             var pistol = gameObject.AddComponent<Pistol>();
             var magazine = gameObject.AddComponent<PistolMagazine>();
             magazine.Rounds = Rounds;
-            pistol.AddChild(magazine);
+            pistol.TryAddChild(magazine);
             var operation = RunAndWaitOperation(pistol);
             AssertFail(operation, Rounds, false, null, magazine);
         }

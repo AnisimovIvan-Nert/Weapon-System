@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using OperationSystem.Assets;
 using OperationSystem.Component.Types;
 namespace OperationSystem.Units
@@ -14,19 +13,18 @@ namespace OperationSystem.Units
             UnitId = unitId;
         }
     }
+    
     public readonly struct Unit : IEquatable<Unit>
     {
         public UnitId Id { get; }
         public ComponentMask ComponentMask { get; }
-        public IList<Unit> Children { get; }
         public IAsset Asset { get; }
         
-        public Unit(UnitId id, ComponentMask componentMask, IAsset asset, params Unit[] children)
+        public Unit(UnitId id, ComponentMask componentMask, IAsset asset)
         {
             Id = id;
             ComponentMask = componentMask;
             Asset = asset;
-            Children = children;
         }
         
         public static bool operator ==(Unit left, Unit right) => left.Equals(right);

@@ -8,7 +8,9 @@ namespace OperationSystem.Tests.Mocks
     {
         public override ComponentMask GetComponentMask()
         {
-            return ComponentMask.Create<FooComponent>();
+            var mask = base.GetComponentMask();
+            mask.Add<FooComponent>();
+            return mask;
         }
     }
 

@@ -1,6 +1,7 @@
 ﻿using OperationSystem.Assets;
 using OperationSystem.Component.Types;
 using OperationSystem.Containers.Components;
+using OperationSystem.Units;
 
 namespace OperationSystem.Containers.Tests.Mocks
 {
@@ -26,7 +27,8 @@ namespace OperationSystem.Containers.Tests.Mocks
 
         public override ComponentMask GetComponentMask()
         {
-            var mask = ComponentMask.Create<Executor>();
+            var mask = base.GetComponentMask();
+            mask.Add<Executor>();
             
             if (_keysStorage != null)
                 mask.Add<KeysStorage>();
@@ -36,13 +38,13 @@ namespace OperationSystem.Containers.Tests.Mocks
             return mask;
         }
         
-        public void PullInto(ref KeysStorage component)
+        public void PullInto(ref KeysStorage component, UnitWorld world)
         {
             if (_keysStorage.HasValue)
                 component = _keysStorage.Value;
         }
 
-        public void PullInto(ref AccessLevel component)
+        public void PullInto(ref AccessLevel component, UnitWorld world)
         {
             if (_accessLevel.HasValue)
                 component = _accessLevel.Value;

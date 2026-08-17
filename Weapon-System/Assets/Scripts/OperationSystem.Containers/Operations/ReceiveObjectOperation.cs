@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections;
-using OperationSystem.Containers.Components.Containers;
+using System.Linq;
 using OperationSystem.Containers.Operations.Tags;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Units;
+using OperationSystem.Units.Child;
 
 namespace OperationSystem.Containers.Operations
 {
@@ -28,16 +29,9 @@ namespace OperationSystem.Containers.Operations
             
             var target = this.GetData<IOperationTarget>();
 
-            var containerItems = Unit.GetComponent<ContainerItems>(Context.World);
-            if (containerItems.Items.Contains(target.Target))
+            var childrenComponent = Unit.GetComponent<ChildrenComponent>(Context.World);
+            if (childrenComponent.Children.Contains(target.Target))
                 throw new InvalidOperationException();
-        }
-
-        protected override IEnumerator TryAcquireLocksEnumerator()
-        {
-            yield return base.TryAcquireLocksEnumerator();
-            
-            Context.Acquire<ContainerItems>(Unit, Identifier);
         }
 
         protected override IEnumerator RecordMutationsEnumerator()
@@ -46,12 +40,10 @@ namespace OperationSystem.Containers.Operations
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
-            var containerItems = Unit.GetComponent<ContainerItems>(Context.World);
 
             Context.RecordUndo(() =>
             {
-                if (containerItems.Items.Contains(target))
-                    containerItems.Items.Remove(target);
+                Unit.TryRemoveChild(target);
             });
         }
 
@@ -60,10 +52,9 @@ namespace OperationSystem.Containers.Operations
             yield return base.ExecuteEnumerator();
             
             var target = this.GetData<IOperationTarget>();
-            
-            var containerItems = Unit.GetComponent<ContainerItems>(Context.World);
-            containerItems.Items.Add(target.Target);
-            Unit.SetComponent(containerItems, Context.World);
+
+            if (!Unit.TryAddChild(target.Target))
+                throw new InvalidOperationException();
         }
     }
 }

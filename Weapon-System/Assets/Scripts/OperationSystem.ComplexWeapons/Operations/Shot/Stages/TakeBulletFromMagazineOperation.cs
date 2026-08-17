@@ -16,7 +16,7 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
         }
 
         private Unit Weapon => this.GetData<IOperationUnit>().Unit;
-        private Unit Magazine => Weapon.GetChild<Magazine>();
+        private Unit Magazine => Weapon.GetChild<Magazine>(Context.World);
 
         public TakeBulletFromMagazineOperation(OperationIdentifier identifier, IOperationUnit operationUnit)
             : base(identifier, operationUnit)

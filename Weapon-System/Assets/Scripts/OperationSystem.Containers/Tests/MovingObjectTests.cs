@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Runtime.ExceptionServices;
 using NUnit.Framework;
 using OperationSystem.Containers.Components;
@@ -30,20 +31,17 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
             
-            var senderItems = ContainerItems.Create(target);
             var sender = gameObject.AddComponent<ContainerAsset>();
-            sender.Set(senderItems);
-
-            var receiverItems = ContainerItems.Create();
+            sender.Set(children: targetAsset);
+            
             var receiver = gameObject.AddComponent<ContainerAsset>();
-            receiver.Set(receiverItems);
             
             var executorAsset = gameObject.AddComponent<ExecutorAsset>();
             var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertPass(operation, sender, receiver, target);
+            AssertPass(operation, sender, receiver, targetAsset);
         }
 
         private static UnitWorld CreateWorld()
@@ -70,21 +68,18 @@ namespace OperationSystem.Containers.Tests
             
             var keyIdentifier = Guid.NewGuid();
             
-            var senderItems = ContainerItems.Create(target);
             var senderLock = new KeyContainerLock(keyIdentifier);
             var sender = gameObject.AddComponent<ContainerAsset>();
-            sender.Set(senderItems, senderLock);
-
-            var receiverItems = ContainerItems.Create();
+            sender.Set(senderLock, children: targetAsset);
+            
             var receiver = gameObject.AddComponent<ContainerAsset>();
-            receiver.Set(receiverItems);
             
             var executorAsset = gameObject.AddComponent<ExecutorAsset>();
             var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertFail(operation, sender, receiver, target);
+            AssertFail(operation, sender, receiver, targetAsset);
         }
         
         [Test]
@@ -98,14 +93,11 @@ namespace OperationSystem.Containers.Tests
             
             var keyIdentifier = Guid.NewGuid();
             
-            var senderItems = ContainerItems.Create(target);
             var senderLock = new KeyContainerLock(keyIdentifier);
             var sender = gameObject.AddComponent<ContainerAsset>();
-            sender.Set(senderItems, senderLock);
-
-            var receiverItems = ContainerItems.Create();
+            sender.Set(senderLock, children: targetAsset);
+            
             var receiver = gameObject.AddComponent<ContainerAsset>();
-            receiver.Set(receiverItems);
 
             var key = new Key(keyIdentifier);
             var keyStorage = new KeysStorage(key);
@@ -115,7 +107,7 @@ namespace OperationSystem.Containers.Tests
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertPass(operation, sender, receiver, target);
+            AssertPass(operation, sender, receiver, targetAsset);
         }
         
         [Test]
@@ -129,14 +121,12 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
             
-            var senderItems = ContainerItems.Create(target);
             var sender = gameObject.AddComponent<ContainerAsset>();
-            sender.Set(senderItems);
-
-            var receiverItems = ContainerItems.Create();
+            sender.Set(children: targetAsset);
+            
             var receiverLock = new AccessContainerLock(accessLevel);
             var receiver = gameObject.AddComponent<ContainerAsset>();
-            receiver.Set(receiverItems, null, receiverLock);
+            receiver.Set(null, receiverLock);
             
             var access = new AccessLevel(accessLevel - 1);
             var executorAsset = gameObject.AddComponent<ExecutorAsset>();
@@ -145,7 +135,7 @@ namespace OperationSystem.Containers.Tests
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertFail(operation, sender, receiver, target);
+            AssertFail(operation, sender, receiver, targetAsset);
         }
         
         [Test]
@@ -159,15 +149,13 @@ namespace OperationSystem.Containers.Tests
             var targetAsset = gameObject.AddComponent<FooAsset>();
             var target = world.GetOrCreateUnit(targetAsset);
             
-            var senderItems = ContainerItems.Create(target);
             var senderLock =  new AccessContainerLock(accessLevel + 1);
             var sender = gameObject.AddComponent<ContainerAsset>();
-            sender.Set(senderItems, null, senderLock);
-
-            var receiverItems = ContainerItems.Create();
+            sender.Set(null, senderLock, children: targetAsset);
+            
             var receiverLock = new AccessContainerLock(accessLevel);
             var receiver = gameObject.AddComponent<ContainerAsset>();
-            receiver.Set(receiverItems, null, receiverLock);
+            receiver.Set(null, receiverLock);
             
             var access = new AccessLevel(accessLevel + 1);
             var executorAsset = gameObject.AddComponent<ExecutorAsset>();
@@ -176,7 +164,7 @@ namespace OperationSystem.Containers.Tests
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertPass(operation, sender, receiver, target);
+            AssertPass(operation, sender, receiver, targetAsset);
         }
         
         [Test]
@@ -194,21 +182,19 @@ namespace OperationSystem.Containers.Tests
             targetAsset.Set(size);
             var target = world.GetOrCreateUnit(targetAsset);
             
-            var senderItems = ContainerItems.Create(target);
             var sender = gameObject.AddComponent<ContainerAsset>();
-            sender.Set(senderItems);
-
-            var receiverItems = ContainerItems.Create();
+            sender.Set(children: targetAsset);
+            
             var receiverVolume = new ContainerVolume(volume - 1);
             var receiver = gameObject.AddComponent<ContainerAsset>();
-            receiver.Set(receiverItems, null, null, receiverVolume);
+            receiver.Set(null, null, receiverVolume);
             
             var executorAsset = gameObject.AddComponent<ExecutorAsset>();
             var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertFail(operation, sender, receiver, target);
+            AssertFail(operation, sender, receiver, targetAsset);
         }
         
         [Test]
@@ -226,21 +212,19 @@ namespace OperationSystem.Containers.Tests
             targetAsset.Set(size);
             var target = world.GetOrCreateUnit(targetAsset);
             
-            var senderItems = ContainerItems.Create(target);
             var sender = gameObject.AddComponent<ContainerAsset>();
-            sender.Set(senderItems);
-
-            var receiverItems = ContainerItems.Create();
+            sender.Set(children: targetAsset);
+            
             var receiverVolume = new ContainerVolume(volume);
             var receiver = gameObject.AddComponent<ContainerAsset>();
-            receiver.Set(receiverItems, null, null, receiverVolume);
+            receiver.Set(null, null, receiverVolume);
             
             var executorAsset = gameObject.AddComponent<ExecutorAsset>();
             var executor = world.GetOrCreateUnit(executorAsset);
 
             var operation = RunAndWaitOperation(executor, target, sender, receiver, world);
             
-            AssertPass(operation, sender, receiver, target);
+            AssertPass(operation, sender, receiver, targetAsset);
         }
         
         private static IOperation RunAndWaitOperation(
@@ -269,25 +253,25 @@ namespace OperationSystem.Containers.Tests
             IOperation operation, 
             ContainerAsset sender,
             ContainerAsset receiver,
-            Unit target)
+            FooAsset target)
         {
             if (operation.Exception != null)
                 ExceptionDispatchInfo.Capture(operation.Exception).Throw();
             
             operation.AssertPass();
-            Assert.IsFalse(sender.Items.Items.Contains(target));
-            Assert.IsTrue(receiver.Items.Items.Contains(target));
+            Assert.IsFalse(sender.Children.Contains(target));
+            Assert.IsTrue(receiver.Children.Contains(target));
         }
         
         private static void AssertFail(
             IOperation operation, 
             ContainerAsset sender,
             ContainerAsset receiver,
-            Unit target)
+            FooAsset target)
         {
             operation.AssertFail();
-            Assert.IsTrue(sender.Items.Items.Contains(target));
-            Assert.IsFalse(receiver.Items.Items.Contains(target));
+            Assert.IsTrue(sender.Children.Contains(target));
+            Assert.IsFalse(receiver.Children.Contains(target));
         }
     }
 }

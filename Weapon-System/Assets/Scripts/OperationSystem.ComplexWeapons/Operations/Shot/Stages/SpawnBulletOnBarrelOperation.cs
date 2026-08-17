@@ -12,7 +12,7 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
     public class SpawnBulletOnBarrelOperation : AbstractOperation
     {
         private Unit Weapon => this.GetData<IOperationUnit>().Unit;
-        private Unit Barrel => Weapon.GetChild<Barrel>();
+        private Unit Barrel => Weapon.GetChild<Barrel>(Context.World);
 
         public SpawnBulletOnBarrelOperation(OperationIdentifier identifier, IOperationUnit operationUnit)
             : base(identifier, operationUnit)

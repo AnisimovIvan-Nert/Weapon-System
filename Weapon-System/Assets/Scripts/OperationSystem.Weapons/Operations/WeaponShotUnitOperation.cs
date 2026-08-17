@@ -12,8 +12,8 @@ namespace OperationSystem.Weapons.Operations
     public class WeaponShotUnitOperation : AbstractOperation
     {
         private Unit Weapon => this.GetData<IOperationUnit>().Unit;
-        private Unit Chamber => Weapon.GetChild<Chamber>();
-        private Unit? Magazine => Weapon.TryGetChild<Magazine>();
+        private Unit Chamber => Weapon.GetChild<Chamber>(Context.World);
+        private Unit? Magazine => Weapon.TryGetChild<Magazine>(Context.World);
 
         private ComponentArray<Chamber> ChamberComponents => Context.World.GetComponentArray<Chamber>();
         private ComponentArray<Magazine> MagazineComponents => Context.World.GetComponentArray<Magazine>();

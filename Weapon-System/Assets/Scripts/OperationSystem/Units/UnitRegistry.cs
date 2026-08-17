@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using OperationSystem.Assets;
 
@@ -41,8 +40,7 @@ namespace OperationSystem.Units
         {
             var unitId = GetNewId();
             var componentMas = asset.GetComponentMask();
-            var children = asset.Children.Select(o => GetOrCreate(o, world));
-            var unit = new Unit(unitId, componentMas, asset, children.ToArray());
+            var unit = new Unit(unitId, componentMas, asset);
 
             lock (_unitsLock)
                 _units.Add(unit);
