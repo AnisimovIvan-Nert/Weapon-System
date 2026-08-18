@@ -2,9 +2,8 @@
     "name": "OperationSystem.ComplexWeapons",
     "rootNamespace": "",
     "references": [
-        "GUID:e1eb1b7aac9776843873a0855ea0e213",
         "GUID:35ba3b6e76ed1b346a21ac0a27b444a0",
-        "GUID:89d429db343624b46ada8f600899007a"
+        "GUID:e1eb1b7aac9776843873a0855ea0e213"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
