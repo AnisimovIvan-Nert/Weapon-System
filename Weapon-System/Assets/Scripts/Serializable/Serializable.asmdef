@@ -1,9 +1,7 @@
 {
     "name": "Serializable",
     "rootNamespace": "",
-    "references": [
-        ""
-    ],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
