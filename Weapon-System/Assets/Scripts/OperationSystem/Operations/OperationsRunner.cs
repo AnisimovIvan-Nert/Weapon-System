@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using OperationSystem.Units;
+using OperationSystem.Operations.Middleware;
 
 namespace OperationSystem.Operations
 {
@@ -12,6 +12,13 @@ namespace OperationSystem.Operations
         private readonly HashSet<Operation> _operations = new();
 
         public bool AnyRunningOperation => _operations.Any();
+
+        public IEnumerable<IOperationMiddleware> Middlewares { get; }
+        
+        public OperationRunner(params IOperationMiddleware[] middlewares)
+        {
+            Middlewares = middlewares;
+        }
 
         public void Update()
         {
@@ -23,9 +30,9 @@ namespace OperationSystem.Operations
             _operations.RemoveWhere(operation => operation.IsCompleted);
         }
 
-        public void RunOperation(IOperation operation, UnitWorld world)
+        public void RunOperation(IOperation operation)
         {
-            var context = operation.CreateContext(world);
+            var context = operation.CreateContext();
             _pendingAdd.Add(new Operation(operation, context));
         }
 

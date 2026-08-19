@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using OperationSystem.Component;
-using OperationSystem.Component.Types;
-using OperationSystem.Units;
+using OperationSystem.Assets;
 using UnityEngine;
 
 namespace OperationSystem.Operations
@@ -12,10 +10,7 @@ namespace OperationSystem.Operations
 
     public interface IOperationContext : IDisposable
     {
-        UnitWorld World { get; }
-        
-        bool TryAcquire<T>(in Unit unit, in OperationIdentifier owner) where T : struct, IComponent;
-        bool TryAcquire(int typeId, in Unit unit, in OperationIdentifier owner);
+        bool TryAcquire(IAsset asset, in OperationIdentifier owner);
         void RecordUndo(Undo undo);
         void Commit();
         void Rollback();
@@ -24,37 +19,24 @@ namespace OperationSystem.Operations
 
     public class OperationContext : IOperationContext
     {
-        private readonly Dictionary<(Unit unit, int typeId), OperationIdentifier> _locks = new();
+        private readonly Dictionary<IAsset, OperationIdentifier> _locks = new();
         
         private readonly List<Undo> _undoStack = new();
         private bool _committed;
         
-        public UnitWorld World { get; }
-
-        public OperationContext(UnitWorld unitWorld)
+        public bool TryAcquire(IAsset asset, in OperationIdentifier owner)
         {
-            World = unitWorld;
-        }
-
-        public bool TryAcquire<T>(in Unit unit, in OperationIdentifier owner)
-            where T : struct, IComponent
-        {
-            return TryAcquire(ComponentType<T>.Id, unit, owner);
-        }
-        
-        public bool TryAcquire(int typeId, in Unit unit, in OperationIdentifier owner)
-        {
-            if (!World.GetComponentArray(typeId).TryAcquireComponent(unit, owner))
+            if (!asset.TryLock(owner))
                 return false;
             
             try
             {
-                _locks[(unit, typeId)] = owner;
+                _locks[asset] = owner;
             }
             catch (Exception e)
             {
-                World.GetComponentArray(typeId).ReleaseComponent(unit, owner);
-                _locks.Remove((unit, typeId));
+                asset.Release(owner);
+                _locks.Remove(asset);
                 Debug.LogError(e);
                 return false;
             }
@@ -98,11 +80,11 @@ namespace OperationSystem.Operations
 
         public void ReleaseAll()
         {
-            foreach (var ((unitId, typeId), owner) in _locks)
+            foreach (var (asset, owner) in _locks)
             {
                 try
                 {
-                    World.GetComponentArray(typeId).ReleaseComponent(unitId, owner);
+                    asset.Release(owner);
                 }
                 catch (Exception e)
                 {

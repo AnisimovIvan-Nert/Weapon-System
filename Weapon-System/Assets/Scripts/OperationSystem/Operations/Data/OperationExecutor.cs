@@ -1,17 +1,17 @@
-﻿using OperationSystem.Units;
+﻿using OperationSystem.Assets;
 
 namespace OperationSystem.Operations.Data
 {
     public interface IOperationExecutor : IOperationData
     {
-        Unit Executor { get; }
+        IAsset Executor { get; }
     }
     
     public readonly struct OperationExecutor : IOperationExecutor
     {
-        public Unit Executor { get; }
+        public IAsset Executor { get; }
         
-        public OperationExecutor(Unit executor)
+        public OperationExecutor(IAsset executor)
         {
             Executor = executor;
         }

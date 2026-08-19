@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
-using OperationSystem.Units;
 
 namespace OperationSystem.Operations
 {
@@ -53,25 +52,15 @@ namespace OperationSystem.Operations
 
     public static class OperationRunExtensions
     {
-        public static void RunOperationOnWorld(
-            this IOperation operation,
-            UnitWorld world,
-            OperationStaging staging = OperationStaging.Auto,
-            params IOperationMiddleware[] middlewares)
-        {
-            operation.RunOperation(world.OperationRunner, world, staging, middlewares);
-        }
-
         public static Task RunOperationAsTask(
             this IOperation operation,
-            UnitWorld world,
             int? timeout = null,
             int? delay = null,
             OperationStaging staging = OperationStaging.Auto,
             params IOperationMiddleware[] middlewares)
         {
             var operationRunner = new OperationRunner();
-            operation.RunOperation(operationRunner, world, staging, middlewares);
+            operation.RunOperation(operationRunner, staging, middlewares);
             return Method(operation, operationRunner, timeout, delay);
 
             async Task Method(IOperation o, IOperationRunner r, int? t, int? d)

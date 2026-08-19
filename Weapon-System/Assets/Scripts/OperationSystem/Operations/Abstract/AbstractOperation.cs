@@ -5,7 +5,6 @@ using Coroutine;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
-using OperationSystem.Units;
 
 namespace OperationSystem.Operations.Abstract
 {
@@ -23,9 +22,9 @@ namespace OperationSystem.Operations.Abstract
         protected IOperationMiddleware[] UserMiddlewares = null!;
         
         private IOperationMiddleware[] _validUserMiddlewares = null!;
-        private IOperationMiddleware[] _worldMiddlewares = null!;
+        private IOperationMiddleware[] _runnerMiddlewares = null!;
 
-        protected IEnumerable<IOperationMiddleware> Middlewares => _validUserMiddlewares.Concat(_worldMiddlewares);
+        protected IEnumerable<IOperationMiddleware> Middlewares => _validUserMiddlewares.Concat(_runnerMiddlewares);
 
         public OperationIdentifier Identifier { get; }
         public bool IsCompleted { get; protected set; }
@@ -39,11 +38,10 @@ namespace OperationSystem.Operations.Abstract
             _data = data;
         }
 
-        public virtual IOperationContext CreateContext(UnitWorld world) => new OperationContext(world);
+        public virtual IOperationContext CreateContext() => new OperationContext();
 
         public virtual void RunOperation(
             IOperationRunner operationRunner,
-            UnitWorld world,
             OperationStaging staging = OperationStaging.Auto,
             params IOperationMiddleware[] middlewares)
         {
@@ -51,8 +49,8 @@ namespace OperationSystem.Operations.Abstract
             Runner = operationRunner;
             UserMiddlewares = middlewares;
             _validUserMiddlewares = middlewares.Where(middleware => middleware.IsValidTaget(this)).ToArray();
-            _worldMiddlewares = world.Middlewares.Where(middleware => middleware.IsValidTaget(this)).ToArray();
-            operationRunner.RunOperation(this, world);
+            _runnerMiddlewares = operationRunner.Middlewares.Where(middleware => middleware.IsValidTaget(this)).ToArray();
+            operationRunner.RunOperation(this);
         }
 
         public void Increment(IOperationContext operationContext)
@@ -106,7 +104,7 @@ namespace OperationSystem.Operations.Abstract
 
         protected void RunOperation(IOperation operation, OperationStaging staging = OperationStaging.Auto)
         {
-            operation.RunOperation(Runner, Context.World, staging, UserMiddlewares);
+            operation.RunOperation(Runner, staging, UserMiddlewares);
         }
     }
 }

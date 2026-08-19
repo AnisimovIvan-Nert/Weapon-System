@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using OperationSystem.Component.Types;
+using OperationSystem.Operations;
 
 namespace OperationSystem.Assets
 {
@@ -9,7 +9,8 @@ namespace OperationSystem.Assets
 
         bool TryAddChild(IAsset child);
         bool TryRemoveChild(IAsset child);
-        
-        ComponentMask GetComponentMask();
+
+        bool TryLock(OperationIdentifier owner);
+        void Release(OperationIdentifier owner);
     }
 }

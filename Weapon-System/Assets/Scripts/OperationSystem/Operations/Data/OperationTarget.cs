@@ -1,17 +1,17 @@
-﻿using OperationSystem.Units;
+﻿using OperationSystem.Assets;
 
 namespace OperationSystem.Operations.Data
 {
     public interface IOperationTarget : IOperationData
     {
-        Unit Target { get; }
+        IAsset Target { get; }
     }
     
     public readonly struct OperationTarget : IOperationTarget
     {
-        public Unit Target { get; }
+        public IAsset Target { get; }
         
-        public OperationTarget(Unit target)
+        public OperationTarget(IAsset target)
         {
             Target = target;
         }

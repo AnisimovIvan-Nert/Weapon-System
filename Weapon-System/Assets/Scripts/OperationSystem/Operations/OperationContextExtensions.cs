@@ -1,6 +1,5 @@
 ﻿using System;
-using OperationSystem.Component;
-using OperationSystem.Units;
+using OperationSystem.Assets;
 
 namespace OperationSystem.Operations
 {
@@ -14,20 +13,9 @@ namespace OperationSystem.Operations
     
     public static class OperationContextExtensions
     {
-        public static void Acquire<T>(this IOperationContext context, in Unit unit, in OperationIdentifier owner)
-            where T : struct, IComponent
+        public static void Acquire(this IOperationContext context, IAsset asset, in OperationIdentifier owner)
         {
-            if (!context.TryAcquire<T>(unit, owner))
-                throw new AcquireException();
-        }
-        
-        public static void Acquire(
-            this IOperationContext context, 
-            int typeId, 
-            in Unit unit, 
-            in OperationIdentifier owner)
-        {
-            if (!context.TryAcquire(typeId, unit, owner))
+            if (!context.TryAcquire(asset, owner))
                 throw new AcquireException();
         }
     }
