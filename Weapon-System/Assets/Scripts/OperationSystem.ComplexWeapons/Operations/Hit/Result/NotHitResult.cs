@@ -1,12 +1,12 @@
-﻿using OperationSystem.Units;
+﻿using OperationSystem.Assets;
 
 namespace OperationSystem.ComplexWeapons.Operations.Hit.Result
 {
     public readonly struct NotHitResult : IHitResult
     {
-        public Unit Source { get; }
+        public IAsset Source { get; }
         
-        public NotHitResult(Unit source)
+        public NotHitResult(IAsset source)
         {
             Source = source;
         }

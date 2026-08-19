@@ -11,8 +11,8 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot
 {
     public class WeaponShotOperation : AbstractOperation
     {
-        public WeaponShotOperation(OperationIdentifier identifier, Data data, IOperationUnit operationUnit)
-            : base(identifier, operationUnit, data)
+        public WeaponShotOperation(OperationIdentifier identifier, Data data, IOperationAsset operationAsset)
+            : base(identifier, operationAsset, data)
         {
         }
 
@@ -21,33 +21,33 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot
             yield return base.ExecuteEnumerator();
 
             var data = this.GetData<Data>();
-            var unit = this.GetData<IOperationUnit>();
+            var operationAsset = this.GetData<IOperationAsset>();
 
-            yield return TakeBullet(unit);
+            yield return TakeBullet(operationAsset);
 
             SpawnBulletOnBarrelOperation.Result spawnResult = default;
-            yield return SpawnBullet(unit)
+            yield return SpawnBullet(operationAsset)
                 .GetResult<SpawnBulletOnBarrelOperation.Result>(result => spawnResult = result);
 
             IOperation operation = null!;
-            yield return RunBulletFlightOperation(data, unit, spawnResult)
+            yield return RunBulletFlightOperation(data, operationAsset, spawnResult)
                 .GetResult<IOperation>(result => operation = result);
 
             SetResult(new Result(operation));
         }
 
-        private IEnumerator TakeBullet(IOperationUnit unit)
+        private IEnumerator TakeBullet(IOperationAsset operationAsset)
         {
-            var takeBulletOperation = new TakeBulletFromMagazineOperation(Identifier, unit);
+            var takeBulletOperation = new TakeBulletFromMagazineOperation(Identifier, operationAsset);
             RunOperation(takeBulletOperation);
             yield return takeBulletOperation.WaitEnumerator();
             if (takeBulletOperation.Exception != null)
                 throw takeBulletOperation.Exception;
         }
 
-        private IEnumerator SpawnBullet(IOperationUnit unit)
+        private IEnumerator SpawnBullet(IOperationAsset operationAsset)
         {
-            var spawnBulletOperation = new SpawnBulletOnBarrelOperation(Identifier, unit);
+            var spawnBulletOperation = new SpawnBulletOnBarrelOperation(Identifier, operationAsset);
             RunOperation(spawnBulletOperation);
             yield return spawnBulletOperation.WaitEnumerator();
             yield return spawnBulletOperation.GetResult<SpawnBulletOnBarrelOperation.Result>();
@@ -55,10 +55,10 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot
 
         private IEnumerator RunBulletFlightOperation(
             Data data,
-            IOperationUnit unit,
+            IOperationAsset operationAsset,
             SpawnBulletOnBarrelOperation.Result spawnResult)
         {
-            var executor = new OperationExecutor(unit.Unit);
+            var executor = new OperationExecutor(operationAsset.Asset);
             var from = spawnResult.Position;
             var direction = spawnResult.Direction;
             var distance = data.Distance;

@@ -1,4 +1,4 @@
-﻿using OperationSystem.Units;
+﻿using OperationSystem.Assets;
 using UnityEngine;
 
 namespace OperationSystem.ComplexWeapons.Operations.Hit.Result
@@ -6,9 +6,9 @@ namespace OperationSystem.ComplexWeapons.Operations.Hit.Result
     public readonly struct RedirectHitResult : IHitResult
     {
         public RaycastCommand Command { get; }
-        public Unit Source { get; }
+        public IAsset Source { get; }
         
-        public RedirectHitResult(RaycastCommand command, Unit source)
+        public RedirectHitResult(RaycastCommand command, IAsset source)
         {
             Command = command;
             Source = source;

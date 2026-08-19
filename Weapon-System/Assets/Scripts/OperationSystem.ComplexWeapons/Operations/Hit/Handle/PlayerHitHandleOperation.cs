@@ -1,9 +1,9 @@
 ﻿using System.Collections;
+using OperationSystem.Assets;
 using OperationSystem.ComplexWeapons.Operations.Hit.Result;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
-using OperationSystem.Units;
 
 namespace OperationSystem.ComplexWeapons.Operations.Hit.Handle
 {
@@ -11,9 +11,9 @@ namespace OperationSystem.ComplexWeapons.Operations.Hit.Handle
     {
         public PlayerHitHandleOperation(
             OperationIdentifier identifier,
-            IOperationUnit operationUnit,
+            IOperationAsset operationAsset,
             IOperationExecutor operationExecutor) 
-            : base(identifier, operationUnit, operationExecutor)
+            : base(identifier, operationAsset, operationExecutor)
         {
         }
 
@@ -21,18 +21,18 @@ namespace OperationSystem.ComplexWeapons.Operations.Hit.Handle
         {
             yield return base.ExecuteEnumerator();
 
-            var unit = this.GetData<IOperationUnit>().Unit;
+            var asset = this.GetData<IOperationAsset>().Asset;
             var executor = this.GetData<IOperationExecutor>().Executor;
 
-            SetResult(new Result(unit, executor));
+            SetResult(new Result(asset, executor));
         }
 
         public readonly struct Result : IHitResult
         {
-            public Unit Target { get; }
-            public Unit Source { get; }
+            public IAsset Target { get; }
+            public IAsset Source { get; }
             
-            public Result(Unit target, Unit source)
+            public Result(IAsset target, IAsset source)
             {
                 Target = target;
                 Source = source;

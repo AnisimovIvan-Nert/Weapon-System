@@ -12,7 +12,6 @@ using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Middleware;
 using OperationSystem.Operations.Result;
 using OperationSystem.TestExtensions;
-using OperationSystem.Units;
 using UnityEngine;
 
 namespace OperationSystem.ComplexWeapons._Tests
@@ -22,6 +21,11 @@ namespace OperationSystem.ComplexWeapons._Tests
         private const int Timeout = 100;
 
         private RaycastHitCollectorMiddleware _raycastHitCollectorMiddleware = null!;
+        
+        private IOperationMiddleware[] Middlewares => new IOperationMiddleware[]
+        {
+            _raycastHitCollectorMiddleware
+        };
 
         [SetUp]
         public void SetUp()
@@ -34,12 +38,13 @@ namespace OperationSystem.ComplexWeapons._Tests
         {
             const int rounds = 0;
             
+            
             var gameObject = new GameObject();
-            var world = CreateWorld();
+            var operationRunner = new OperationRunner(Middlewares);
             
             var weaponAsset = CreateWeapon(gameObject, rounds, out var magazine);
 
-            var operation = RunAndWaitOperation(weaponAsset, world);
+            var operation = RunAndWaitOperation(weaponAsset, operationRunner);
             AssertFail<TakeBulletFromMagazineOperation.MagazineIsEmptyException>(operation, magazine, rounds);
             
             Assert.AreEqual(0, _raycastHitCollectorMiddleware.Hits.Count);
@@ -51,17 +56,17 @@ namespace OperationSystem.ComplexWeapons._Tests
             const int rounds = 1;
             
             var gameObject = new GameObject();
-            var world = CreateWorld();
+            var operationRunner = new OperationRunner(Middlewares);
             
             var weaponAsset = CreateWeapon(gameObject, rounds, out var magazine);
             
-            var operation = RunAndWaitOperation(weaponAsset, world);
+            var operation = RunAndWaitOperation(weaponAsset, operationRunner);
             AssertPass(operation, magazine, rounds);
 
             if (operation.OperationResult is not WeaponShotOperation.Result result)
                 throw new InvalidOperationException();
             
-            world.UpdateUntilComplete(result.Operation);
+            operationRunner.UpdateUntilComplete(result.Operation);
             result.Operation.AssertPass();
             if (result.Operation.OperationResult is not NotHitResult)
                 throw new InvalidOperationException();
@@ -75,20 +80,20 @@ namespace OperationSystem.ComplexWeapons._Tests
             const int rounds = 1;
             
             var gameObject = new GameObject();
-            var world = CreateWorld();
+            var operationRunner = new OperationRunner(Middlewares);
             
             var weaponAsset = CreateWeapon(gameObject, rounds, out var magazine);
             
             var hit = CreateFakeHit<PlayerAsset>();
             var fakeMiddleware = new FakeRaycastMiddleware(hit);
             
-            var operation = RunAndWaitOperation(weaponAsset, world, fakeMiddleware);
+            var operation = RunAndWaitOperation(weaponAsset, operationRunner, fakeMiddleware);
             AssertPass(operation, magazine, rounds);
 
             if (operation.OperationResult is not WeaponShotOperation.Result result)
                 throw new InvalidOperationException();
             
-            world.UpdateUntilComplete(result.Operation);
+            operationRunner.UpdateUntilComplete(result.Operation);
             result.Operation.AssertPass();
             if (result.Operation.OperationResult is not PlayerHitHandleOperation.Result)
                 throw new InvalidOperationException();
@@ -102,43 +107,31 @@ namespace OperationSystem.ComplexWeapons._Tests
             const int rounds = 1;
             
             var gameObject = new GameObject();
-            var world = CreateWorld();
+            var operationRunner = new OperationRunner(Middlewares);
             
             var weaponAsset = CreateWeapon(gameObject, rounds, out var magazine);
             
             var hit = CreateFakeHit<ObstacleAsset>();
             var fakeMiddleware = new FakeRaycastMiddleware(hit, 2);
             
-            var operation = RunAndWaitOperation(weaponAsset, world, fakeMiddleware);
+            var operation = RunAndWaitOperation(weaponAsset, operationRunner, fakeMiddleware);
             AssertPass(operation, magazine, rounds);
 
             if (operation.OperationResult is not WeaponShotOperation.Result result)
                 throw new InvalidOperationException();
             
-            world.UpdateUntilComplete(result.Operation);
+            operationRunner.UpdateUntilComplete(result.Operation);
             result.Operation.AssertPass();
             if (result.Operation.OperationResult is not NotHitResult)
                 throw new InvalidOperationException();
             
             Assert.AreEqual(3, _raycastHitCollectorMiddleware.Hits.Count);
         }
-
-        private UnitWorld CreateWorld()
-        {
-            var middlewares = new IOperationMiddleware[]
-            {
-                _raycastHitCollectorMiddleware
-            };
-            
-            var world = UnitWorld.Create();
-            world.AppendMiddlewares(middlewares);
-            return world;
-        }
         
         private static WeaponAsset CreateWeapon(GameObject gameObject, int rounds, out MagazineAsset magazine)
         {
             magazine = gameObject.AddComponent<MagazineAsset>();
-            magazine.Rounds = rounds;
+            magazine.rounds = rounds;
             var barrel = gameObject.AddComponent<BarrelAsset>();
             var weaponAsset = gameObject.AddComponent<WeaponAsset>();
             weaponAsset.TryAddChild(magazine);
@@ -150,27 +143,25 @@ namespace OperationSystem.ComplexWeapons._Tests
             where T : OperationException
         {
             operation.AssertFail<T>();
-            Assert.AreEqual(rounds, magazine.Rounds);
+            Assert.AreEqual(rounds, magazine.rounds);
         }
         
         private static void AssertPass(WeaponShotOperation operation, MagazineAsset magazine, int rounds)
         {
             operation.AssertPass();
-            Assert.AreEqual(rounds - 1, magazine.Rounds);
+            Assert.AreEqual(rounds - 1, magazine.rounds);
             Assert.IsNotNull(operation.OperationResult);
         }
 
-        private static WeaponShotOperation RunAndWaitOperation(WeaponAsset weaponAsset, UnitWorld world, params IOperationMiddleware[] middlewares)
+        private static WeaponShotOperation RunAndWaitOperation(WeaponAsset weaponAsset, IOperationRunner runner, params IOperationMiddleware[] middlewares)
         {
-            var unit = world.GetOrCreateUnit(weaponAsset);
-
             var identifier = OperationIdentifier.CreateNew();
             var data = new WeaponShotOperation.Data(10);
-            var operationUnit = new OperationUnit(unit);
+            var operationUnit = new OperationAsset(weaponAsset);
             var operation = new WeaponShotOperation(identifier, data, operationUnit);
-            operation.RunOperationOnWorld(world, middlewares: middlewares);
+            operation.RunOperation(runner, middlewares: middlewares);
 
-            world.UpdateUntilComplete(operation, Timeout);
+            runner.UpdateUntilComplete(operation, Timeout);
             return operation;
         }
 

@@ -1,10 +1,11 @@
 ﻿using System.Collections;
-using OperationSystem.ComplexWeapons.Components;
+using System.Threading;
+using OperationSystem.Assets;
+using OperationSystem.ComplexWeapons.Assets;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Result;
-using OperationSystem.Units;
 
 namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
 {
@@ -15,11 +16,11 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
         {
         }
 
-        private Unit Weapon => this.GetData<IOperationUnit>().Unit;
-        private Unit Magazine => Weapon.GetChild<Magazine>(Context.World);
+        private IAsset Weapon => this.GetData<IOperationAsset>().Asset;
+        private MagazineAsset Magazine => Weapon.GetChild<MagazineAsset>();
 
-        public TakeBulletFromMagazineOperation(OperationIdentifier identifier, IOperationUnit operationUnit)
-            : base(identifier, operationUnit)
+        public TakeBulletFromMagazineOperation(OperationIdentifier identifier, IOperationAsset operationAsset)
+            : base(identifier, operationAsset)
         {
         }
 
@@ -34,7 +35,7 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
         {
             yield return base.TryAcquireLocksEnumerator();
 
-            Context.Acquire<Magazine>(Magazine, Identifier);
+            Context.Acquire(Magazine, Identifier);
         }
 
         protected override IEnumerator RecordMutationsEnumerator()
@@ -49,26 +50,23 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
             yield return base.ExecuteEnumerator();
 
             Validate();
-            
-            var magazine = Magazine.GetComponent<Magazine>(Context.World);
-            magazine.Rounds--;
-            Magazine.SetComponent(magazine, Context.World);
+
+            var magazine = Magazine;
+            Interlocked.Decrement(ref magazine.rounds);
         }
         
         private void Validate()
         {
-            var magazine = Magazine.GetComponent<Magazine>(Context.World);
-            if (magazine is not { Rounds: > 0 })
+            if (Magazine is not { rounds: > 0 })
                 throw new MagazineIsEmptyException();
         }
 
         private void RecordMutationUndo()
         {
+            var magazine = Magazine;
             Context.RecordUndo(() =>
             {
-                var magazine = Magazine.GetComponent<Magazine>(Context.World);
-                magazine.Rounds++;
-                Magazine.SetComponent(magazine, Context.World);
+                Interlocked.Increment(ref magazine.rounds);
             });
         }
     }

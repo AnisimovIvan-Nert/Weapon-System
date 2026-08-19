@@ -1,21 +1,21 @@
 ﻿using System.Collections;
-using OperationSystem.ComplexWeapons.Components;
+using OperationSystem.Assets;
+using OperationSystem.ComplexWeapons.Assets;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
 using OperationSystem.Operations.Result;
-using OperationSystem.Units;
 using UnityEngine;
 
 namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
 {
     public class SpawnBulletOnBarrelOperation : AbstractOperation
     {
-        private Unit Weapon => this.GetData<IOperationUnit>().Unit;
-        private Unit Barrel => Weapon.GetChild<Barrel>(Context.World);
+        private IAsset Weapon => this.GetData<IOperationAsset>().Asset;
+        private BarrelAsset Barrel => Weapon.GetChild<BarrelAsset>();
 
-        public SpawnBulletOnBarrelOperation(OperationIdentifier identifier, IOperationUnit operationUnit)
-            : base(identifier, operationUnit)
+        public SpawnBulletOnBarrelOperation(OperationIdentifier identifier, IOperationAsset operationAsset)
+            : base(identifier, operationAsset)
         {
         }
 
@@ -23,15 +23,15 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
         {
             yield return base.TryAcquireLocksEnumerator();
             
-            Context.Acquire<Barrel>(Barrel, Identifier);
+            Context.Acquire(Barrel, Identifier);
         }
 
         protected override IEnumerator ExecuteEnumerator()
         {
             yield return base.ExecuteEnumerator();
-            
-            var barrel = Barrel.GetComponent<Barrel>(Context.World);
-            SetResult(new Result(barrel.Position, barrel.NormalizedForward));
+
+            var barrel = Barrel;
+            SetResult(new Result(barrel.transform.position, barrel.transform.forward.normalized));
         }
         public readonly struct Result : IOperationResult
         {

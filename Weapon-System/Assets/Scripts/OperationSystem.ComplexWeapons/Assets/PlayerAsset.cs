@@ -1,24 +1,18 @@
 ﻿using OperationSystem.Assets;
-using OperationSystem.ComplexWeapons.Components.Handlers.Hit;
-using OperationSystem.Component.Types;
-using OperationSystem.Units;
+using OperationSystem.ComplexWeapons.Operations.Hit.Handle;
+using OperationSystem.Operations;
+using OperationSystem.Operations.Data;
+using UnityEngine;
 
 namespace OperationSystem.ComplexWeapons.Assets
 {
-    public class PlayerAsset
-        : AbstractAsset
-        , IAssetPull<HitHandlerComponent>
+    public class PlayerAsset : AbstractAsset, IHitHandler
     {
-        public override ComponentMask GetComponentMask()
+        public IOperation CreateHandleOperation(IOperation source, RaycastHit raycastHit, RaycastCommand command, IAsset target)
         {
-            var mask = base.GetComponentMask();
-            mask.Add<HitHandlerComponent>();
-            return mask;
-        }
-        
-        public void PullInto(ref HitHandlerComponent component, UnitWorld world)
-        {
-            component = new HitHandlerComponent(new PlayerHitHandler());
+            var operationAsset = new OperationAsset(target);
+            var executor = source.GetData<IOperationExecutor>();
+            return new PlayerHitHandleOperation(source.Identifier, operationAsset, executor);
         }
     }
 }

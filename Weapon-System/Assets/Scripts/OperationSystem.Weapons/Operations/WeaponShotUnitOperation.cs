@@ -1,25 +1,22 @@
 ﻿using System;
 using System.Collections;
-using OperationSystem.Component;
+using System.Threading;
+using OperationSystem.Assets;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
-using OperationSystem.Units;
-using OperationSystem.Weapons.Components;
+using OperationSystem.Weapons.Assets;
 
 namespace OperationSystem.Weapons.Operations
 {
     public class WeaponShotUnitOperation : AbstractOperation
     {
-        private Unit Weapon => this.GetData<IOperationUnit>().Unit;
-        private Unit Chamber => Weapon.GetChild<Chamber>(Context.World);
-        private Unit? Magazine => Weapon.TryGetChild<Magazine>(Context.World);
+        private Pistol Weapon => (Pistol)this.GetData<IOperationAsset>().Asset;
+        private PistolChamber Chamber => Weapon.GetChild<PistolChamber>();
+        private PistolMagazine? Magazine => Weapon.TryGetChild<PistolMagazine>();
 
-        private ComponentArray<Chamber> ChamberComponents => Context.World.GetComponentArray<Chamber>();
-        private ComponentArray<Magazine> MagazineComponents => Context.World.GetComponentArray<Magazine>();
-
-        public WeaponShotUnitOperation(OperationIdentifier identifier, IOperationUnit operationUnit)
-            : base(identifier, operationUnit)
+        public WeaponShotUnitOperation(OperationIdentifier identifier, IOperationAsset asset)
+            : base(identifier, asset)
         {
         }
 
@@ -27,12 +24,7 @@ namespace OperationSystem.Weapons.Operations
         {
             yield return base.ValidateEnumerator();
 
-            var chamber = ChamberComponents.GetComponent(Chamber);
-            Magazine? magazine = Magazine != null
-                ? MagazineComponents.GetComponent(Magazine.Value)
-                : null;
-
-            if (!chamber.HasRound && magazine is not { Rounds: > 0 })
+            if (!Chamber.hasRound && Magazine is not { rounds: > 0 })
                 throw new InvalidOperationException();
         }
 
@@ -40,47 +32,43 @@ namespace OperationSystem.Weapons.Operations
         {
             yield return base.TryAcquireLocksEnumerator();
 
-            Context.Acquire<Chamber>(Chamber, Identifier);
+            Context.Acquire(Chamber, Identifier);
 
             if (Magazine != null)
-                Context.Acquire<Magazine>(Magazine.Value, Identifier);
+                Context.Acquire(Magazine, Identifier);
         }
 
         protected override IEnumerator RecordMutationsEnumerator()
         {
             yield return base.RecordMutationsEnumerator();
 
-            var chamber = ChamberComponents.GetComponent(Chamber);
-            Magazine? magazine = Magazine != null
-                ? MagazineComponents.GetComponent(Magazine.Value)
-                : null;
+            var magazine = Magazine;
+            if (magazine != null)
+                Context.RecordUndo(() => Interlocked.Increment(ref magazine.rounds));
 
-            if (Magazine != null && magazine != null)
-                Context.RecordUndo(() => MagazineComponents.SetComponent(Magazine.Value, magazine.Value));
-
-            Context.RecordUndo(() => ChamberComponents.SetComponent(Chamber, chamber));
+            var chamber = Chamber;
+            var hasBullet = chamber.hasRound;
+            Context.RecordUndo(() => chamber.hasRound = hasBullet);
         }
 
         protected override IEnumerator ExecuteEnumerator()
         {
             yield return base.ExecuteEnumerator();
 
-            var chamber = ChamberComponents.GetComponent(Chamber);
-            if (!chamber.HasRound)
+            var chamber = Chamber;
+            if (!chamber.hasRound)
             {
                 if (Magazine == null)
                     throw new InvalidOperationException();
 
-                var magazine = MagazineComponents.GetComponent(Magazine.Value);
-                if (magazine is not { Rounds: > 0 })
+                var magazine = Magazine;
+                if (magazine is not { rounds: > 0 })
                     throw new InvalidOperationException();
 
-                magazine.Rounds--;
-                MagazineComponents.SetComponent(Magazine.Value, magazine);
+                Interlocked.Decrement(ref magazine.rounds);
             }
 
-            chamber.HasRound = false;
-            ChamberComponents.SetComponent(Chamber, chamber);
+            chamber.hasRound = false;
         }
     }
 }

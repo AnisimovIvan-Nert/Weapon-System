@@ -1,24 +1,24 @@
 ﻿using System.Collections;
-using OperationSystem.ComplexWeapons.Components.Handlers.Hit;
+using OperationSystem.Assets;
+using OperationSystem.ComplexWeapons.Assets;
 using OperationSystem.ComplexWeapons.Operations.Hit.Result;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
-using OperationSystem.Units;
 using UnityEngine;
 
 namespace OperationSystem.ComplexWeapons.Operations.Hit
 {
     public class HitOperation : AbstractOperation
     {
-        private Unit Unit => this.GetData<IOperationUnit>().Unit;
+        private IAsset Asset => this.GetData<IOperationAsset>().Asset;
         
         public HitOperation(
             OperationIdentifier identifier,
             Data data,
-            IOperationUnit operationUnit,
+            IOperationAsset operationAsset,
             IOperationExecutor executor) 
-            : base(identifier, data, operationUnit, executor)
+            : base(identifier, data, operationAsset, executor)
         {
         }
 
@@ -28,7 +28,7 @@ namespace OperationSystem.ComplexWeapons.Operations.Hit
             
             var executor = this.GetData<IOperationExecutor>();
             
-            if (!Unit.HasComponent<HitHandlerComponent>(Context.World))
+            if (Asset is not IHitHandler hitHandler)
             {
                 SetResult(new NotHitResult(executor.Executor));
                 yield break;
@@ -36,18 +36,17 @@ namespace OperationSystem.ComplexWeapons.Operations.Hit
 
             var data = this.GetData<Data>();
             
-            var handler = Unit.GetComponent<HitHandlerComponent>(Context.World);
-            var operation = handler.HitHandler.CreateHandleOperation(this, data.Hit, data.Command, Unit);
+            var operation = hitHandler.CreateHandleOperation(this, data.Hit, data.Command, Asset);
             RunOperation(operation);
             SetResult(new Result(operation, executor.Executor));
         }
 
         public readonly struct Result : IHitResult
         {
-            public Unit Source { get; }
+            public IAsset Source { get; }
             public IOperation HandleOperation { get; }
             
-            public Result(IOperation operation, Unit source)
+            public Result(IOperation operation, IAsset source)
             {
                 HandleOperation = operation;
                 Source = source;

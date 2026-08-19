@@ -55,10 +55,9 @@ namespace OperationSystem.ComplexWeapons.Operations.Shot.Stages
         private IEnumerator HandleHit(Data data, RaycastHit raycastHit, IOperationExecutor executor)
         {
             var asset = raycastHit.collider.GetComponentInParent<IAsset>();
-            var unit = Context.World.GetOrCreateUnit(asset);
             var operationData = new HitOperation.Data(raycastHit, data.Command);
-            var operationUnit = new OperationUnit(unit);
-            var hitOperation = new HitOperation(Identifier, operationData, operationUnit, executor);
+            var operationAsset = new OperationAsset(asset);
+            var hitOperation = new HitOperation(Identifier, operationData, operationAsset, executor);
             RunOperation(hitOperation);
             yield return hitOperation.WaitEnumerator();
             var hitResult = hitOperation.GetResult<IHitResult>();

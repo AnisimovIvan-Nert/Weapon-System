@@ -1,25 +1,23 @@
 ﻿using System;
 using System.Collections;
 using System.Linq;
-using OperationSystem.Containers.Operations.Tags;
+using OperationSystem.Containers.Tests.Mocks;
 using OperationSystem.Operations;
 using OperationSystem.Operations.Abstract;
 using OperationSystem.Operations.Data;
-using OperationSystem.Units;
-using OperationSystem.Units.Child;
 
 namespace OperationSystem.Containers.Operations
 {
-    public class ReceiveObjectOperation : AbstractOperation, IReceiveOperationTag
+    public class ReceiveObjectOperation : AbstractOperation
     {
-        private Unit Unit => this.GetData<IOperationUnit>().Unit;
+        private ContainerAsset Container => (ContainerAsset)this.GetData<IOperationAsset>().Asset;
         
         public ReceiveObjectOperation(
             OperationIdentifier identifier,
-            IOperationUnit operationUnit,
+            IOperationAsset operationAsset,
             IOperationExecutor executor, 
             IOperationTarget target) 
-            : base(identifier, operationUnit, executor, target)
+            : base(identifier, operationAsset, executor, target)
         {
         }
 
@@ -28,9 +26,7 @@ namespace OperationSystem.Containers.Operations
             yield return base.ValidateEnumerator();
             
             var target = this.GetData<IOperationTarget>();
-
-            var childrenComponent = Unit.GetComponent<ChildrenComponent>(Context.World);
-            if (childrenComponent.Children.Contains(target.Target))
+            if (Container.Children.Contains(target.Target))
                 throw new InvalidOperationException();
         }
 
@@ -40,10 +36,11 @@ namespace OperationSystem.Containers.Operations
             
             var operationTarget = this.GetData<IOperationTarget>();
             var target = operationTarget.Target;
+            var container = Container;
 
             Context.RecordUndo(() =>
             {
-                Unit.TryRemoveChild(target);
+                container.TryRemoveChild(target);
             });
         }
 
@@ -53,7 +50,7 @@ namespace OperationSystem.Containers.Operations
             
             var target = this.GetData<IOperationTarget>();
 
-            if (!Unit.TryAddChild(target.Target))
+            if (!Container.TryAddChild(target.Target))
                 throw new InvalidOperationException();
         }
     }

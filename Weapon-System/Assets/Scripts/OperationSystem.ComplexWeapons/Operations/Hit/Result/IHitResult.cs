@@ -1,10 +1,10 @@
-﻿using OperationSystem.Operations.Result;
-using OperationSystem.Units;
+﻿using OperationSystem.Assets;
+using OperationSystem.Operations.Result;
 
 namespace OperationSystem.ComplexWeapons.Operations.Hit.Result
 {
     public interface IHitResult : IOperationResult
     {
-        Unit Source { get; }
+        IAsset Source { get; }
     }
 }
