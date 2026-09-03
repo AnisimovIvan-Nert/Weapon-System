@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -108,25 +107,39 @@ namespace Scratch.InteractionArchitecture.Containers
             }
 
             // Precondition denials (no access / doesn't fit / already moved)
-            // are an expected part of this concurrent scenario. Register a
-            // matcher so the test runner treats every scheduler failure log as
-            // expected instead of an unhandled error.
-            LogAssert.Expect(
-                LogType.Error,
-                new Regex(@"^\[InteractionScheduler\] Interaction .+ failed:"));
+            // are an expected part of this concurrent scenario. We still want to
+            // *verify* every denial is reported exactly once as a scheduler error,
+            // so capture the error logs instead of just suppressing them.
+            var schedulerErrors = new List<string>();
+            Application.LogCallback capture = (condition, _, type) =>
+            {
+                if (type == LogType.Error && condition.Contains("[InteractionScheduler]"))
+                    schedulerErrors.Add(condition);
+            };
+            Application.logMessageReceived += capture;
 
-            // Drain the scheduler fully.
-            Drain();
+            var previousIgnore = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
 
-            // Record outcomes.
-            for (var i = 0; i < attempts.Count; i++)
-                attempts[i].Outcome = interactions[i].State;
+            try
+            {
+                Drain();
+
+                // Record outcomes.
+                for (var i = 0; i < attempts.Count; i++)
+                    attempts[i].Outcome = interactions[i].State;
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = previousIgnore;
+                Application.logMessageReceived -= capture;
+            }
 
             var committed = attempts.Count(a => a.Outcome == InteractionState.Committed);
-            var failed = attempts.Count(a => a.Outcome == InteractionState.Failed);
+            var denied = attempts.Count(a => a.Outcome != InteractionState.Committed);
             UnityEngine.Debug.Log(
-                $"[PlayTest] {attempts.Count} attempts: {committed} committed, {failed} denied, " +
-                $"{attempts.Count - committed - failed} rolled back.");
+                $"[PlayTest] {attempts.Count} attempts: {committed} committed, {denied} denied/rolled back, " +
+                $"reported {schedulerErrors.Count} scheduler errors.");
 
             // ---- The invariants that must always hold ---------------
 
@@ -149,6 +162,24 @@ namespace Scratch.InteractionArchitecture.Containers
             foreach (var attempt in attempts.Where(a => a.Outcome == InteractionState.Committed))
                 Assert.IsTrue(attempt.To.Contains(attempt.Slot),
                     $"Committed move of '{attempt.Slot.Item}' did not reach '{attempt.To}'.");
+
+            // ---- Every denial must have been reported exactly once ----
+            // The scheduler logs one error per failed interaction, so the number of
+            // scheduler error log messages must equal the number of denied attempts.
+            Assert.AreEqual(denied, schedulerErrors.Count,
+                $"Expected {denied} scheduler failure logs for {denied} denied attempts, " +
+                $"but got {schedulerErrors.Count}.");
+
+            // And every one of those errors must be a genuine denial of the transfer,
+            // never an internal fault (e.g. the transaction failing to commit).
+            foreach (var error in schedulerErrors)
+            {
+                Assert.That(
+                    error.Contains("no access to move") ||
+                    error.Contains("cannot fit") ||
+                    error.Contains("not present"),
+                    $"Unexpected scheduler error (not a denial): {error}");
+            }
         }
 
         private Container ChooseDestination(Player player, InventorySlot slot)
