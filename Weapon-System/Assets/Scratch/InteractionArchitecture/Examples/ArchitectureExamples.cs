@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -122,9 +123,34 @@ namespace Scratch.InteractionArchitecture.Examples
             SynchronizationContext.SetSynchronizationContext(new UnitySyncContext());
             World = new InteractionWorld();
             World.RegisterThread("Main");
+
+            StartCoroutine(TickRoutine());
         }
 
-        private void Update() => World?.Tick();
+        private IEnumerator TickRoutine()
+        {
+            while (World != null)
+            {
+                Exception error = null;
+                yield return RunAndCapture(World.Tick(), ex => error = ex);
+
+                if (error != null)
+                    Debug.LogError($"[TickRoutine] {error}");
+
+                yield return null;
+            }
+        }
+
+        private static IEnumerator RunAndCapture(Task task, Action<Exception> onError)
+        {
+            while (!task.IsCompleted)
+                yield return null;
+
+            if (task.IsFaulted)
+                onError(task.Exception);
+            else if (task.IsCanceled)
+                onError(new OperationCanceledException("Tick was cancelled."));
+        }
 
         private void OnDestroy() => World?.Dispose();
     }

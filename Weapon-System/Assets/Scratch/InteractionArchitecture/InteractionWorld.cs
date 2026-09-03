@@ -33,7 +33,7 @@ namespace Scratch.InteractionArchitecture
         }
         
         /// <summary>Call every frame from a MonoBehaviour.</summary>
-        public void Tick() => Scheduler.Tick().GetAwaiter().GetResult();
+        public Task Tick() => Scheduler.Tick();
 
         /// <summary>Registers a named thread's SynchronizationContext.</summary>
         public void RegisterThread(string threadName) => Dispatcher.Register(threadName);

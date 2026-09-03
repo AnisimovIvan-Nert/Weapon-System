@@ -59,7 +59,7 @@ namespace Scratch.InteractionArchitecture
         /// (a step runs synchronously until the stage yields), then promotes
         /// waiting interactions up to <see cref="MaxPerFrame"/>.
         /// </summary>
-        public Task Tick()
+        public async Task Tick()
         {
             List<IInteraction> batch;
 
@@ -77,8 +77,7 @@ namespace Scratch.InteractionArchitecture
 
                 try
                 {
-                    //TODO possible lock
-                    interaction.AdvanceAsync(_yield).GetAwaiter().GetResult();
+                    await interaction.AdvanceAsync(_yield).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -105,8 +104,6 @@ namespace Scratch.InteractionArchitecture
                     spawned++;
                 }
             }
-
-            return Task.CompletedTask;
         }
 
         public void CancelAll()
