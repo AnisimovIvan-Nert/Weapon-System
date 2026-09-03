@@ -4,18 +4,32 @@ using System.Threading;
 
 namespace Scratch.InteractionArchitecture
 {
+    /// <summary>Lifecycle status of a <see cref="Transaction"/>.</summary>
+    /// <remarks>
+    /// <see cref="Active"/> is defined as 0 so it is the natural default value
+    /// of a freshly-created transaction, and so a volatile read initially sees
+    /// it as active without explicit initialisation.
+    /// </remarks>
+    public enum TransactionStatus
+    {
+        Active = 0,
+        Committed = 1,
+        RolledBack = 2
+    }
+
     /// <summary>
     /// Records every mutation an interaction performs so it can be
     /// rolled back atomically if cancelled at any stage.
     /// </summary>
     public sealed class Transaction
     {
-        private readonly List<Action> _compensations = new();
-        //TODO Change to enum
-        private int _status; // 0 = active, 1 = committed, 2 = rolled back
+        private readonly Stack<Action> _compensations = new();
+        
+        private int _status; // raw TransactionStatus value, CAS-friendly
+        public TransactionStatus Status => (TransactionStatus)Volatile.Read(ref _status);
 
-        //TODO Inverse and rename
-        public bool IsActive => Volatile.Read(ref _status) == 0;
+        /// <summary>True while the transaction can still be committed or rolled back.</summary>
+        public bool IsActive => Status == TransactionStatus.Active;
 
         /// <summary>
         /// Registers a compensating action that will undo <paramref name="mutation"/>
@@ -27,7 +41,7 @@ namespace Scratch.InteractionArchitecture
                 throw new InvalidOperationException("Transaction is no longer active.");
 
             T result = mutation();
-            _compensations.Add(compensationFactory(result));
+            _compensations.Push(compensationFactory(result));
             return result;
         }
 
@@ -39,8 +53,8 @@ namespace Scratch.InteractionArchitecture
         {
             if (!IsActive)
                 throw new InvalidOperationException("Transaction is no longer active.");
-            
-            _compensations.Add(compensation);
+
+            _compensations.Push(compensation);
         }
 
         /// <summary>
@@ -48,7 +62,9 @@ namespace Scratch.InteractionArchitecture
         /// </summary>
         public bool TryCommit()
         {
-            return Interlocked.CompareExchange(ref _status, 1, 0) == 0;
+            const int committed = (int)TransactionStatus.Committed;
+            const int active = (int)TransactionStatus.Active;
+            return Interlocked.CompareExchange(ref _status, committed, active) == active;
         }
 
         /// <summary>
@@ -56,15 +72,18 @@ namespace Scratch.InteractionArchitecture
         /// </summary>
         public bool TryRollback()
         {
-            if (Interlocked.CompareExchange(ref _status, 2, 0) != 0)
+            const int rolledBack = (int)TransactionStatus.RolledBack;
+            const int active = (int)TransactionStatus.Active;
+            if (Interlocked.CompareExchange(ref _status, rolledBack, active) != active)
+            {
                 return false;
-            
-            //TODO Make _compensations a Stack
-            for (var i = _compensations.Count - 1; i >= 0; i--)
+            }
+
+            while (_compensations.Count > 0)
             {
                 try
                 {
-                    _compensations[i]();
+                    _compensations.Pop()();
                 }
                 catch (Exception ex)
                 {
@@ -72,7 +91,6 @@ namespace Scratch.InteractionArchitecture
                 }
             }
 
-            _compensations.Clear();
             return true;
         }
     }

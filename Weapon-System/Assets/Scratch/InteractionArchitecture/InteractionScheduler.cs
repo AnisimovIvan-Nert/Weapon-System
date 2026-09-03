@@ -13,14 +13,15 @@ namespace Scratch.InteractionArchitecture
     /// </summary>
     public sealed class InteractionScheduler
     {
+        private const int DefaultMaxPerFrame = 16;
+        
         private readonly List<IInteraction> _active = new();
         private readonly List<IInteraction> _pending = new();
         private readonly object _lock = new();
         private readonly Func<Task> _yield;
 
-        //TODO To const
         /// <summary>Maximum interactions to advance per tick.</summary>
-        public int MaxPerFrame { get; set; } = 16;
+        public int MaxPerFrame { get; set; } = DefaultMaxPerFrame;
 
         public int ActiveCount
         {
