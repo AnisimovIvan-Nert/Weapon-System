@@ -85,9 +85,15 @@ namespace Scratch.InteractionArchitecture
                               .ConfigureAwait(false);
                 }
 
-                //TODO What happened if commit is failed?
                 if (_transaction.TryCommit())
+                {
                     State = InteractionState.Committed;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction {Id} failed to commit: transaction already finalized.");
+                }
             }
             catch (OperationCanceledException)
             {
