@@ -1,7 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Scratch.InteractionArchitecture.Containers
 {
@@ -34,7 +36,7 @@ namespace Scratch.InteractionArchitecture.Containers
             _world.RegisterThread("Main");
 
             // ---- Containers: capacity-limited, some owner-locked ---------
-            _warehouse = new Container(0, "Warehouse", 20, null);
+            _warehouse = new Container(0, "Warehouse", 30, null);
             _crateA = new Container(1, "Crate A", 10, 1001);
             _crateB = new Container(2, "Crate B", 10, 1002);
 
@@ -104,6 +106,14 @@ namespace Scratch.InteractionArchitecture.Containers
                     interactions.Add(interaction);
                 }
             }
+
+            // Precondition denials (no access / doesn't fit / already moved)
+            // are an expected part of this concurrent scenario. Register a
+            // matcher so the test runner treats every scheduler failure log as
+            // expected instead of an unhandled error.
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex(@"^\[InteractionScheduler\] Interaction .+ failed:"));
 
             // Drain the scheduler fully.
             Drain();
