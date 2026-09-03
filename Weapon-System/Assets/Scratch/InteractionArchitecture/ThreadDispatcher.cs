@@ -23,7 +23,6 @@ namespace Scratch.InteractionArchitecture
         /// </summary>
         public void Register(string threadName)
         {
-            //TODO Which thread doesn't have context?
             var context = SynchronizationContext.Current
                 ?? throw new InvalidOperationException(
                     $"No SynchronizationContext on thread '{threadName}'. " +

@@ -46,9 +46,8 @@ namespace Scratch.InteractionArchitecture.Examples
                 context.Counter.Value = transaction.Apply(
                     mutation: () => context.Counter.Value + 1,
                     compensationFactory: oldValue => () => context.Counter.Value = oldValue);
-
-                //TODO how works yield
-                await yield(); // suspend until next frame
+                
+                await yield();
             }
         }
     }
@@ -116,15 +115,24 @@ namespace Scratch.InteractionArchitecture.Examples
     public class InteractionRunner : MonoBehaviour
     {
         public InteractionWorld World { get; private set; }
-        
+        private FrameYield _frameYield;
+
         private void Awake()
         {
+            _frameYield = new FrameYield();
+
             // Unity main thread context is registered under "Main".
             SynchronizationContext.SetSynchronizationContext(new UnitySyncContext());
-            World = new InteractionWorld();
+            
+            World = new InteractionWorld(_frameYield.CreateYield());
             World.RegisterThread("Main");
 
             StartCoroutine(TickRoutine());
+        }
+
+        private void Update()
+        {
+            _frameYield?.Tick();
         }
 
         private IEnumerator TickRoutine()
@@ -152,7 +160,11 @@ namespace Scratch.InteractionArchitecture.Examples
                 onError(new OperationCanceledException("Tick was cancelled."));
         }
 
-        private void OnDestroy() => World?.Dispose();
+        private void OnDestroy()
+        {
+            World?.Dispose();
+            _frameYield?.Dispose();
+        }
     }
 
     /// <summary>Captures the Unity main-thread sync context so the dispatcher works.</summary>
@@ -208,8 +220,7 @@ namespace Scratch.InteractionArchitecture.Examples
             if (error != null) 
                 throw error;
         }
-
-        //TODO When it's runs
+        
         public static void Drain()
         {
             while (Queue.TryDequeue(out var action))
