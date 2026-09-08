@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -27,6 +30,7 @@ namespace Scratch.InteractionArchitecture.Containers
         private Container _crateB;
         private List<Player> _players;
         private List<InventorySlot> _allSlots;
+        private readonly List<ThreadDispatcher.WorkerThread> _workerThreads = new();
 
         [SetUp]
         public void SetUp()
@@ -35,9 +39,16 @@ namespace Scratch.InteractionArchitecture.Containers
             _world.RegisterThread("Main");
 
             // ---- Containers: capacity-limited, some owner-locked ---------
-            _warehouse = new Container(0, "Warehouse", 30, null);
-            _crateA = new Container(1, "Crate A", 10, 1001);
-            _crateB = new Container(2, "Crate B", 10, 1002);
+            // The crates and every player's bag are OWNED by dedicated worker
+            // threads (real OS threads). All access to them is marshalled via
+            // RunOnOwner, so this exercises genuine multi-threaded access.
+            var crateAThread = _world.Dispatcher.CreateWorkerThread("CrateA-Thread");
+            var crateBThread = _world.Dispatcher.CreateWorkerThread("CrateB-Thread");
+            _workerThreads.AddRange(new[] { crateAThread, crateBThread });
+
+            _warehouse = new Container(0, "Warehouse", 30, null, ownerThread: null);
+            _crateA = new Container(1, "Crate A", 10, 1001, ownerThread: crateAThread);
+            _crateB = new Container(2, "Crate B", 10, 1002, ownerThread: crateBThread);
 
             // ---- Items ----
             var items = new[]
@@ -61,18 +72,27 @@ namespace Scratch.InteractionArchitecture.Containers
                 }
             }
 
-            // ---- Players with their own private bags ----
+            // ---- Players with their own private bags on separate threads ----
             _players = new List<Player>
             {
-                new Player(1001, "Alice", new Container(10, "Alice's bag", 8, 1001)),
-                new Player(1002, "Bob",   new Container(11, "Bob's bag", 8, 1002)),
-                new Player(1003, "Carol", new Container(12, "Carol's bag", 8, 1003)),
+                new Player(1001, "Alice", new Container(10, "Alice's bag", 8, 1001,
+                    ownerThread: _world.Dispatcher.CreateWorkerThread("Alice-Thread"))),
+                new Player(1002, "Bob",   new Container(11, "Bob's bag", 8, 1002,
+                    ownerThread: _world.Dispatcher.CreateWorkerThread("Bob-Thread"))),
+                new Player(1003, "Carol", new Container(12, "Carol's bag", 8, 1003,
+                    ownerThread: _world.Dispatcher.CreateWorkerThread("Carol-Thread"))),
             };
+            foreach (var p in _players)
+                _workerThreads.Add(p.Inventory.Owner);
         }
 
         [TearDown]
         public void TearDown()
         {
+            foreach (var thread in _workerThreads)
+                thread?.Dispose();
+            _workerThreads.Clear();
+
             _world?.Dispose();
             _world = null;
         }
@@ -142,25 +162,41 @@ namespace Scratch.InteractionArchitecture.Containers
                 $"reported {schedulerErrors.Count} scheduler errors.");
 
             // ---- The invariants that must always hold ---------------
+            // All reads of container state must be marshalled onto the container's
+            // owner thread, because containers now live on different OS threads.
 
             // 1. No item was created or destroyed by any (including rolled back) transfer.
-            var present = containers.Sum(c => c.Slots.Count);
+            var present = containers.Sum(c => c.RunOnOwner(() => c.Slots.Count));
             Assert.AreEqual(_allSlots.Count, present,
                 "Every item must still exist across all containers after concurrent moves.");
 
+            // 1b. The scenario really is multithreaded: the locked containers and
+            //     bags must be owned by distinct threads.
+            var ownerThreads = containers
+                .Select(c => c.Owner?.ThreadId ?? Thread.CurrentThread.ManagedThreadId)
+                .Distinct()
+                .Count();
+            Assert.GreaterOrEqual(ownerThreads, 3,
+                "Expected containers to be spread across at least 3 distinct threads " +
+                $"but found only {ownerThreads}.");
+
             // 2. No container ever exceeds its capacity.
             foreach (var container in containers)
-                Assert.LessOrEqual(container.UsedCapacity, container.Capacity,
+            {
+                var (used, cap) = container.RunOnOwner(
+                    () => (container.UsedCapacity, container.Capacity));
+                Assert.LessOrEqual(used, cap,
                     $"'{container}' exceeded capacity.");
+            }
 
             // 3. An item exists in exactly one place (no duplicated slot).
-            var uniqueSlots = containers.SelectMany(c => c.Slots).Distinct().Count();
+            var uniqueSlots = containers.SelectMany(c => c.RunOnOwner(() => c.Slots)).Distinct().Count();
             Assert.AreEqual(present, uniqueSlots,
                 "No slot may be present in two containers at once.");
 
             // 4. Committed moves really relocated the item (source no longer has it).
             foreach (var attempt in attempts.Where(a => a.Outcome == InteractionState.Committed))
-                Assert.IsTrue(attempt.To.Contains(attempt.Slot),
+                Assert.IsTrue(attempt.To.RunOnOwner(() => attempt.To.Contains(attempt.Slot)),
                     $"Committed move of '{attempt.Slot.Item}' did not reach '{attempt.To}'.");
 
             // ---- Every denial must have been reported exactly once ----
@@ -180,6 +216,73 @@ namespace Scratch.InteractionArchitecture.Containers
                     error.Contains("not present"),
                     $"Unexpected scheduler error (not a denial): {error}");
             }
+        }
+
+        /// <summary>
+        /// Runs transfers TRULY in parallel: every interaction is driven to
+        /// completion on its own thread-pool worker, so many transfers contend
+        /// for the same worker-owned containers at the same instant.  Container
+        /// integrity must hold despite this concurrency, because every container
+        /// mutation is marshalled onto that container's single owning thread.
+        /// </summary>
+        [Test]
+        public void ParallelTransfersOnManyThreads_NoDataLossOrOverflow()
+        {
+            var containers = new[]
+            {
+                _warehouse, _crateA, _crateB,
+                _players[0].Inventory, _players[1].Inventory, _players[2].Inventory
+            };
+
+            // Deterministic moves from the warehouse to different destinations,
+            // all living on different threads.
+            var tasks = new List<Task<InteractionState>>();
+            foreach (var slot in _allSlots)
+            {
+                var from = _warehouse;
+                var to = ChooseDestination(_players[0], slot);
+
+                var interaction = Interaction<TransferContext>.Create(
+                    TransferInteraction.CreateStages());
+                interaction.Context.Player = _players[0];
+                interaction.Context.From = from;
+                interaction.Context.To = to;
+                interaction.Context.Slot = slot;
+
+                // Drive each transfer on its own thread-pool worker -> true parallel.
+                tasks.Add(Task.Run(() => RunInteraction(interaction)));
+            }
+
+            Task.WhenAll(tasks).GetAwaiter().GetResult();
+
+            // Integrity: nothing lost, no overflow, nothing duplicated.
+            var present = containers.Sum(c => c.RunOnOwner(() => c.Slots.Count));
+            Assert.AreEqual(_allSlots.Count, present,
+                "Parallel transfers lost items.");
+
+            foreach (var container in containers)
+            {
+                var (used, cap) = container.RunOnOwner(
+                    () => (container.UsedCapacity, container.Capacity));
+                Assert.LessOrEqual(used, cap, $"'{container}' exceeded capacity.");
+            }
+
+            var uniqueSlots = containers.SelectMany(c => c.RunOnOwner(() => c.Slots)).Distinct().Count();
+            Assert.AreEqual(present, uniqueSlots, "A slot ended up in two containers.");
+        }
+
+        private static InteractionState RunInteraction(Interaction<TransferContext> interaction)
+        {
+            try
+            {
+                interaction.RunAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception)
+            {
+                // A rejected transfer (no room / already moved) is expected and
+                // must have safely rolled back — not crash the run.
+            }
+            return interaction.State;
         }
 
         private Container ChooseDestination(Player player, InventorySlot slot)

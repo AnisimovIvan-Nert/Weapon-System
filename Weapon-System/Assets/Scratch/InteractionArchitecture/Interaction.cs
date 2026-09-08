@@ -49,6 +49,17 @@ namespace Scratch.InteractionArchitecture
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
             State = InteractionState.Pending;
         }
+
+        /// <summary>Builds a standalone interaction not owned by any scheduler.
+        /// Useful for driving an interaction on a dedicated thread via
+        /// <see cref="RunAsync"/>. Each created interaction should be run once
+        /// and, ideally, <see cref="Dispose"/>d afterwards.</summary>
+        public static Interaction<TContext> Create(
+            IEnumerable<InteractionStage<TContext>> stages,
+            CancellationToken cancellationToken = default)
+        {
+            return new Interaction<TContext>(stages, cancellationToken);
+        }
         
         public void Dispose()
         {
@@ -62,8 +73,10 @@ namespace Scratch.InteractionArchitecture
         /// callback that suspends execution until the next frame, so heavy
         /// work can be distributed across frames.
         /// </summary>
-        internal Task RunAsync(Func<Task> yield)
+        public Task RunAsync(Func<Task> yield = null)
         {
+            if (yield == null)
+                yield = () => Task.CompletedTask;
             return ExecuteStageChainAsync(yield);
         }
 

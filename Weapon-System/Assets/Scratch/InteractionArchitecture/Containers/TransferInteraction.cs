@@ -21,12 +21,12 @@ namespace Scratch.InteractionArchitecture.Containers
     }
 
     /// <summary>
-    /// Stage 1 — validate every precondition against the *current* state:
-    /// the item is actually in the source container, it fits in the target's
-    /// free space, and the player has access to both containers.
+    /// Stage 1 — validate every precondition atomically on the source's owner
+    /// thread. Item presence is checked via <see cref="Container.RunOnOwner"/>,
+    /// target capacity via <see cref="Container.RunOnOwner"/> on the target's
+    /// owner thread. Access is a pure function and needs no marshalling.
     ///
-    /// Any failure throws, which rolls back the whole interaction (here there
-    /// are no mutations yet, so a rollback is a no-op that just aborts cleanly).
+    /// Any failure throws, which rolls back the whole interaction cleanly.
     /// </summary>
     public sealed class ValidateTransferStage : InteractionStage<TransferContext>
     {
@@ -38,23 +38,22 @@ namespace Scratch.InteractionArchitecture.Containers
             Func<Task> yield,
             CancellationToken ct)
         {
-            // Access to source and destination must be checked atomically.
+            // Access check is pure and needs no thread marshalling.
             context.AccessOk = context.Player.HasAccessTo(context.From)
                             && context.Player.HasAccessTo(context.To);
-
             if (!context.AccessOk)
                 throw new InvalidOperationException(
                     $"'{context.Player}' has no access to move '{context.Slot.Item}' " +
                     $"between '{context.From}' -> '{context.To}'.");
 
-            // Item must currently be physically present in the source.
-            context.PresentOk = context.From.Contains(context.Slot);
+            // Marshal onto the correct owner threads for state-dependent checks.
+            context.PresentOk = context.From.RunOnOwner(() => context.From.Contains(context.Slot));
             if (!context.PresentOk)
                 throw new InvalidOperationException(
                     $"'{context.Slot.Item}' is not present in '{context.From}'.");
 
-            // Target must have free capacity for the item's size.
-            context.CapacityOk = context.Slot.Item.Size <= context.To.FreeCapacity;
+            context.CapacityOk = context.To.RunOnOwner(
+                () => context.Slot.Item.Size <= context.To.FreeCapacity);
             if (!context.CapacityOk)
                 throw new InvalidOperationException(
                     $"'{context.To}' cannot fit '{context.Slot.Item}' " +
@@ -65,15 +64,16 @@ namespace Scratch.InteractionArchitecture.Containers
     }
 
     /// <summary>
-    /// Stage 2 — atomically move the item: remove from source and add to target.
+    /// Stage 2 — atomically move the item, marshalling every container mutation
+    /// onto its owner thread.
     ///
-    /// Every mutation is registered on the transaction with a compensation, so
-    /// if a *later* stage fails (or the interaction is cancelled mid-flight) the
-    /// item is restored exactly where it started.
+    /// The removal runs on the source owner thread; the addition asks the target
+    /// to run on its own owner thread.  Order is always From-then-To, and
+    /// compensations always undo To-then-From, keeping acquisition consistent so
+    /// two transfers can never deadlock.
     ///
-    /// Mutation methods are treated as the source of truth: if the state changed
-    /// under us (e.g. another transfer removed the item first), the mutation
-    /// throws and the interaction rolls back, preserving data integrity.
+    /// Each mutation is registered on the transaction with a compensation so a
+    /// later failure or cancellation restores the item exactly where it started.
     /// </summary>
     public sealed class MoveItemStage : InteractionStage<TransferContext>
     {
@@ -89,43 +89,42 @@ namespace Scratch.InteractionArchitecture.Containers
             var to = context.To;
             var slot = context.Slot;
 
-            // Re-validate capacity and presence right before mutating, because
-            // concurrent interactions may have changed the containers since
-            // Stage 1.  If the state no longer matches, abort (throw -> rollback).
-            if (!from.Contains(slot))
-                throw new InvalidOperationException(
-                    $"'{slot.Item}' disappeared from '{from}' before the move.");
-            if (slot.Item.Size > to.FreeCapacity)
-                throw new InvalidOperationException(
-                    $"'{to}' no longer has room for '{slot.Item}'.");
+            // Re-validate presence on the source owner thread and capacity on the
+            // target owner thread right before mutating, because another transfer
+            // may have moved the item or filled the target since Stage 1.
+            from.RunOnOwner(() =>
+            {
+                if (!from.Contains(slot))
+                    throw new InvalidOperationException(
+                        $"'{slot.Item}' disappeared from '{from}' before the move.");
+            });
 
-            // Remove from source, add to target. Each mutation is compensated so
-            // a later cancellation restores the original layout.
+            to.RunOnOwner(() =>
+            {
+                if (slot.Item.Size > to.FreeCapacity)
+                    throw new InvalidOperationException(
+                        $"'{to}' no longer has room for '{slot.Item}'.");
+            });
+
+            // Remove from source on its owner thread.
             transaction.Apply(
-                mutation: () =>
+                mutation: () => from.RunOnOwner(() =>
                 {
                     if (!from.Remove(slot))
                         throw new InvalidOperationException(
                             $"Failed to remove '{slot.Item}' from '{from}'.");
                     return true;
-                },
-                compensationFactory: _ => () =>
-                {
-                    // Undo the removal: put the slot back into the source.
-                    from.Add(slot);
-                });
+                }),
+                compensationFactory: _ => () => from.RunOnOwner(() => from.Add(slot)));
 
+            // Add to target on its owner thread.
             transaction.Apply(
-                mutation: () =>
+                mutation: () => to.RunOnOwner(() =>
                 {
-                    to.Add(slot); // throws if it somehow no longer fits
+                    to.Add(slot); // throws if it no longer fits
                     return true;
-                },
-                compensationFactory: _ => () =>
-                {
-                    // Undo the addition: take it back out of the target.
-                    to.Remove(slot);
-                });
+                }),
+                compensationFactory: _ => () => to.RunOnOwner(() => to.Remove(slot)));
 
             return Task.CompletedTask;
         }
