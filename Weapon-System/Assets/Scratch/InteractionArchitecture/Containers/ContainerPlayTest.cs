@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -32,9 +33,20 @@ namespace Scratch.InteractionArchitecture.Containers
         private List<InventorySlot> _allSlots;
         private readonly List<ThreadDispatcher.WorkerThread> _workerThreads = new();
 
+        private SynchronizationContext _previousContext;
+        private TestPumpContext _pump;
+
         [SetUp]
         public void SetUp()
         {
+            // Main-created (ownerless) objects are owned by this thread and marshal
+            // cross-thread work back onto it via the SynchronizationContext that is
+            // current at construction. Install a pump we can drain from the main
+            // thread so the parallel transfer tests can service those calls.
+            _previousContext = SynchronizationContext.Current;
+            _pump = new TestPumpContext();
+            SynchronizationContext.SetSynchronizationContext(_pump);
+
             _world = new InteractionWorld();
             _world.RegisterThread("Main");
 
@@ -95,6 +107,10 @@ namespace Scratch.InteractionArchitecture.Containers
 
             _world?.Dispose();
             _world = null;
+
+            _pump = null;
+            SynchronizationContext.SetSynchronizationContext(_previousContext);
+            _previousContext = null;
         }
 
         [Test]
@@ -253,7 +269,19 @@ namespace Scratch.InteractionArchitecture.Containers
                 tasks.Add(Task.Run(() => RunInteraction(interaction)));
             }
 
-            Task.WhenAll(tasks).GetAwaiter().GetResult();
+            var all = Task.WhenAll(tasks);
+
+            // The transfers run on thread-pool workers, but every operation on the
+            // main-owned warehouse is marshalled back onto this thread via the
+            // SynchronizationContext. Pump it while the transfers progress so those
+            // calls actually execute (and are serialised here) instead of blocking.
+            while (!all.IsCompleted)
+            {
+                _pump.Drain();
+                Thread.Sleep(1);
+            }
+            _pump.Drain();
+            all.GetAwaiter().GetResult();
 
             // Integrity: nothing lost, no overflow, nothing duplicated.
             var present = containers.Sum(c => c.RunOnOwner(() => c.Slots.Count));
@@ -329,6 +357,53 @@ namespace Scratch.InteractionArchitecture.Containers
                 Player = player;
                 Slot = slot;
                 To = to;
+            }
+        }
+
+        /// <summary>
+        /// A SynchronizationContext that queues posted work and lets the owning
+        /// (main/test) thread execute it by draining the queue. Cross-thread
+        /// access to a main-created object is marshalled onto this queue via
+        /// <see cref="ThreadObject.RunOnOwner{T}"/>, so the owner thread runs it
+        /// itself (serialised) instead of deadlocking.
+        /// </summary>
+        private sealed class TestPumpContext : SynchronizationContext
+        {
+            private readonly ConcurrentQueue<Action> _queue = new();
+
+            public override void Post(SendOrPostCallback d, object state) =>
+                _queue.Enqueue(() => d(state));
+
+            public override void Send(SendOrPostCallback d, object state)
+            {
+                var done = new ManualResetEventSlim();
+                Exception error = null;
+                _queue.Enqueue(() =>
+                {
+                    try
+                    {
+                        d(state);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = ex;
+                    }
+                    finally
+                    {
+                        done.Set();
+                    }
+                });
+                done.Wait();
+                done.Dispose();
+                if (error != null)
+                    throw error;
+            }
+
+            /// <summary>Executes all enqueued callbacks on the calling (owner) thread.</summary>
+            public void Drain()
+            {
+                while (_queue.TryDequeue(out var action))
+                    action();
             }
         }
     }

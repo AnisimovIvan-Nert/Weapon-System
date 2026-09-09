@@ -46,7 +46,7 @@ namespace Scratch.InteractionArchitecture.Containers
         
         public int FreeCapacity => Capacity - UsedCapacity;
         
-        public Container(int id, int capacity, int? ownerId = null, ThreadDispatcher.WorkerThread ownerThread = null)
+        public Container(int id, int capacity, int? ownerId = null, ThreadDispatcher.WorkerThread? ownerThread = null)
             : base (id, ownerThread)
         {
             Capacity = capacity;
@@ -90,7 +90,7 @@ namespace Scratch.InteractionArchitecture.Containers
     {
         public Container Inventory { get; }
 
-        public Player(int id, Container inventory, ThreadDispatcher.WorkerThread ownerThread = null)
+        public Player(int id, Container inventory, ThreadDispatcher.WorkerThread? ownerThread = null)
             : base(id, ownerThread)
         {
             Inventory = inventory;
