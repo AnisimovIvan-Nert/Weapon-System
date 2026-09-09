@@ -148,25 +148,12 @@ namespace Scratch.InteractionArchitecture
 
             private void Loop()
             {
-                try
+                while (_running)
                 {
-                    while (_running)
-                    {
-                        Action action;
-                        try
-                        {
-                            action = _queue.Take();
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                            break;
-                        }
-                        action();
-                    }
-                }
-                finally
-                {
-                    // Drain; skip remaining (graceful shutdown).
+                    if (!_queue.TryTake(out Action? action, Timeout.Infinite) || action == null)
+                        break;
+
+                    action();
                 }
             }
 

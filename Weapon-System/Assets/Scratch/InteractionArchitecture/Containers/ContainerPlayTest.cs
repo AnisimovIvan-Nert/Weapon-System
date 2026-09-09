@@ -299,6 +299,65 @@ namespace Scratch.InteractionArchitecture.Containers
             Assert.AreEqual(present, uniqueSlots, "A slot ended up in two containers.");
         }
 
+        /// <summary>
+        /// Ownership of a container can be handed over at runtime (main -&gt; worker,
+        /// worker -&gt; worker, worker -&gt; main). The handover must be atomic: no
+        /// slot may be lost or duplicated while the owner thread changes.
+        /// </summary>
+        [Test]
+        public void ChangeOwner_HandsContainerBetweenThreads_WithoutLosingState()
+        {
+            Assert.IsNull(_warehouse.Owner, "Warehouse should start owned by the main thread.");
+
+            var workerA = _world.Dispatcher.CreateWorkerThread("MigrateA");
+            var workerB = _world.Dispatcher.CreateWorkerThread("MigrateB");
+
+            try
+            {
+                // main -> worker
+                _warehouse.ChangeOwner(workerA);
+                Assert.AreEqual(workerA, _warehouse.Owner);
+                Assert.AreEqual(_allSlots.Count,
+                    _warehouse.RunOnOwner(() => _warehouse.Slots.Count),
+                    "Items must be intact after moving the warehouse to a worker.");
+
+                // worker -> worker
+                _warehouse.ChangeOwner(workerB);
+                Assert.AreEqual(workerB, _warehouse.Owner);
+                Assert.AreEqual(_allSlots.Count,
+                    Task.Run(() => _warehouse.RunOnOwner(() => _warehouse.Slots.Count)).Result,
+                    "A cross-thread call must marshal onto the new owner.");
+
+                // Transfers marshalled onto the moved owner keep working/rolling back.
+                var slot = _allSlots[0];
+                var interaction = Interaction<TransferContext>.Create(
+                    TransferInteraction.CreateStages());
+                interaction.Context.Player = _players[0];
+                interaction.Context.From = _warehouse;
+                interaction.Context.To = _crateA;
+                interaction.Context.Slot = slot;
+                RunInteraction(interaction);
+                Assert.IsTrue(
+                    _crateA.RunOnOwner(() => _crateA.Contains(slot)),
+                    "Committed move after the handover must land in the destination.");
+                Assert.IsFalse(
+                    _warehouse.RunOnOwner(() => _warehouse.Contains(slot)),
+                    "Source must not retain the slot after the handover.");
+
+                // worker -> main (the call must be made on the main thread).
+                _warehouse.ChangeOwner(_pump);
+                Assert.IsNull(_warehouse.Owner);
+                Assert.AreEqual(_allSlots.Count - 1,
+                    _warehouse.RunOnOwner(() => _warehouse.Slots.Count),
+                    "State must be intact after moving the warehouse back to main.");
+            }
+            finally
+            {
+                workerA.Dispose();
+                workerB.Dispose();
+            }
+        }
+
         private static InteractionState RunInteraction(Interaction<TransferContext> interaction)
         {
             try
