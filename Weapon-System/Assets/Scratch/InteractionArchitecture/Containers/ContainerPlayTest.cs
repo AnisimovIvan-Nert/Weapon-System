@@ -46,18 +46,18 @@ namespace Scratch.InteractionArchitecture.Containers
             var crateBThread = _world.Dispatcher.CreateWorkerThread("CrateB-Thread");
             _workerThreads.AddRange(new[] { crateAThread, crateBThread });
 
-            _warehouse = new Container(0, "Warehouse", 30, null, ownerThread: null);
-            _crateA = new Container(1, "Crate A", 10, 1001, ownerThread: crateAThread);
-            _crateB = new Container(2, "Crate B", 10, 1002, ownerThread: crateBThread);
+            _warehouse = new Container(0, 30, null, ownerThread: null);
+            _crateA = new Container(1, 10, 1001, ownerThread: crateAThread);
+            _crateB = new Container(2, 10, 1002, ownerThread: crateBThread);
 
             // ---- Items ----
             var items = new[]
             {
-                new Item(1, "Axe",   size: 3),
-                new Item(2, "Log",   size: 2),
-                new Item(3, "Rope",  size: 1),
-                new Item(4, "Chest", size: 6),
-                new Item(5, "Torch", size: 1)
+                new Item(1,   size: 3),
+                new Item(2,   size: 2),
+                new Item(3,  size: 1),
+                new Item(4, size: 6),
+                new Item(5, size: 1)
             };
 
             // Fill the warehouse with two of each item.
@@ -75,11 +75,11 @@ namespace Scratch.InteractionArchitecture.Containers
             // ---- Players with their own private bags on separate threads ----
             _players = new List<Player>
             {
-                new Player(1001, "Alice", new Container(10, "Alice's bag", 8, 1001,
+                new Player(1001, new Container(10, 8, 1001,
                     ownerThread: _world.Dispatcher.CreateWorkerThread("Alice-Thread"))),
-                new Player(1002, "Bob",   new Container(11, "Bob's bag", 8, 1002,
+                new Player(1002,   new Container(11, 8, 1002,
                     ownerThread: _world.Dispatcher.CreateWorkerThread("Bob-Thread"))),
-                new Player(1003, "Carol", new Container(12, "Carol's bag", 8, 1003,
+                new Player(1003, new Container(12, 8, 1003,
                     ownerThread: _world.Dispatcher.CreateWorkerThread("Carol-Thread"))),
             };
             foreach (var p in _players)
