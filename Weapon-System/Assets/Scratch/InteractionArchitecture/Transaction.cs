@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Scratch.InteractionArchitecture
 {
@@ -19,12 +20,15 @@ namespace Scratch.InteractionArchitecture
 
     /// <summary>
     /// Records every mutation an interaction performs so it can be
-    /// rolled back atomically if cancelled at any stage.
+    /// rolled back atomically if cancelled at any stage. Mutations that
+    /// marshal onto another thread (e.g. via
+    /// <see cref="OwnedObject.RunOnOwnerAsync{T}(Func{Task{T}})"/>) are
+    /// recorded with the async <see cref="ApplyAsync{T}(Func{Task{T}}, Func{T, Task})"/>.
     /// </summary>
     public sealed class Transaction
     {
-        private readonly Stack<Action> _compensations = new();
-        
+        private readonly Stack<Func<Task>> _compensations = new();
+
         private int _status; // raw TransactionStatus value, CAS-friendly
         public TransactionStatus Status => (TransactionStatus)Volatile.Read(ref _status);
 
@@ -34,6 +38,7 @@ namespace Scratch.InteractionArchitecture
         /// <summary>
         /// Registers a compensating action that will undo <paramref name="mutation"/>
         /// when the transaction is rolled back. The mutation itself is executed immediately.
+        /// Use for pure, synchronous mutations that need no thread marshalling.
         /// </summary>
         public T Apply<T>(Func<T> mutation, Func<T, Action> compensationFactory)
         {
@@ -41,15 +46,52 @@ namespace Scratch.InteractionArchitecture
                 throw new InvalidOperationException("Transaction is no longer active.");
 
             T result = mutation();
-            _compensations.Push(compensationFactory(result));
+            _compensations.Push(() =>
+            {
+                compensationFactory(result)();
+                return Task.CompletedTask;
+            });
             return result;
         }
 
         /// <summary>
-        /// Registers only a compensating action without executing anything.
+        /// Asynchronous variant of <see cref="Apply{T}"/>: the mutation returns a
+        /// <see cref="Task"/> (typically a marshalled <see cref="OwnedObject.RunOnOwnerAsync{T}(Func{Task{T}})"/>
+        /// call) and is awaited before the compensation is recorded, so the
+        /// compensation only sees the committed result. Use for mutations that
+        /// cross thread boundaries.
+        /// </summary>
+        public async Task<T> ApplyAsync<T>(Func<Task<T>> mutation, Func<T, Task> compensationFactory)
+        {
+            if (!IsActive)
+                throw new InvalidOperationException("Transaction is no longer active.");
+
+            T result = await mutation();
+            _compensations.Push(() => compensationFactory(result));
+            return result;
+        }
+
+        /// <summary>
+        /// Registers only a synchronous compensating action without executing anything.
         /// Use when the mutation was already performed externally.
         /// </summary>
         public void RegisterCompensation(Action compensation)
+        {
+            if (!IsActive)
+                throw new InvalidOperationException("Transaction is no longer active.");
+
+            _compensations.Push(() =>
+            {
+                compensation();
+                return Task.CompletedTask;
+            });
+        }
+
+        /// <summary>
+        /// Registers only an asynchronous compensating action (e.g. one that
+        /// marshals the undo onto another thread) without executing anything.
+        /// </summary>
+        public void RegisterCompensation(Func<Task> compensation)
         {
             if (!IsActive)
                 throw new InvalidOperationException("Transaction is no longer active.");
@@ -68,22 +110,26 @@ namespace Scratch.InteractionArchitecture
         }
 
         /// <summary>
-        /// Rolls back all recorded mutations in reverse order.
+        /// Rolls back all recorded mutations in reverse order, awaiting each
+        /// compensation so cross-thread undos complete before this returns.
         /// </summary>
-        public bool TryRollback()
+        public Task<bool> TryRollbackAsync()
         {
             const int rolledBack = (int)TransactionStatus.RolledBack;
             const int active = (int)TransactionStatus.Active;
             if (Interlocked.CompareExchange(ref _status, rolledBack, active) != active)
-            {
-                return false;
-            }
+                return Task.FromResult(false);
 
+            return RollbackCoreAsync();
+        }
+
+        private async Task<bool> RollbackCoreAsync()
+        {
             while (_compensations.Count > 0)
             {
                 try
                 {
-                    _compensations.Pop()();
+                    await _compensations.Pop()();
                 }
                 catch (Exception ex)
                 {

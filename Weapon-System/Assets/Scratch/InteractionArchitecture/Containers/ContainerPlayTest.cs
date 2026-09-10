@@ -53,7 +53,7 @@ namespace Scratch.InteractionArchitecture.Containers
             // ---- Containers: capacity-limited, some owner-locked ---------
             // The crates and every player's bag are OWNED by dedicated worker
             // threads (real OS threads). All access to them is marshalled via
-            // RunOnOwner, so this exercises genuine multi-threaded access.
+            // RunOnOwnerAsync, so this exercises genuine multi-threaded access.
             var crateAThread = _world.Dispatcher.CreateWorkerThread("CrateA-Thread");
             var crateBThread = _world.Dispatcher.CreateWorkerThread("CrateB-Thread");
             _workerThreads.AddRange(new[] { crateAThread, crateBThread });
@@ -115,7 +115,7 @@ namespace Scratch.InteractionArchitecture.Containers
         }
 
         [Test]
-        public void EveryoneMovesEveryReachableItemConcurrently_NoDataLost()
+        public async Task EveryoneMovesEveryReachableItemConcurrently_NoDataLost()
         {
             var containers = new[]
             {
@@ -160,7 +160,7 @@ namespace Scratch.InteractionArchitecture.Containers
 
             try
             {
-                Drain();
+                await DrainAsync();
 
                 // Record outcomes.
                 for (var i = 0; i < attempts.Count; i++)
@@ -183,7 +183,9 @@ namespace Scratch.InteractionArchitecture.Containers
             // owner thread, because containers now live on different OS threads.
 
             // 1. No item was created or destroyed by any (including rolled back) transfer.
-            var present = containers.Sum(c => c.RunOnOwner(() => c.Slots.Count));
+            var counts = await PumpAndAwait(Task.WhenAll(
+                containers.Select(c => c.RunOnOwnerAsync(() => c.Slots.Count))));
+            var present = counts.Sum();
             Assert.AreEqual(_allSlots.Count, present,
                 "Every item must still exist across all containers after concurrent moves.");
 
@@ -201,20 +203,25 @@ namespace Scratch.InteractionArchitecture.Containers
             // 2. No container ever exceeds its capacity.
             foreach (var container in containers)
             {
-                var (used, cap) = container.RunOnOwner(
-                    () => (container.UsedCapacity, container.Capacity));
+                var (used, cap) = await PumpAndAwait(
+                    container.RunOnOwnerAsync(() => (container.UsedCapacity, container.Capacity)));
                 Assert.LessOrEqual(used, cap,
                     $"'{container}' exceeded capacity.");
             }
 
             // 3. An item exists in exactly one place (no duplicated slot).
-            var uniqueSlots = containers.SelectMany(c => c.RunOnOwner(() => c.Slots)).Distinct().Count();
+            var allSlots = new List<InventorySlot>();
+            foreach (var container in containers)
+                allSlots.AddRange(await PumpAndAwait(
+                    container.RunOnOwnerAsync(() => container.Slots.ToList())));
+            var uniqueSlots = allSlots.Distinct().Count();
             Assert.AreEqual(present, uniqueSlots,
                 "No slot may be present in two containers at once.");
 
             // 4. Committed moves really relocated the item (source no longer has it).
             foreach (var attempt in attempts.Where(a => a.Outcome == InteractionState.Committed))
-                Assert.IsTrue(attempt.To.RunOnOwner(() => attempt.To.Contains(attempt.Slot)),
+                Assert.IsTrue(await PumpAndAwait(
+                        attempt.To.RunOnOwnerAsync(() => attempt.To.Contains(attempt.Slot))),
                     $"Committed move of '{attempt.Slot.Item}' did not reach '{attempt.To}'.");
 
             // ---- Every denial must have been reported exactly once ----
@@ -244,7 +251,7 @@ namespace Scratch.InteractionArchitecture.Containers
         /// mutation is marshalled onto that container's single owning thread.
         /// </summary>
         [Test]
-        public void ParallelTransfersOnManyThreads_NoDataLossOrOverflow()
+        public async Task ParallelTransfersOnManyThreads_NoDataLossOrOverflow()
         {
             var containers = new[]
             {
@@ -268,7 +275,7 @@ namespace Scratch.InteractionArchitecture.Containers
                 interaction.Context.Slot = slot;
 
                 // Drive each transfer on its own thread-pool worker -> true parallel.
-                tasks.Add(Task.Run(() => RunInteraction(interaction)));
+                tasks.Add(Task.Run(() => RunInteractionAsync(interaction)));
             }
 
             var all = Task.WhenAll(tasks);
@@ -282,22 +289,27 @@ namespace Scratch.InteractionArchitecture.Containers
                 _pump.Drain();
                 Thread.Sleep(1);
             }
-            _pump.Drain();
-            all.GetAwaiter().GetResult();
+            await all;
 
             // Integrity: nothing lost, no overflow, nothing duplicated.
-            var present = containers.Sum(c => c.RunOnOwner(() => c.Slots.Count));
+            var counts = await PumpAndAwait(Task.WhenAll(
+                containers.Select(c => c.RunOnOwnerAsync(() => c.Slots.Count))));
+            var present = counts.Sum();
             Assert.AreEqual(_allSlots.Count, present,
                 "Parallel transfers lost items.");
 
             foreach (var container in containers)
             {
-                var (used, cap) = container.RunOnOwner(
-                    () => (container.UsedCapacity, container.Capacity));
+                var (used, cap) = await PumpAndAwait(
+                    container.RunOnOwnerAsync(() => (container.UsedCapacity, container.Capacity)));
                 Assert.LessOrEqual(used, cap, $"'{container}' exceeded capacity.");
             }
 
-            var uniqueSlots = containers.SelectMany(c => c.RunOnOwner(() => c.Slots)).Distinct().Count();
+            var allSlots = new List<InventorySlot>();
+            foreach (var container in containers)
+                allSlots.AddRange(await PumpAndAwait(
+                    container.RunOnOwnerAsync(() => container.Slots.ToList())));
+            var uniqueSlots = allSlots.Distinct().Count();
             Assert.AreEqual(present, uniqueSlots, "A slot ended up in two containers.");
         }
 
@@ -307,7 +319,7 @@ namespace Scratch.InteractionArchitecture.Containers
         /// slot may be lost or duplicated while the owner thread changes.
         /// </summary>
         [Test]
-        public void ChangeOwner_HandsContainerBetweenThreads_WithoutLosingState()
+        public async Task ChangeOwner_HandsContainerBetweenThreads_WithoutLosingState()
         {
             Assert.AreEqual(_pump, _warehouse.Owner, "Warehouse should start owned by the main thread.");
 
@@ -317,17 +329,17 @@ namespace Scratch.InteractionArchitecture.Containers
             try
             {
                 // main -> worker
-                _warehouse.ChangeOwner(workerA);
+                await _warehouse.ChangeOwnerAsync(workerA);
                 Assert.AreEqual(workerA, _warehouse.Owner);
                 Assert.AreEqual(_allSlots.Count,
-                    _warehouse.RunOnOwner(() => _warehouse.Slots.Count),
+                    await PumpAndAwait(_warehouse.RunOnOwnerAsync(() => _warehouse.Slots.Count)),
                     "Items must be intact after moving the warehouse to a worker.");
 
                 // worker -> worker
-                _warehouse.ChangeOwner(workerB);
+                await _warehouse.ChangeOwnerAsync(workerB);
                 Assert.AreEqual(workerB, _warehouse.Owner);
                 Assert.AreEqual(_allSlots.Count,
-                    Task.Run(() => _warehouse.RunOnOwner(() => _warehouse.Slots.Count)).Result,
+                    await PumpAndAwait(_warehouse.RunOnOwnerAsync(() => _warehouse.Slots.Count)),
                     "A cross-thread call must marshal onto the new owner.");
 
                 // Transfers marshalled onto the moved owner keep working/rolling back.
@@ -338,19 +350,19 @@ namespace Scratch.InteractionArchitecture.Containers
                 interaction.Context.From = _warehouse;
                 interaction.Context.To = _crateA;
                 interaction.Context.Slot = slot;
-                RunInteraction(interaction);
+                await PumpAndAwait(RunInteractionAsync(interaction));
                 Assert.IsTrue(
-                    _crateA.RunOnOwner(() => _crateA.Contains(slot)),
+                    await PumpAndAwait(_crateA.RunOnOwnerAsync(() => _crateA.Contains(slot))),
                     "Committed move after the handover must land in the destination.");
                 Assert.IsFalse(
-                    _warehouse.RunOnOwner(() => _warehouse.Contains(slot)),
+                    await PumpAndAwait(_warehouse.RunOnOwnerAsync(() => _warehouse.Contains(slot))),
                     "Source must not retain the slot after the handover.");
 
                 // worker -> main (the call must be made on the main thread).
-                _warehouse.ChangeOwner(_pump);
+                await _warehouse.ChangeOwnerAsync(_pump);
                 Assert.AreEqual(_pump, _warehouse.Owner);
                 Assert.AreEqual(_allSlots.Count - 1,
-                    _warehouse.RunOnOwner(() => _warehouse.Slots.Count),
+                    await _warehouse.RunOnOwnerAsync(() => _warehouse.Slots.Count),
                     "State must be intact after moving the warehouse back to main.");
             }
             finally
@@ -360,11 +372,11 @@ namespace Scratch.InteractionArchitecture.Containers
             }
         }
 
-        private static InteractionState RunInteraction(Interaction<TransferContext> interaction)
+        private static async Task<InteractionState> RunInteractionAsync(Interaction<TransferContext> interaction)
         {
             try
             {
-                interaction.RunAsync().GetAwaiter().GetResult();
+                await interaction.RunAsync();
             }
             catch (Exception)
             {
@@ -372,6 +384,34 @@ namespace Scratch.InteractionArchitecture.Containers
                 // must have safely rolled back — not crash the run.
             }
             return interaction.State;
+        }
+
+        /// <summary>
+        /// Waits for <paramref name="task"/> while draining the pump on this
+        /// (main) thread. Any continuation that lands on <see cref="_pump"/>
+        /// (i.e. work marshalled back onto a main-owned object from another
+        /// thread, or an await that captured the pump as its context) cannot
+        /// run until the pump is drained, and the owner thread is the only one
+        /// that can drain it — hence the loop instead of a plain await.
+        /// </summary>
+        private async Task<T> PumpAndAwait<T>(Task<T> task)
+        {
+            while (!task.IsCompleted)
+            {
+                _pump.Drain();
+                Thread.Sleep(1);
+            }
+            return await task;
+        }
+
+        private async Task PumpAndAwait(Task task)
+        {
+            while (!task.IsCompleted)
+            {
+                _pump.Drain();
+                Thread.Sleep(1);
+            }
+            await task;
         }
 
         private Container ChooseDestination(Player player, InventorySlot slot)
@@ -396,13 +436,13 @@ namespace Scratch.InteractionArchitecture.Containers
                 : _warehouse;
         }
 
-        private void Drain()
+        private async Task DrainAsync()
         {
             var frame = 0;
             while (_world.Scheduler.ActiveCount > 0 || _world.Scheduler.PendingCount > 0)
             {
                 Assert.Less(++frame, MaxFramesToDrain, "Scheduler did not drain.");
-                _world.Tick().GetAwaiter().GetResult();
+                await PumpAndAwait(_world.Tick());
             }
         }
 
@@ -425,17 +465,17 @@ namespace Scratch.InteractionArchitecture.Containers
         /// A SynchronizationContext that queues posted work and lets the owning
         /// (main/test) thread execute it by draining the queue. Cross-thread
         /// access to a main-created object is marshalled onto this queue via
-        /// <see cref="Container.RunOnOwner{T}"/>, so the owner thread runs it
-        /// itself (serialised) instead of deadlocking.
+        /// <see cref="Container.RunOnOwnerAsync{T}(Func{T})"/>, so the owner
+        /// thread runs it itself (serialised) instead of deadlocking.
         /// </summary>
         private sealed class TestPumpContext : SynchronizationContext
         {
             private readonly ConcurrentQueue<Action> _queue = new();
 
-            public override void Post(SendOrPostCallback d, object state) =>
+            public override void Post(SendOrPostCallback d, object? state) =>
                 _queue.Enqueue(() => d(state));
 
-            public override void Send(SendOrPostCallback d, object state)
+            public override void Send(SendOrPostCallback d, object? state)
             {
                 var done = new ManualResetEventSlim();
                 Exception error = null;

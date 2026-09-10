@@ -21,7 +21,7 @@ namespace Scratch.InteractionArchitecture
             get { lock (_tracked) return _tracked.Count; }
         }
 
-        public InteractionWorld(Func<Task> yield = null)
+        public InteractionWorld(Func<Task>? yield = null)
         {
             Dispatcher = new ThreadDispatcher();
             Scheduler = new InteractionScheduler(yield);

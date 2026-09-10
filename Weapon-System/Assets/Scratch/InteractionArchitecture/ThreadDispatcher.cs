@@ -130,23 +130,29 @@ namespace Scratch.InteractionArchitecture
                     return;
                 }
 
-                var completionSource = new TaskCompletionSource<object?>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var done = new ManualResetEventSlim();
+                Exception? error = null;
 
                 _queue.Add(() =>
                 {
                     try
                     {
                         d(state);
-                        completionSource.SetResult(null);
                     }
                     catch (Exception ex)
                     {
-                        completionSource.SetException(ex);
+                        error = ex;
+                    }
+                    finally
+                    {
+                        done.Set();
                     }
                 });
 
-                completionSource.Task.GetAwaiter().GetResult();
+                done.Wait();
+                done.Dispose();
+                if (error != null)
+                    throw error;
             }
 
             private void Run()

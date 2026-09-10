@@ -73,7 +73,7 @@ namespace Scratch.InteractionArchitecture
         /// callback that suspends execution until the next frame, so heavy
         /// work can be distributed across frames.
         /// </summary>
-        public Task RunAsync(Func<Task> yield = null)
+        public Task RunAsync(Func<Task>? yield = null)
         {
             if (yield == null)
                 yield = () => Task.CompletedTask;
@@ -110,12 +110,12 @@ namespace Scratch.InteractionArchitecture
             }
             catch (OperationCanceledException)
             {
-                _transaction.TryRollback();
+                await _transaction.TryRollbackAsync();
                 State = InteractionState.RolledBack;
             }
             catch (Exception)
             {
-                _transaction.TryRollback();
+                await _transaction.TryRollbackAsync();
                 State = InteractionState.Failed;
                 throw;
             }

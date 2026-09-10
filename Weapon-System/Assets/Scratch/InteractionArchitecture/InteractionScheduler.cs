@@ -33,7 +33,7 @@ namespace Scratch.InteractionArchitecture
             get { lock (_lock) return _pending.Count; }
         }
 
-        public InteractionScheduler(Func<Task> yield = null)
+        public InteractionScheduler(Func<Task>? yield = null)
         {
             _yield = yield ?? (() => Task.CompletedTask);
         }

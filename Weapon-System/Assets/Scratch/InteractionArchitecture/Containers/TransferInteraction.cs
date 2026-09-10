@@ -22,8 +22,8 @@ namespace Scratch.InteractionArchitecture.Containers
 
     /// <summary>
     /// Stage 1 — validate every precondition atomically on the source's owner
-    /// thread. Item presence is checked via <see cref="Container.RunOnOwner"/>,
-    /// target capacity via <see cref="Container.RunOnOwner"/> on the target's
+    /// thread. Item presence is checked via <see cref="Container.RunOnOwnerAsync{T}(Func{T})"/>,
+    /// target capacity via <see cref="Container.RunOnOwnerAsync{T}(Func{T})"/> on the target's
     /// owner thread. Access is a pure function and needs no marshalling.
     ///
     /// Any failure throws, which rolls back the whole interaction cleanly.
@@ -32,7 +32,7 @@ namespace Scratch.InteractionArchitecture.Containers
     {
         public override string Name => "ValidateTransfer";
 
-        public override Task ExecuteAsync(
+        public override async Task ExecuteAsync(
             Transaction transaction,
             TransferContext context,
             Func<Task> yield,
@@ -47,19 +47,18 @@ namespace Scratch.InteractionArchitecture.Containers
                     $"between '{context.From}' -> '{context.To}'.");
 
             // Marshal onto the correct owner threads for state-dependent checks.
-            context.PresentOk = context.From.RunOnOwner(() => context.From.Contains(context.Slot));
+            context.PresentOk = await context.From.RunOnOwnerAsync(
+                () => context.From.Contains(context.Slot));
             if (!context.PresentOk)
                 throw new InvalidOperationException(
                     $"'{context.Slot.Item}' is not present in '{context.From}'.");
 
-            context.CapacityOk = context.To.RunOnOwner(
+            context.CapacityOk = await context.To.RunOnOwnerAsync(
                 () => context.Slot.Item.Size <= context.To.FreeCapacity);
             if (!context.CapacityOk)
                 throw new InvalidOperationException(
                     $"'{context.To}' cannot fit '{context.Slot.Item}' " +
                     $"(needs {context.Slot.Item.Size}, free {context.To.FreeCapacity}).");
-
-            return Task.CompletedTask;
         }
     }
 
@@ -72,14 +71,15 @@ namespace Scratch.InteractionArchitecture.Containers
     /// compensations always undo To-then-From, keeping acquisition consistent so
     /// two transfers can never deadlock.
     ///
-    /// Each mutation is registered on the transaction with a compensation so a
-    /// later failure or cancellation restores the item exactly where it started.
+    /// Each mutation is registered on the transaction with an asynchronous
+    /// compensation so a later failure or cancellation restores the item exactly
+    /// where it started.
     /// </summary>
     public sealed class MoveItemStage : InteractionStage<TransferContext>
     {
         public override string Name => "MoveItem";
 
-        public override Task ExecuteAsync(
+        public override async Task ExecuteAsync(
             Transaction transaction,
             TransferContext context,
             Func<Task> yield,
@@ -92,14 +92,14 @@ namespace Scratch.InteractionArchitecture.Containers
             // Re-validate presence on the source owner thread and capacity on the
             // target owner thread right before mutating, because another transfer
             // may have moved the item or filled the target since Stage 1.
-            from.RunOnOwner(() =>
+            await from.RunOnOwnerAsync(() =>
             {
                 if (!from.Contains(slot))
                     throw new InvalidOperationException(
                         $"'{slot.Item}' disappeared from '{from}' before the move.");
             });
 
-            to.RunOnOwner(() =>
+            await to.RunOnOwnerAsync(() =>
             {
                 if (slot.Item.Size > to.FreeCapacity)
                     throw new InvalidOperationException(
@@ -107,26 +107,24 @@ namespace Scratch.InteractionArchitecture.Containers
             });
 
             // Remove from source on its owner thread.
-            transaction.Apply(
-                mutation: () => from.RunOnOwner(() =>
+            await transaction.ApplyAsync(
+                mutation: () => from.RunOnOwnerAsync(() =>
                 {
                     if (!from.Remove(slot))
                         throw new InvalidOperationException(
                             $"Failed to remove '{slot.Item}' from '{from}'.");
                     return true;
                 }),
-                compensationFactory: _ => () => from.RunOnOwner(() => from.Add(slot)));
+                compensationFactory: _ => from.RunOnOwnerAsync(() => from.Add(slot)));
 
             // Add to target on its owner thread.
-            transaction.Apply(
-                mutation: () => to.RunOnOwner(() =>
+            await transaction.ApplyAsync(
+                mutation: () => to.RunOnOwnerAsync(() =>
                 {
                     to.Add(slot); // throws if it no longer fits
                     return true;
                 }),
-                compensationFactory: _ => () => to.RunOnOwner(() => to.Remove(slot)));
-
-            return Task.CompletedTask;
+                compensationFactory: _ => to.RunOnOwnerAsync(() => to.Remove(slot)));
         }
     }
 

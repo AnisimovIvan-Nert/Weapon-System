@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,33 +14,43 @@ namespace Scratch.InteractionArchitecture.Containers.Owner
     ///
     /// All access must happen on the owner thread — this is what makes it safe
     /// without in-object locks, because each container is only ever touched by a
-    /// single thread. Use <see cref="RunOnOwner{T}"/> to marshal an operation
-    /// onto the owner thread from any other thread; that always goes through the
-    /// owner's <see cref="SynchronizationContext.Post"/>, whether the owner is a
-    /// worker or the main thread.
+    /// single thread. Use <see cref="RunOnOwnerAsync{T}(Func{Task{T}})"/> to
+    /// marshal an operation onto the owner thread from any other thread; that
+    /// always goes through the owner's <see cref="SynchronizationContext.Post"/>,
+    /// whether the owner is a worker or the main thread.
     ///
     /// Ownership is not necessarily permanent: it can be handed over at runtime
-    /// with <see cref="ChangeOwner"/>. Every <see cref="RunOnOwner{T}"/> takes a
-    /// read lock on a small reader/writer gate; <c>ChangeOwner</c> takes the
-    /// write lock and atomically swaps the owner once all in-flight calls have
-    /// drained (quiescence), so no mutation ever straddles the handover.
+    /// with <see cref="ChangeOwnerAsync"/>. Every <see cref="RunOnOwnerAsync{T}(Func{Task{T}})"/>
+    /// holds a read lease on a small async reader/writer gate; <c>ChangeOwnerAsync</c>
+    /// takes the write lease and atomically swaps the owner once all in-flight
+    /// calls have drained (quiescence), so no mutation ever straddles the handover.
     /// </summary>
     public abstract class OwnedObject : IIdentifiable
     {
-        private readonly ReaderWriterLockSlim _handoverGate =
-            new(LockRecursionPolicy.SupportsRecursion);
+        private readonly AsyncReaderWriterLock _gate = new();
+        private readonly AsyncLocal<int> _dispatchDepth = new();
 
         public int Id { get; }
 
-        private volatile SynchronizationContext? _ownerContext;
-        private volatile int _ownerThreadId;
-
-        [ThreadStatic] private static int _dispatchDepth;
+        private volatile OwnerState _owner;
 
         /// <summary>The context of the thread that currently owns this object.
         /// Null means the owner thread has no <see cref="SynchronizationContext"/>
         /// (cross-thread marshalling is then impossible).</summary>
-        public SynchronizationContext? Owner => _ownerContext;
+        public SynchronizationContext? Owner => _owner?.Context;
+
+        /// <summary>Immutable owner snapshot, swapped atomically on handover.</summary>
+        private sealed class OwnerState
+        {
+            public readonly SynchronizationContext? Context;
+            public readonly int ThreadId;
+
+            public OwnerState(SynchronizationContext? context, int threadId)
+            {
+                Context = context;
+                ThreadId = threadId;
+            }
+        }
 
         /// <param name="owner">
         /// The <see cref="SynchronizationContext"/> of the thread that owns this
@@ -50,16 +61,9 @@ namespace Scratch.InteractionArchitecture.Containers.Owner
         protected OwnedObject(int id, SynchronizationContext? owner)
         {
             Id = id;
-            if (owner != null)
-            {
-                _ownerContext = owner;
-                _ownerThreadId = OwnerThreadIdOf(owner);
-            }
-            else
-            {
-                _ownerContext = SynchronizationContext.Current;
-                _ownerThreadId = Thread.CurrentThread.ManagedThreadId;
-            }
+            _owner = owner != null
+                ? new OwnerState(owner, OwnerThreadIdOf(owner))
+                : new OwnerState(SynchronizationContext.Current, Thread.CurrentThread.ManagedThreadId);
         }
 
         /// <summary>
@@ -70,121 +74,217 @@ namespace Scratch.InteractionArchitecture.Containers.Owner
             (owner as ThreadDispatcher.QueueSynchronizationContext)?.ThreadId
             ?? Thread.CurrentThread.ManagedThreadId;
 
+        // ------------------------------------------------------------------ //
+        // Async dispatch
+        // ------------------------------------------------------------------ //
+
+        public Task<T> RunOnOwnerAsync<T>(Func<T> func) =>
+            RunOnOwnerAsync(() => Task.FromResult(func()));
+
+        public Task RunOnOwnerAsync(Action action) =>
+            RunOnOwnerAsync<object?>(() => { action(); return null; });
+
+        public Task RunOnOwnerAsync(Func<Task> func) =>
+            RunOnOwnerAsync<object?>(async () =>
+            {
+                await func();
+                return null;
+            });
+
         /// <summary>
         /// Marshals an operation onto this object's owner thread. If the caller
-        /// is already on the owner thread it runs inline.
+        /// is already on the owner thread the operation runs inline; otherwise
+        /// it is dispatched through the owner context and awaited here, fully
+        /// completing on the owner thread. The read lease is held until the
+        /// operation completes, so a <see cref="ChangeOwnerAsync"/> cannot swap
+        /// the owner mid-operation.
         /// </summary>
-        public T RunOnOwner<T>(Func<T> func)
+        public async Task<T> RunOnOwnerAsync<T>(Func<Task<T>> func)
         {
-            _handoverGate.EnterReadLock();
-            try
+            using (await _gate.ReadAsync())
             {
-                if (Thread.CurrentThread.ManagedThreadId == _ownerThreadId)
-                    return DispatchBody(func);
+                var owner = _owner;
+                if (owner.ThreadId == Thread.CurrentThread.ManagedThreadId)
+                    return await DispatchBodyAsync(func);
 
-                var context = _ownerContext;
+                var context = owner.Context;
                 if (context == null)
                     throw new InvalidOperationException(
                         $"{GetType().Name}:{Id} is owned by a thread without a " +
                         "SynchronizationContext; it cannot be marshalled onto from another thread.");
 
-                return DispatchOnContext(context, () => DispatchBody(func));
-            }
-            finally
-            {
-                _handoverGate.ExitReadLock();
+                var completionSource = new TaskCompletionSource<T>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+
+                context.Post(async _ =>
+                {
+                    try
+                    {
+                        completionSource.SetResult(await DispatchBodyAsync(func));
+                    }
+                    catch (Exception ex)
+                    {
+                        completionSource.SetException(ex);
+                    }
+                }, null);
+
+                return await completionSource.Task;
             }
         }
 
-        public void RunOnOwner(Action action) => RunOnOwner<object?>(() =>
-        {
-            action();
-            return null;
-        });
-
         /// <summary>
         /// Hands ownership to a different thread, identified by its
-        /// <see cref="SynchronizationContext"/>. Blocks until every in-flight
-        /// <see cref="RunOnOwner{T}"/> completes, then swaps the owner;
-        /// subsequent calls are marshalled onto the new thread's context.
-        /// MUST be called on the thread that will become the new owner (i.e. the
-        /// new owner's thread), except when handing to a
-        /// <see cref="ThreadDispatcher.QueueSynchronizationContext"/>, which
-        /// carries its own thread.
+        /// <see cref="SynchronizationContext"/>. Waits (asynchronously) until
+        /// every in-flight <see cref="RunOnOwnerAsync{T}(Func{Task{T}})"/> has
+        /// drained, then swaps the owner; subsequent calls are marshalled onto
+        /// the new thread's context. MUST be called on the thread that will
+        /// become the new owner (i.e. the new owner's thread), except when
+        /// handing to a <see cref="ThreadDispatcher.QueueSynchronizationContext"/>,
+        /// which carries its own thread.
         /// </summary>
-        public void ChangeOwner(SynchronizationContext newOwner)
+        public async Task ChangeOwnerAsync(SynchronizationContext newOwner)
         {
             if (newOwner == null)
                 throw new ArgumentNullException(nameof(newOwner));
 
-            ThrowIfInsideDispatch();
-            _handoverGate.EnterWriteLock();
-            try
-            {
-                _ownerContext = newOwner;
-                _ownerThreadId = OwnerThreadIdOf(newOwner);
-            }
-            finally
-            {
-                _handoverGate.ExitWriteLock();
-            }
-        }
-
-        private static T DispatchBody<T>(Func<T> func)
-        {
-            _dispatchDepth++;
-            try
-            {
-                return func();
-            }
-            finally
-            {
-                _dispatchDepth--;
-            }
-        }
-
-        private static T DispatchOnContext<T>(SynchronizationContext context, Func<T> func)
-        {
-            var completionSource = new TaskCompletionSource<T>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            context.Post(_ =>
-            {
-                try
-                {
-                    completionSource.SetResult(func());
-                }
-                catch (Exception ex)
-                {
-                    completionSource.SetException(ex);
-                }
-            }, null);
-
-            return completionSource.Task.GetAwaiter().GetResult();
-        }
-
-        private static void ThrowIfInsideDispatch()
-        {
-            if (_dispatchDepth > 0)
+            if (_dispatchDepth.Value > 0)
                 throw new InvalidOperationException(
                     "Cannot change the owner of an OwnedObject from within an " +
-                    "operation dispatched to it via RunOnOwner; the handover gate " +
-                    "would deadlock (the dispatched operation is waiting on the " +
-                    "read lock this call would have to out-wait). Hand over from a " +
-                    "neutral thread instead.");
+                    "operation dispatched to it via RunOnOwnerAsync; the handover " +
+                    "gate would deadlock (the dispatched operation is waiting on " +
+                    "the read lease this call would have to out-wait). Hand over " +
+                    "from a neutral thread instead.");
+
+            using (await _gate.WriteAsync())
+            {
+                _owner = new OwnerState(newOwner, OwnerThreadIdOf(newOwner));
+            }
+        }
+
+        /// <summary>
+        /// Marks the current execution flow as "inside a dispatched operation"
+        /// for this object, so <see cref="ChangeOwnerAsync"/> can refuse to be
+        /// called from within its own dispatch (which would deadlock the gate).
+        /// <see cref="AsyncLocal{T}"/> keeps the marker correct across awaits.
+        /// </summary>
+        private async Task<T> DispatchBodyAsync<T>(Func<Task<T>> func)
+        {
+            _dispatchDepth.Value++;
+            try
+            {
+                return await func();
+            }
+            finally
+            {
+                _dispatchDepth.Value--;
+            }
         }
 
         protected void AssertOnOwner()
         {
-            if (Thread.CurrentThread.ManagedThreadId != _ownerThreadId)
+            if (Thread.CurrentThread.ManagedThreadId != _owner.ThreadId)
                 throw new InvalidOperationException(
-                    $"{GetType().Name}:{Id} is owned by thread #{_ownerThreadId} " +
-                    $"({(_ownerContext is ThreadDispatcher.QueueSynchronizationContext q ? $"worker '{q.Name}'" : "main")}), " +
-                    $"but was touched on #{Thread.CurrentThread.ManagedThreadId}. Use RunOnOwner to marshal access.");
+                    $"{GetType().Name}:{Id} is owned by thread #{_owner.ThreadId} " +
+                    $"({(_owner.Context is ThreadDispatcher.QueueSynchronizationContext q ? $"worker '{q.Name}'" : "main")}), " +
+                    $"but was touched on #{Thread.CurrentThread.ManagedThreadId}. Use RunOnOwnerAsync to marshal access.");
         }
 
         public override string ToString() =>
-            _ownerContext != null ? $"@{(_ownerContext is ThreadDispatcher.QueueSynchronizationContext q ? q.Name : "Main")}"
-                                  : "@unowned";
+            _owner.Context != null ? $"@{(_owner.Context is ThreadDispatcher.QueueSynchronizationContext q ? q.Name : "Main")}"
+                                   : "@unowned";
+
+        // ------------------------------------------------------------------ //
+        // Async reader/writer gate: many concurrent readers (dispatches), one
+        // exclusive writer (handover). Unlike ReaderWriterLockSlim it is not
+        // thread-affine, so a lease can be held (and released) across awaits.
+        // Writer priority: a handover is not starved by a stream of dispatches.
+        // ------------------------------------------------------------------ //
+        private sealed class AsyncReaderWriterLock
+        {
+            private readonly object _sync = new();
+            private readonly Queue<TaskCompletionSource<bool>> _waitingReaders = new();
+            private readonly Queue<TaskCompletionSource<bool>> _waitingWriters = new();
+            private int _readers;
+            private bool _writerActive;
+
+            public async Task<Lease> ReadAsync()
+            {
+                var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (_sync)
+                {
+                    if (!_writerActive && _waitingWriters.Count == 0)
+                    {
+                        _readers++;
+                        return new Lease(this);
+                    }
+                    _waitingReaders.Enqueue(gate);
+                }
+                await gate.Task;
+                return new Lease(this);
+            }
+
+            public async Task<Lease> WriteAsync()
+            {
+                var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (_sync)
+                {
+                    if (!_writerActive && _readers == 0)
+                    {
+                        _writerActive = true;
+                        return new Lease(this);
+                    }
+                    _waitingWriters.Enqueue(gate);
+                }
+                await gate.Task;
+                return new Lease(this);
+            }
+
+            private void Release()
+            {
+                TaskCompletionSource<bool> admittedWriter = null;
+                List<TaskCompletionSource<bool>> admittedReaders = null;
+
+                lock (_sync)
+                {
+                    if (_writerActive)
+                        _writerActive = false;
+                    else
+                        _readers--;
+
+                    if (_readers == 0 && _waitingWriters.Count > 0)
+                    {
+                        // Hand straight to the head writer once readers drain.
+                        admittedWriter = _waitingWriters.Dequeue();
+                        _writerActive = true;
+                    }
+                    else if (_waitingWriters.Count == 0 && _waitingReaders.Count > 0)
+                    {
+                        // No writer pending — admit every queued reader at once.
+                        admittedReaders = new List<TaskCompletionSource<bool>>(_waitingReaders);
+                        _waitingReaders.Clear();
+                        _readers += admittedReaders.Count;
+                    }
+                }
+
+                admittedWriter?.TrySetResult(true);
+                if (admittedReaders != null)
+                    foreach (var reader in admittedReaders)
+                        reader.TrySetResult(true);
+            }
+
+            public sealed class Lease : IDisposable
+            {
+                private AsyncReaderWriterLock _owner;
+
+                public Lease(AsyncReaderWriterLock owner) => _owner = owner;
+
+                public void Dispose()
+                {
+                    var owner = _owner;
+                    _owner = null;
+                    owner?.Release();
+                }
+            }
+        }
     }
 }
