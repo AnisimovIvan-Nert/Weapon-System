@@ -31,7 +31,7 @@ namespace Scratch.InteractionArchitecture.Containers
         private Container _crateB;
         private List<Player> _players;
         private List<InventorySlot> _allSlots;
-        private readonly List<ThreadDispatcher.WorkerThread> _workerThreads = new();
+        private readonly List<ThreadDispatcher.QueueSynchronizationContext> _workerThreads = new();
 
         private SynchronizationContext _previousContext;
         private TestPumpContext _pump;
@@ -58,9 +58,9 @@ namespace Scratch.InteractionArchitecture.Containers
             var crateBThread = _world.Dispatcher.CreateWorkerThread("CrateB-Thread");
             _workerThreads.AddRange(new[] { crateAThread, crateBThread });
 
-            _warehouse = new Container(0, 30, null, ownerThread: null);
-            _crateA = new Container(1, 10, 1001, ownerThread: crateAThread);
-            _crateB = new Container(2, 10, 1002, ownerThread: crateBThread);
+            _warehouse = new Container(0, 30, null, owner: null);
+            _crateA = new Container(1, 10, 1001, owner: crateAThread);
+            _crateB = new Container(2, 10, 1002, owner: crateBThread);
 
             // ---- Items ----
             var items = new[]
@@ -88,14 +88,15 @@ namespace Scratch.InteractionArchitecture.Containers
             _players = new List<Player>
             {
                 new Player(1001, new Container(10, 8, 1001,
-                    ownerThread: _world.Dispatcher.CreateWorkerThread("Alice-Thread"))),
+                    owner: _world.Dispatcher.CreateWorkerThread("Alice-Thread"))),
                 new Player(1002,   new Container(11, 8, 1002,
-                    ownerThread: _world.Dispatcher.CreateWorkerThread("Bob-Thread"))),
+                    owner: _world.Dispatcher.CreateWorkerThread("Bob-Thread"))),
                 new Player(1003, new Container(12, 8, 1003,
-                    ownerThread: _world.Dispatcher.CreateWorkerThread("Carol-Thread"))),
+                    owner: _world.Dispatcher.CreateWorkerThread("Carol-Thread"))),
             };
             foreach (var p in _players)
-                _workerThreads.Add(p.Inventory.Owner);
+                if (p.Inventory.Owner is ThreadDispatcher.QueueSynchronizationContext ownerContext)
+                    _workerThreads.Add(ownerContext);
         }
 
         [TearDown]
@@ -189,7 +190,8 @@ namespace Scratch.InteractionArchitecture.Containers
             // 1b. The scenario really is multithreaded: the locked containers and
             //     bags must be owned by distinct threads.
             var ownerThreads = containers
-                .Select(c => c.Owner?.ThreadId ?? Thread.CurrentThread.ManagedThreadId)
+                .Select(c => (c.Owner as ThreadDispatcher.QueueSynchronizationContext)?.ThreadId
+                             ?? Thread.CurrentThread.ManagedThreadId)
                 .Distinct()
                 .Count();
             Assert.GreaterOrEqual(ownerThreads, 3,
@@ -307,7 +309,7 @@ namespace Scratch.InteractionArchitecture.Containers
         [Test]
         public void ChangeOwner_HandsContainerBetweenThreads_WithoutLosingState()
         {
-            Assert.IsNull(_warehouse.Owner, "Warehouse should start owned by the main thread.");
+            Assert.AreEqual(_pump, _warehouse.Owner, "Warehouse should start owned by the main thread.");
 
             var workerA = _world.Dispatcher.CreateWorkerThread("MigrateA");
             var workerB = _world.Dispatcher.CreateWorkerThread("MigrateB");
@@ -346,7 +348,7 @@ namespace Scratch.InteractionArchitecture.Containers
 
                 // worker -> main (the call must be made on the main thread).
                 _warehouse.ChangeOwner(_pump);
-                Assert.IsNull(_warehouse.Owner);
+                Assert.AreEqual(_pump, _warehouse.Owner);
                 Assert.AreEqual(_allSlots.Count - 1,
                     _warehouse.RunOnOwner(() => _warehouse.Slots.Count),
                     "State must be intact after moving the warehouse back to main.");
@@ -423,7 +425,7 @@ namespace Scratch.InteractionArchitecture.Containers
         /// A SynchronizationContext that queues posted work and lets the owning
         /// (main/test) thread execute it by draining the queue. Cross-thread
         /// access to a main-created object is marshalled onto this queue via
-        /// <see cref="ThreadObject.RunOnOwner{T}"/>, so the owner thread runs it
+        /// <see cref="Container.RunOnOwner{T}"/>, so the owner thread runs it
         /// itself (serialised) instead of deadlocking.
         /// </summary>
         private sealed class TestPumpContext : SynchronizationContext

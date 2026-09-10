@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Scratch.InteractionArchitecture.Containers.Owner;
 
 namespace Scratch.InteractionArchitecture.Containers
 {
@@ -34,7 +36,7 @@ namespace Scratch.InteractionArchitecture.Containers
         }
     }
     
-    public sealed class Container : ThreadObject
+    public sealed class Container : OwnedObject
     {
         private readonly List<InventorySlot> _slots = new();
         
@@ -46,8 +48,8 @@ namespace Scratch.InteractionArchitecture.Containers
         
         public int FreeCapacity => Capacity - UsedCapacity;
         
-        public Container(int id, int capacity, int? ownerId = null, ThreadDispatcher.WorkerThread? ownerThread = null)
-            : base (id, ownerThread)
+        public Container(int id, int capacity, int? ownerId = null, SynchronizationContext? owner = null)
+            : base (id, owner)
         {
             Capacity = capacity;
             OwnerId = ownerId;
@@ -86,12 +88,12 @@ namespace Scratch.InteractionArchitecture.Containers
                                              base.ToString();
     }
 
-    public sealed class Player : ThreadObject
+    public sealed class Player : OwnedObject
     {
         public Container Inventory { get; }
 
-        public Player(int id, Container inventory, ThreadDispatcher.WorkerThread? ownerThread = null)
-            : base(id, ownerThread)
+        public Player(int id, Container inventory, SynchronizationContext? owner = null)
+            : base(id, owner)
         {
             Inventory = inventory;
         }

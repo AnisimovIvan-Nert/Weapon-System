@@ -7,16 +7,17 @@ using System.Threading.Tasks;
 namespace Scratch.InteractionArchitecture
 {
     /// <summary>
-    /// Dispatches actions to a specific thread.  A thread can be registered
-    /// either by its current <see cref="SynchronizationContext"/> (e.g. Unity
-    /// main thread) or, more commonly for worker threads that have no context,
-    /// by spawning a dedicated message-loop thread via
-    /// <see cref="CreateWorkerThread"/>.
+    /// Dispatches actions to a specific thread. A thread is identified by its
+    /// <see cref="SynchronizationContext"/>: either the context captured on the
+    /// registering thread (e.g. Unity main thread via <see cref="Register"/>), or
+    /// a <see cref="QueueSynchronizationContext"/> spawned by
+    /// <see cref="CreateWorkerThread"/>, which owns its own message-loop thread.
+    /// Either way the dispatch path is exactly the same —
+    /// <see cref="SynchronizationContext.Post"/>.
     /// </summary>
     public sealed class ThreadDispatcher
     {
         private readonly ConcurrentDictionary<string, SynchronizationContext> _contexts = new();
-        private readonly ConcurrentDictionary<string, WorkerThread> _workers = new();
 
         /// <summary>
         /// Registers a named thread by capturing its current
@@ -34,21 +35,23 @@ namespace Scratch.InteractionArchitecture
         }
 
         /// <summary>
-        /// Spawns and registers a dedicated worker thread with a message pump.
-        /// Use this for objects that "live on their own thread" — the returned
-        /// thread-owner has no <see cref="SynchronizationContext"/> but still
-        /// accepts marshalled invocations.  Call <see cref="WorkerThread.Dispose"/>
-        /// to stop it.
+        /// Spawns a dedicated message-loop thread and installs a
+        /// <see cref="QueueSynchronizationContext"/> on it. Use this for objects
+        /// that "live on their own thread": every owned object is marshalled to
+        /// it via plain <see cref="SynchronizationContext.Post"/>, exactly like
+        /// the main thread. Call <see cref="QueueSynchronizationContext.Dispose"/>
+        /// to stop the thread.
         /// </summary>
-        public WorkerThread CreateWorkerThread(string threadName)
+        public QueueSynchronizationContext CreateWorkerThread(string threadName)
         {
-            var worker = new WorkerThread(threadName);
-            _workers[threadName] = worker;
+            var worker = new QueueSynchronizationContext(threadName);
+            _contexts[threadName] = worker;
             return worker;
         }
 
-        public WorkerThread GetWorkerThread(string threadName) =>
-            _workers.TryGetValue(threadName, out var worker) ? worker : null;
+        /// <summary>Gets a previously registered thread's context, or null.</summary>
+        public SynchronizationContext? GetRegisteredThread(string threadName) =>
+            _contexts.TryGetValue(threadName, out var context) ? context : null;
 
         /// <summary>Posts an action to the named thread and waits for completion.</summary>
         public Task<T> InvokeAsync<T>(string threadName, Func<T> func)
@@ -56,17 +59,14 @@ namespace Scratch.InteractionArchitecture
             if (_contexts.TryGetValue(threadName, out var context))
                 return InvokeOnContext(context, func);
 
-            if (_workers.TryGetValue(threadName, out var worker))
-                return worker.PostAsync(func);
-
             throw new KeyNotFoundException($"Thread '{threadName}' is not registered.");
         }
 
         public Task InvokeAsync(string threadName, Action action) =>
-            InvokeAsync<object>(threadName, () => { action(); return null; });
+            InvokeAsync<object?>(threadName, () => { action(); return null; });
 
         public bool IsRegistered(string threadName) =>
-            _contexts.ContainsKey(threadName) || _workers.ContainsKey(threadName);
+            _contexts.ContainsKey(threadName);
 
         private static Task<T> InvokeOnContext<T>(SynchronizationContext context, Func<T> func)
         {
@@ -89,39 +89,56 @@ namespace Scratch.InteractionArchitecture
         }
 
         /// <summary>
-        /// A dedicated thread running a message loop.  Work posted to it is
-        /// executed on exactly that thread, giving each owned object a single
-        /// serial access point without locks.
+        /// A <see cref="SynchronizationContext"/> that owns a dedicated message
+        /// loop on a single background thread. Posting runs the callback on that
+        /// thread; awaiting inside a callback resumes there too, because the
+        /// context is installed on the thread. This makes the worker behave
+        /// exactly like the main thread's Unity context, so every owned object
+        /// uses one dispatch path.
         /// </summary>
-        public sealed class WorkerThread : IDisposable
+        public sealed class QueueSynchronizationContext : SynchronizationContext, IDisposable
         {
             private readonly BlockingCollection<Action> _queue = new();
-            private readonly Thread _thread;
-            private volatile bool _running = true;
+            private readonly string _name;
+            private readonly int _threadId;
 
-            public string Name { get; }
-            public int ThreadId { get; }
+            public string Name => _name;
 
-            public WorkerThread(string name)
+            /// <summary>The managed thread id of the owned message-loop thread.</summary>
+            public int ThreadId => _threadId;
+
+            public QueueSynchronizationContext(string name)
             {
-                Name = name;
-                _thread = new Thread(Loop) { Name = name, IsBackground = true };
-                _thread.Start();
-                ThreadId = _thread.ManagedThreadId;
+                _name = name;
+                var thread = new Thread(Run) { Name = name, IsBackground = true };
+                thread.Start();
+                _threadId = thread.ManagedThreadId;
             }
 
-            /// <summary>Posts <paramref name="func"/> to the worker thread and
-            /// returns a task that completes when it has run there.</summary>
-            public Task<T> PostAsync<T>(Func<T> func)
+            /// <summary>Queues the callback onto the bound thread. Async-safe.</summary>
+            public override void Post(SendOrPostCallback d, object? state)
             {
-                var completionSource = new TaskCompletionSource<T>(
+                _queue.Add(() => d(state));
+            }
+
+            /// <summary>Blocks the caller until the callback has run on the bound thread.</summary>
+            public override void Send(SendOrPostCallback d, object? state)
+            {
+                if (Thread.CurrentThread.ManagedThreadId == _threadId)
+                {
+                    d(state);
+                    return;
+                }
+
+                var completionSource = new TaskCompletionSource<object?>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
 
                 _queue.Add(() =>
                 {
                     try
                     {
-                        completionSource.SetResult(func());
+                        d(state);
+                        completionSource.SetResult(null);
                     }
                     catch (Exception ex)
                     {
@@ -129,27 +146,17 @@ namespace Scratch.InteractionArchitecture
                     }
                 });
 
-                return completionSource.Task;
+                completionSource.Task.GetAwaiter().GetResult();
             }
 
-            public Task PostAsync(Action action) =>
-                PostAsync<object>(() => { action(); return null; });
-
-            /// <summary>Synchronously blocks the *calling* thread until the work
-            /// has executed on this worker thread. Safe because the worker thread
-            /// is a separate OS thread, not the caller.</summary>
-            public T InvokeSync<T>(Func<T> func)
+            private void Run()
             {
-                if (Thread.CurrentThread.ManagedThreadId == ThreadId)
-                    return func();
-
-                return PostAsync(func).GetAwaiter().GetResult();
-            }
-
-            private void Loop()
-            {
-                while (_running)
+                SetSynchronizationContext(this);
+                while (true)
                 {
+                    // TryTake with an infinite timeout returns false (instead of
+                    // throwing like Take()) once the queue is empty and adding
+                    // has been completed — i.e. the disarm point of Dispose().
                     if (!_queue.TryTake(out Action? action, Timeout.Infinite) || action == null)
                         break;
 
@@ -157,11 +164,10 @@ namespace Scratch.InteractionArchitecture
                 }
             }
 
-            public void Dispose()
-            {
-                _running = false;
-                _queue.CompleteAdding();
-            }
+            /// <summary>Stops the message loop once the queue drains. Safe to call from any thread.</summary>
+            public void Dispose() => _queue.CompleteAdding();
+
+            public override string ToString() => $"@{_name}";
         }
     }
 }
