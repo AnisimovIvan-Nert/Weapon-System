@@ -14,12 +14,12 @@ namespace Scratch.Owning
             _owner = owner;
         }
 
-        public ValueTask RunOnOwner(Action action)
+        public async ValueTask RunOnOwner(Action action)
         {
             _ownerLock.EnterReadLock();
             try
             {
-                return _owner.RunOnOwner(action);
+                await _owner.RunOnOwner(action);
             }
             finally
             {
@@ -27,12 +27,12 @@ namespace Scratch.Owning
             }
         }
 
-        public ValueTask<T> RunOnOwner<T>(Func<T> func)
+        public async ValueTask<T> RunOnOwner<T>(Func<T> func)
         {
             _ownerLock.EnterReadLock();
             try
             {
-                return _owner.RunOnOwner(func);
+                return await _owner.RunOnOwner(func);
             }
             finally
             {

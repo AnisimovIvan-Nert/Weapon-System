@@ -34,7 +34,7 @@ namespace Scratch.Owning
 
         public bool ExecuteNext()
         {
-            if (!_queue.TryPeek(out var action))
+            if (!_queue.TryDequeue(out var action))
             {
                 if (_terminateTcs == null)
                     return false;
@@ -42,12 +42,14 @@ namespace Scratch.Owning
                 _terminateLock.EnterWriteLock();
                 try
                 {
+                    _terminateTcs.SetResult(null);
                 }
-                catch (Exception e)
+                finally
                 {
-                    Console.WriteLine(e);
-                    throw;
+                    _terminateLock.ExitWriteLock();
                 }
+
+                return false;
             }
 
             action();
