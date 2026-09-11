@@ -17,14 +17,10 @@ namespace Scratch.Owning
         }
 
         private readonly ConcurrentQueue<Action> _queue = new();
-        private TaskCompletionSource<object?>? _endOfQueueTcs;
 
         private int _threadId = Thread.CurrentThread.ManagedThreadId;
-        private readonly ReaderWriterLockSlim _threadIdLock = new();
+        private readonly ReaderWriterLockSlim _threadIdLock = new(LockRecursionPolicy.SupportsRecursion);
 
-        private TaskCompletionSource<object?>? _terminateTcs;
-        private readonly ReaderWriterLockSlim _terminateLock = new();
-        
         public void UpdateThreadId()
         {
             _threadIdLock.EnterWriteLock();
@@ -35,112 +31,37 @@ namespace Scratch.Owning
         public bool ExecuteNext()
         {
             if (!_queue.TryDequeue(out var action))
-            {
-                if (_terminateTcs == null)
-                    return false;
-
-                _terminateLock.EnterWriteLock();
-                try
-                {
-                    _terminateTcs.SetResult(null);
-                }
-                finally
-                {
-                    _terminateLock.ExitWriteLock();
-                }
-
                 return false;
-            }
 
             action();
             return true;
         }
 
-        public ValueTask Terminate()
-        {
-            _terminateLock.EnterWriteLock();
-            try
-            {
-                if (_queue.IsEmpty)
-                    return new ValueTask(Task.CompletedTask);
-
-                if (_terminateTcs != null)
-                    return new ValueTask(_terminateTcs.Task);
-
-                _terminateTcs = new TaskCompletionSource<object?>();
-                return new ValueTask(_terminateTcs.Task);
-            }
-            finally
-            {
-                _terminateLock.ExitWriteLock();
-            }
-        }
-
         public ValueTask RunOnOwner(Action action)
         {
-            _terminateLock.EnterReadLock();
-            try
-            {
-                if (TryRunImmediately(action))
-                    return new ValueTask(Task.CompletedTask);
+            if (TryRunImmediately(action))
+                return new ValueTask(Task.CompletedTask);
 
-                if (_terminateTcs != null)
-                    throw new InvalidOperationException("Accepting of new work is terminated");
+            var (wrappedAction, task) = WrapAction().WrapWithTask();
+            _queue.Enqueue(wrappedAction);
+            return new ValueTask(task);
 
-                var tcs = new TaskCompletionSource<object?>();
-                _queue.Enqueue(() =>
-                {
-                    try
-                    {
-                        RunImmediately(action);
-                        tcs.SetResult(null);
-                    }
-                    catch (Exception e)
-                    {
-                        tcs.SetException(e);
-                    }
-                });
-                return new ValueTask(tcs.Task);
-            }
-            finally
-            {
-                _terminateLock.ExitReadLock();
-            }
+            Action WrapAction() => () => RunImmediately(action);
         }
 
         public ValueTask<T> RunOnOwner<T>(Func<T> func)
         {
-            _terminateLock.EnterReadLock();
-            try
-            {
-                if (TryRunImmediately(func, out var result))
-                    return new ValueTask<T>(result);
-
-                if (_terminateTcs != null)
-                    throw new InvalidOperationException("Accepting of new work is terminated");
-
-                var tcs = new TaskCompletionSource<T>();
-                _queue.Enqueue(() =>
-                {
-                    try
-                    {
-                        var funcResult = RunImmediately(func);
-                        tcs.SetResult(funcResult);
-                    }
-                    catch (Exception e)
-                    {
-                        tcs.SetException(e);
-                    }
-                });
-                return new ValueTask<T>(tcs.Task);
-            }
-            finally
-            {
-                _terminateLock.ExitReadLock();
-            }
+            if (TryRunImmediately(func, out var result))
+                return new ValueTask<T>(result);
+            
+            var (wrappedAction, task) = WrapAction().WrapWithTask();
+            _queue.Enqueue(wrappedAction);
+            return new ValueTask<T>(task);
+            
+            Func<T> WrapAction() => () => RunImmediately(func);
         }
 
-        private bool TryRunImmediately(Action action)
+        public bool TryRunImmediately(Action action)
         {
             try
             {
@@ -153,7 +74,7 @@ namespace Scratch.Owning
             }
         }
 
-        private bool TryRunImmediately<T>(Func<T> func, out T result)
+        public bool TryRunImmediately<T>(Func<T> func, out T result)
         {
             result = default!;
             try
@@ -166,6 +87,8 @@ namespace Scratch.Owning
                 return false;
             }
         }
+
+        public void Enqueue(Action action) => _queue.Enqueue(action);
 
         private void RunImmediately(Action action)
         {
