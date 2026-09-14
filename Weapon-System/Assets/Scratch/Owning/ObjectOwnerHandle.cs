@@ -87,6 +87,7 @@ namespace Scratch.Owning
             _drainLock.ExitWriteLock();
 
             await Task.WhenAll(_pendingRequests.ToArray());
+            _pendingRequests.Clear();
 
             _drainLock.EnterWriteLock();
             try
