@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Unity.PerformanceTesting;
 
@@ -30,28 +32,45 @@ namespace SecondScratch.ThreadSafe.Tests
         }
 
         [Test]
-        public void Command_SingleThread_Test()
+        public async Task Command_SingleThread_Test()
         {
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
                 players[i] = new Player();
 
-            var commandQueue = new Queue<Player.IncreaseHealthCommand>();
+            var commandQueue = new AsyncCommandQueue();
+
+            var processTask = Task.Run(ProcessCommands);
 
             foreach (var player in players)
                 for (var j = 0; j < RepeatCount; j++)
                     commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
 
-            while (commandQueue.TryDequeue(out var command))
-                command.Execute();
+            await processTask;
 
             foreach (var player in players)
                 Assert.AreEqual(Value * RepeatCount, player.Health);
+            return;
+            
+            async Task ProcessCommands()
+            {
+                var exceptedCommandsCount = PlayerCount * RepeatCount;
+
+                while (exceptedCommandsCount > 0)
+                {
+                    var command = await commandQueue.TryDequeue();
+                    if (command == null)
+                        continue;
+
+                    command.Execute();
+                    exceptedCommandsCount--;
+                }
+            }
         }
 
         [Test]
         [Performance]
-        public void DirectCall_Performance_Test()
+        public void DirectCall_PerformanceTest()
         {
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
@@ -85,42 +104,76 @@ namespace SecondScratch.ThreadSafe.Tests
 
         [Test]
         [Performance]
-        public void Command_SingleThread_Performance_Test()
+        public async Task Command_SingleThread_PerformanceTest()
         {
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
                 players[i] = new Player();
-            var commandQueue = new Queue<Player.IncreaseHealthCommand>();
+            var commandQueue = new AsyncCommandQueue();
 
-            Measure.Method(Method)
-                .CleanUp(CleanUp)
-                .WarmupCount(WarmupCount)
-                .MeasurementCount(MeasurementCount)
-                .IterationsPerMeasurement(IterationsPerMeasurement)
-                .GC()
-                .Run();
-            return;
-
-            void Method()
+            using (Measure.Scope())
             {
+                var processTask = Task.Run(ProcessCommands);
+
                 foreach (var player in players)
                     for (var j = 0; j < RepeatCount; j++)
                         commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
 
-                while (commandQueue.TryDequeue(out var command))
-                    command.Execute();
+                await processTask;
             }
-
-            void CleanUp()
+            
+            foreach (var player in players)
             {
-                foreach (var player in players)
+                Assert.AreEqual(Value * RepeatCount, player.Health);
+                player.Reset();
+            }
+            return;
+            
+            async Task ProcessCommands()
+            {
+                var exceptedCommandsCount = PlayerCount * RepeatCount;
+
+                while (exceptedCommandsCount > 0)
                 {
-                    Assert.AreEqual(Value * RepeatCount, player.Health);
-                    player.Reset();
+                    var command = await commandQueue.TryDequeue();
+                    if (command == null)
+                        continue;
+
+                    command.Execute();
+                    exceptedCommandsCount--;
                 }
-                commandQueue.Clear();
             }
         }
+    }
+
+    public class AsyncCommandQueue
+    {
+        private readonly ConcurrentQueue<ICommand> _queue = new();
+        private readonly SemaphoreSlim _signal = new(0);
+
+        public void Enqueue(ICommand command)
+        {
+            _queue.Enqueue(command);
+            _signal.Release();
+        }
+
+        public async ValueTask<ICommand?> TryDequeue(CancellationToken cancellationToken = default)
+        {
+            if (_queue.TryDequeue(out var item))
+                return item;
+
+            await _signal.WaitAsync(cancellationToken);
+
+            if (_queue.TryDequeue(out item))
+                return item;
+
+            return null;
+        }
+    }
+
+    public interface ICommand
+    {
+        void Execute();
     }
 
     public partial class Player
@@ -157,10 +210,9 @@ namespace SecondScratch.ThreadSafe.Tests
     //command
     public partial class Player
     {
-        public IncreaseHealthCommand CreateIncreaseHealthCommand(int value)
-            => new IncreaseHealthCommand(this, value);
+        public IncreaseHealthCommand CreateIncreaseHealthCommand(int value) => new(this, value);
 
-        public readonly struct IncreaseHealthCommand
+        public readonly struct IncreaseHealthCommand : ICommand
         {
             private readonly Player _target;
             private readonly int _value;
