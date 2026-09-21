@@ -1,8 +1,7 @@
-﻿using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using NUnit.Framework;
 using Unity.PerformanceTesting;
+using System.Threading.Channels;
 
 namespace SecondScratch.ThreadSafe.Tests
 {
@@ -38,32 +37,37 @@ namespace SecondScratch.ThreadSafe.Tests
             for (var i = 0; i < PlayerCount; i++)
                 players[i] = new Player();
 
-            var commandQueue = new AsyncCommandQueue();
+            var commandChannel = Channel.CreateUnbounded<ICommand>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false,
+                AllowSynchronousContinuations = true,
+            });
 
             var processTask = Task.Run(ProcessCommands);
 
             foreach (var player in players)
                 for (var j = 0; j < RepeatCount; j++)
-                    commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
+                    commandChannel.Writer.TryWrite(player.CreateIncreaseHealthCommand(Value));
 
             await processTask;
 
             foreach (var player in players)
                 Assert.AreEqual(Value * RepeatCount, player.Health);
             return;
-            
-            async Task ProcessCommands()
+
+            async ValueTask ProcessCommands()
             {
                 var exceptedCommandsCount = PlayerCount * RepeatCount;
 
                 while (exceptedCommandsCount > 0)
                 {
-                    var command = await commandQueue.TryDequeue();
-                    if (command == null)
-                        continue;
-
-                    command.Execute();
-                    exceptedCommandsCount--;
+                    while (commandChannel.Reader.TryRead(out var command))
+                    {
+                        command.Execute();
+                        exceptedCommandsCount--;
+                    }
+                    await commandChannel.Reader.WaitToReadAsync();
                 }
             }
         }
@@ -106,10 +110,18 @@ namespace SecondScratch.ThreadSafe.Tests
         [Performance]
         public async Task Command_SingleThread_PerformanceTest()
         {
+            for (var i = 0; i < WarmupCount; i++)
+                await Command_SingleThread_Test();
+            
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
                 players[i] = new Player();
-            var commandQueue = new AsyncCommandQueue();
+            
+            var commandChannel = Channel.CreateUnbounded<ICommand>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false,
+            });
 
             using (Measure.Scope())
             {
@@ -117,57 +129,33 @@ namespace SecondScratch.ThreadSafe.Tests
 
                 foreach (var player in players)
                     for (var j = 0; j < RepeatCount; j++)
-                        commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
+                        commandChannel.Writer.TryWrite(player.CreateIncreaseHealthCommand(Value));
 
                 await processTask;
             }
-            
+
             foreach (var player in players)
             {
                 Assert.AreEqual(Value * RepeatCount, player.Health);
                 player.Reset();
             }
+
             return;
-            
-            async Task ProcessCommands()
+
+            async ValueTask ProcessCommands()
             {
                 var exceptedCommandsCount = PlayerCount * RepeatCount;
 
                 while (exceptedCommandsCount > 0)
                 {
-                    var command = await commandQueue.TryDequeue();
-                    if (command == null)
-                        continue;
-
-                    command.Execute();
-                    exceptedCommandsCount--;
+                    while (commandChannel.Reader.TryRead(out var command))
+                    {
+                        command.Execute();
+                        exceptedCommandsCount--;
+                    }
+                    await commandChannel.Reader.WaitToReadAsync();
                 }
             }
-        }
-    }
-
-    public class AsyncCommandQueue
-    {
-        private readonly ConcurrentQueue<ICommand> _queue = new();
-        private readonly SemaphoreSlim _signal = new(0);
-
-        public void Enqueue(ICommand command)
-        {
-            _queue.Enqueue(command);
-            _signal.Release();
-        }
-
-        public async ValueTask<ICommand?> TryDequeue(CancellationToken cancellationToken = default)
-        {
-            if (_queue.TryDequeue(out var item))
-                return item;
-
-            await _signal.WaitAsync(cancellationToken);
-
-            if (_queue.TryDequeue(out item))
-                return item;
-
-            return null;
         }
     }
 
