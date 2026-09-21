@@ -8,43 +8,54 @@ namespace SecondScratch.ThreadSafe.Tests
     {
         public const int Value = 10;
         public const int RepeatCount = 100;
-        
+        public const int PlayerCount = 100;
+
         public const int WarmupCount = 10;
         public const int MeasurementCount = 10;
         public const int IterationsPerMeasurement = 5;
-        
+
         [Test]
         public void DirectCall_Test()
         {
-            var player = new Player();
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
+                players[i] = new Player();
 
-            for (var i = 0; i < RepeatCount; i++)
-                player.IncreaseHealth(Value);
-            
-            Assert.AreEqual(Value * RepeatCount, player.Health);
+            foreach (var player in players)
+                for (var j = 0; j < RepeatCount; j++)
+                    player.IncreaseHealth(Value);
+
+            foreach (var player in players)
+                Assert.AreEqual(Value * RepeatCount, player.Health);
         }
 
         [Test]
         public void Command_SingleThread_Test()
         {
-            var player = new Player();
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
+                players[i] = new Player();
 
             var commandQueue = new Queue<Player.IncreaseHealthCommand>();
 
-            for (var i = 0; i < RepeatCount; i++)
-                commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
+            foreach (var player in players)
+                for (var j = 0; j < RepeatCount; j++)
+                    commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
 
             while (commandQueue.TryDequeue(out var command))
                 command.Execute();
-            
-            Assert.AreEqual(Value * RepeatCount, player.Health);
+
+            foreach (var player in players)
+                Assert.AreEqual(Value * RepeatCount, player.Health);
         }
-        
+
         [Test]
         [Performance]
         public void DirectCall_Performance_Test()
         {
-            var player = new Player();
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
+                players[i] = new Player();
 
             Measure.Method(Method)
                 .CleanUp(CleanUp)
@@ -54,25 +65,31 @@ namespace SecondScratch.ThreadSafe.Tests
                 .GC()
                 .Run();
             return;
-            
+
             void Method()
             {
-                for (var i = 0; i < RepeatCount; i++) 
-                    player.IncreaseHealth(Value);
+                foreach (var player in players)
+                    for (var j = 0; j < RepeatCount; j++)
+                        player.IncreaseHealth(Value);
             }
 
             void CleanUp()
             {
-                Assert.AreEqual(Value * RepeatCount, player.Health);
-                player.Reset();
+                foreach (var player in players)
+                {
+                    Assert.AreEqual(Value * RepeatCount, player.Health);
+                    player.Reset();
+                }
             }
         }
-        
+
         [Test]
         [Performance]
         public void Command_SingleThread_Performance_Test()
         {
-            var player = new Player();
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
+                players[i] = new Player();
             var commandQueue = new Queue<Player.IncreaseHealthCommand>();
 
             Measure.Method(Method)
@@ -83,11 +100,12 @@ namespace SecondScratch.ThreadSafe.Tests
                 .GC()
                 .Run();
             return;
-            
+
             void Method()
             {
-                for (var i = 0; i < RepeatCount; i++)
-                    commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
+                foreach (var player in players)
+                    for (var j = 0; j < RepeatCount; j++)
+                        commandQueue.Enqueue(player.CreateIncreaseHealthCommand(Value));
 
                 while (commandQueue.TryDequeue(out var command))
                     command.Execute();
@@ -95,8 +113,11 @@ namespace SecondScratch.ThreadSafe.Tests
 
             void CleanUp()
             {
-                Assert.AreEqual(Value * RepeatCount, player.Health);
-                player.Reset();
+                foreach (var player in players)
+                {
+                    Assert.AreEqual(Value * RepeatCount, player.Health);
+                    player.Reset();
+                }
                 commandQueue.Clear();
             }
         }
@@ -116,29 +137,29 @@ namespace SecondScratch.ThreadSafe.Tests
             Health = 0;
         }
     }
-    
+
     //view
     public partial class Player
     {
         public View ToModel() => new(Health);
-        
+
         public readonly struct View
         {
             public int Health { get; }
-            
+
             public View(int health)
             {
                 Health = health;
             }
         }
     }
-    
+
     //command
     public partial class Player
     {
         public IncreaseHealthCommand CreateIncreaseHealthCommand(int value)
             => new IncreaseHealthCommand(this, value);
-        
+
         public readonly struct IncreaseHealthCommand
         {
             private readonly Player _target;
