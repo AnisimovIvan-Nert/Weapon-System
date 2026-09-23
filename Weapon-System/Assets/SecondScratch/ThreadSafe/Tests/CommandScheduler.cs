@@ -13,7 +13,9 @@ namespace SecondScratch.ThreadSafe.Tests
         private readonly int[] _pendingCounts;
         private readonly CancellationTokenSource _cts = new();
         private readonly ConditionalWeakTable<object, TargetState> _targetStates = new();
+        
         private Task[]? _consumerTasks;
+        private readonly object _consumerTasksLock = new();
 
         public int ChannelCount => _channels.Length;
 
@@ -49,34 +51,24 @@ namespace SecondScratch.ThreadSafe.Tests
 
         public void ScheduleCommand(ICommand command)
         {
-            var target = command.Target;
-            var targetState = _targetStates.GetValue(target, static _ => new TargetState());
-
-            var channelIndex = targetState.GetChanelIndex(this);
-
-            targetState.IncrementPending();
-            Interlocked.Increment(ref _pendingCounts[channelIndex]);
-
-            if (_channels[channelIndex].Writer.TryWrite(command))
-                return;
-
-            Interlocked.Decrement(ref _pendingCounts[channelIndex]);
-            targetState.DecrementPending();
-
-            throw new InvalidOperationException();
+            var targetState = _targetStates.GetValue(command.Target, static _ => new TargetState());
+            targetState.Enqueue(command, this);
         }
 
         public void RunConsumers()
         {
-            if (_consumerTasks != null)
-                throw new InvalidOperationException();
-            
-            _consumerTasks = new Task[_channels.Length];
-
-            for (var i = 0; i < _channels.Length; i++)
+            lock (_consumerTasksLock)
             {
-                var channelIndex = i;
-                _consumerTasks[i] = Task.Run(() => ConsumeChannel(channelIndex));
+                if (_consumerTasks != null)
+                    throw new InvalidOperationException();
+
+                _consumerTasks = new Task[_channels.Length];
+
+                for (var i = 0; i < _channels.Length; i++)
+                {
+                    var channelIndex = i;
+                    _consumerTasks[i] = Task.Run(() => ConsumeChannel(channelIndex));
+                }
             }
         }
 
@@ -108,11 +100,11 @@ namespace SecondScratch.ThreadSafe.Tests
             {
                 var reader = _channels[channelIndex].Reader;
 
-            while (await reader.WaitToReadAsync(_cts.Token).ConfigureAwait(false))
-            {
-                while (reader.TryRead(out var command))
-                    ExecuteAndTrack(command, channelIndex);
-            }
+                while (await reader.WaitToReadAsync(_cts.Token).ConfigureAwait(false))
+                {
+                    while (reader.TryRead(out var command))
+                        ExecuteAndTrack(command, channelIndex);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -160,34 +152,52 @@ namespace SecondScratch.ThreadSafe.Tests
             _cts.Cancel();
             foreach (var channel in _channels)
                 channel.Writer.TryComplete();
-            if (_consumerTasks != null) 
-                Task.WaitAll(_consumerTasks);
+
+            lock (_consumerTasksLock)
+            {
+                if (_consumerTasks != null)
+                    Task.WaitAll(_consumerTasks);
+            }
+
             _cts.Dispose();
         }
 
         private sealed class TargetState
         {
+            private readonly object _gate = new();
             private int _pending;
             private int _channelIndex;
 
-            public int GetChanelIndex(CommandScheduler commandScheduler)
+            public void Enqueue(ICommand command, CommandScheduler scheduler)
             {
-                if (Volatile.Read(ref _pending) > 0)
-                    return Volatile.Read(ref _channelIndex);
+                lock (_gate)
+                {
+                    var channelIndex = _pending > 0
+                        ? _channelIndex
+                        : AssignChannel(scheduler);
 
-                var index = commandScheduler.FindLeastPendingChannel();
-                Volatile.Write(ref _channelIndex, index);
-                return index;
-            }
+                    _pending++;
+                    Interlocked.Increment(ref scheduler._pendingCounts[channelIndex]);
 
-            public void IncrementPending()
-            {
-                Interlocked.Increment(ref _pending);
+                    if (scheduler._channels[channelIndex].Writer.TryWrite(command))
+                        return;
+
+                    Interlocked.Decrement(ref scheduler._pendingCounts[channelIndex]);
+                    _pending--;
+                    throw new InvalidOperationException("CommandScheduler: channel was completed.");
+                }
             }
 
             public void DecrementPending()
             {
                 Interlocked.Decrement(ref _pending);
+            }
+
+            private int AssignChannel(CommandScheduler scheduler)
+            {
+                var index = scheduler.FindLeastPendingChannel();
+                _channelIndex = index;
+                return index;
             }
         }
     }
