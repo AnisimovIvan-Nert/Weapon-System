@@ -1,4 +1,7 @@
-﻿namespace SecondScratch.ThreadSafe.Tests.Mocks
+﻿using System;
+using System.Threading.Tasks;
+
+namespace SecondScratch.ThreadSafe.Tests.Mocks
 {
     public partial class Player
     {
@@ -25,17 +28,27 @@
             private readonly Player _target;
             private readonly int _value;
 
+            private readonly TaskCompletionSource<bool> _tcs;
+            public Task ExecutionTask => _tcs.Task;
+            
             public object Target => _target;
 
             public IncreaseHealthCommand(Player target, int value)
             {
                 _target = target;
                 _value = value;
+                
+                _tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
 
             public void Execute()
             {
+                if (ExecutionTask.IsCompleted)
+                    throw new InvalidOperationException("Multiple calls");
+                
                 _target.IncreaseHealth(_value);
+                
+                _tcs.TrySetResult(true);
             }
         }
     }
