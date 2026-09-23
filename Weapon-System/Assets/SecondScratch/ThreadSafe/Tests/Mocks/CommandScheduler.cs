@@ -5,7 +5,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace SecondScratch.ThreadSafe.Tests
+namespace SecondScratch.ThreadSafe.Tests.Mocks
 {
     public class CommandScheduler : IDisposable
     {
