@@ -34,9 +34,52 @@ namespace SecondScratch.ThreadSafe.Tests
             foreach (var player in players)
                 Assert.AreEqual(Value * RepeatCount, player.Health);
         }
+        
+        [Test]
+        public async Task Command_RawChannel_Test()
+        {
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
+                players[i] = new Player();
+
+            var commandChannel = Channel.CreateUnbounded<ICommand>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false,
+                AllowSynchronousContinuations = true,
+            });
+
+            var processTask = Task.Run(ProcessCommands);
+
+            foreach (var player in players)
+                for (var j = 0; j < RepeatCount; j++)
+                    commandChannel.Writer.TryWrite(player.CreateIncreaseHealthCommand(Value));
+
+            await processTask;
+
+            foreach (var player in players)
+                Assert.AreEqual(Value * RepeatCount, player.Health);
+            return;
+
+            async ValueTask ProcessCommands()
+            {
+                var exceptedCommandsCount = PlayerCount * RepeatCount;
+
+                while (exceptedCommandsCount > 0)
+                {
+                    while (commandChannel.Reader.TryRead(out var command))
+                    {
+                        command.Execute();
+                        exceptedCommandsCount--;
+                    }
+
+                    await commandChannel.Reader.WaitToReadAsync().ConfigureAwait(false);
+                }
+            }
+        }
 
         [Test]
-        public async Task Command_SingleThread_Test()
+        public async Task Command_ChannelCommandScheduler_Test()
         {
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
@@ -51,7 +94,7 @@ namespace SecondScratch.ThreadSafe.Tests
             
             var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(5);
             while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < timeout)
-                await Task.Delay(1);
+                await Task.Yield();
             
             Assert.AreEqual(0, scheduler.TotalPendingCommands);
 
@@ -85,7 +128,7 @@ namespace SecondScratch.ThreadSafe.Tests
 
             var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(5);
             while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < timeout)
-                await Task.Delay(1);
+                await Task.Yield();
             
             Assert.AreEqual(0, scheduler.TotalPendingCommands);
 
@@ -126,13 +169,13 @@ namespace SecondScratch.ThreadSafe.Tests
                 }
             }
         }
-
+        
         [Test]
         [Performance]
-        public async Task Command_SingleThread_PerformanceTest()
+        public async Task Command_RawChannel_PerformanceTest()
         {
             for (var i = 0; i < WarmupCount; i++)
-                await Command_SingleThread_Test();
+                await Command_RawChannel_Test();
 
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
@@ -142,6 +185,7 @@ namespace SecondScratch.ThreadSafe.Tests
             {
                 SingleReader = true,
                 SingleWriter = false,
+                AllowSynchronousContinuations = true
             });
 
             using (Measure.Scope())
@@ -177,6 +221,39 @@ namespace SecondScratch.ThreadSafe.Tests
 
                     await commandChannel.Reader.WaitToReadAsync();
                 }
+            }
+        }
+
+        [Test]
+        [Performance]
+        public async Task Command_ChannelCommandScheduler_PerformanceTest()
+        {
+            for (var i = 0; i < WarmupCount; i++)
+                await Command_ChannelCommandScheduler_Test();
+
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
+                players[i] = new Player();
+
+            await using var scheduler = new ChannelCommandScheduler();
+            scheduler.RunConsumers();
+
+            using (Measure.Scope())
+            {
+                foreach (var player in players)
+                    for (var j = 0; j < RepeatCount; j++)
+                        scheduler.ScheduleCommand(player.CreateIncreaseHealthCommand(Value));
+                
+                while (scheduler.TotalPendingCommands > 0)
+                    await Task.Yield();
+            }
+            
+            Assert.AreEqual(0, scheduler.TotalPendingCommands);
+
+            foreach (var player in players)
+            {
+                Assert.AreEqual(Value * RepeatCount, player.Health);
+                player.Reset();
             }
         }
     }
