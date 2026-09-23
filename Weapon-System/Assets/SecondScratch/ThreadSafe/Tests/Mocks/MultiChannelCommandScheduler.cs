@@ -7,17 +7,15 @@ using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks
 {
-    public class CommandScheduler : IDisposable
+    public class MultiChannelCommandScheduler : IAsyncDisposable
     {
         private readonly Channel<ICommand>[] _channels;
         private readonly int[] _pendingCounts;
         private readonly CancellationTokenSource _cts = new();
         private readonly ConditionalWeakTable<object, TargetState> _targetStates = new();
-        
+
         private Task[]? _consumerTasks;
         private readonly object _consumerTasksLock = new();
-
-        public int ChannelCount => _channels.Length;
 
         public int TotalPendingCommands
         {
@@ -30,7 +28,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             }
         }
 
-        public CommandScheduler(int channelCount = 16)
+        public MultiChannelCommandScheduler(int channelCount = 16)
         {
             if (channelCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(channelCount));
@@ -47,6 +45,18 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
                     AllowSynchronousContinuations = true,
                 });
             }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _cts.Cancel();
+            foreach (var channel in _channels)
+                channel.Writer.TryComplete();
+
+            if (_consumerTasks != null)
+                await Task.WhenAll(_consumerTasks);
+
+            _cts.Dispose();
         }
 
         public void ScheduleCommand(ICommand command)
@@ -74,26 +84,20 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 
         public int PendingCommandCount(int channelIndex) => Volatile.Read(ref _pendingCounts[channelIndex]);
 
-        private int FindLeastPendingChannel()
+        public async Task DrainChannelAsync(int channelIndex)
         {
-            var result = 0;
-            var leastPending = int.MaxValue;
+            var reader = _channels[channelIndex].Reader;
 
-            for (var i = 0; i < _pendingCounts.Length; i++)
+            while (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
             {
-                var pending = Volatile.Read(ref _pendingCounts[i]);
-                if (pending >= leastPending)
-                    continue;
+                while (reader.TryRead(out var command))
+                    ExecuteAndTrack(command, channelIndex);
 
-                leastPending = pending;
-                result = i;
-                if (pending == 0)
-                    break;
+                if (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
+                    await Task.Yield();
             }
-
-            return result;
         }
-
+        
         private async Task ConsumeChannel(int channelIndex)
         {
             try
@@ -115,20 +119,6 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             }
         }
 
-        internal async Task DrainChannelAsync(int channelIndex)
-        {
-            var reader = _channels[channelIndex].Reader;
-
-            while (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
-            {
-                while (reader.TryRead(out var command))
-                    ExecuteAndTrack(command, channelIndex);
-
-                if (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
-                    await Task.Yield();
-            }
-        }
-
         private void ExecuteAndTrack(ICommand command, int channelIndex)
         {
             try
@@ -147,19 +137,24 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             }
         }
 
-        public void Dispose()
+        private int FindLeastPendingChannel()
         {
-            _cts.Cancel();
-            foreach (var channel in _channels)
-                channel.Writer.TryComplete();
+            var result = 0;
+            var leastPending = int.MaxValue;
 
-            lock (_consumerTasksLock)
+            for (var i = 0; i < _pendingCounts.Length; i++)
             {
-                if (_consumerTasks != null)
-                    Task.WaitAll(_consumerTasks);
+                var pending = Volatile.Read(ref _pendingCounts[i]);
+                if (pending >= leastPending)
+                    continue;
+
+                leastPending = pending;
+                result = i;
+                if (pending == 0)
+                    break;
             }
 
-            _cts.Dispose();
+            return result;
         }
 
         private sealed class TargetState
@@ -168,7 +163,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             private int _pending;
             private int _channelIndex;
 
-            public void Enqueue(ICommand command, CommandScheduler scheduler)
+            public void Enqueue(ICommand command, MultiChannelCommandScheduler scheduler)
             {
                 lock (_gate)
                 {
@@ -184,7 +179,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 
                     Interlocked.Decrement(ref scheduler._pendingCounts[channelIndex]);
                     _pending--;
-                    throw new InvalidOperationException("CommandScheduler: channel was completed.");
+                    throw new InvalidOperationException("Channel was completed.");
                 }
             }
 
@@ -193,7 +188,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
                 Interlocked.Decrement(ref _pending);
             }
 
-            private int AssignChannel(CommandScheduler scheduler)
+            private int AssignChannel(MultiChannelCommandScheduler scheduler)
             {
                 var index = scheduler.FindLeastPendingChannel();
                 _channelIndex = index;
