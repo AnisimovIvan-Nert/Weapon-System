@@ -23,16 +23,13 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
     {
         public IncreaseHealthCommand CreateIncreaseHealthCommand(int value) => new(this, value);
 
-        public readonly struct IncreaseHealthCommand : ICommand
+        public class IncreaseHealthCommand : ICommand
         {
             private readonly Player _target;
             private readonly int _value;
 
-            private readonly bool[] _executed;
-            private readonly TaskCompletionSource<bool>?[] _tcs;
-
-            private bool Executed => _executed[0];
-            private TaskCompletionSource<bool>? Tcs => _tcs[0];
+            private bool _executed;
+            private TaskCompletionSource<bool>? _tcs;
 
             public object Target => _target;
 
@@ -40,40 +37,37 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             {
                 _target = target;
                 _value = value;
-
-                _executed = new bool[1];
-                _tcs = new TaskCompletionSource<bool>?[1];
             }
 
             public void Execute()
             {
-                lock (_executed)
+                lock (this)
                 {
-                    if (Executed)
+                    if (_executed)
                     {
-                        Tcs?.SetException(new InvalidOperationException("Multiple execution"));
+                        _tcs?.SetException(new InvalidOperationException("Multiple execution"));
                         throw new InvalidOperationException("Multiple execution");
                     }
                 
                     _target.IncreaseHealth(_value);
                 
-                    _executed[0] = true;
-                    Tcs?.SetResult(true);
+                    _executed = true;
+                    _tcs?.SetResult(true);
                 }
             }
 
             public ValueTask WaitExecution()
             {
-                if (Executed)
+                if (_executed)
                     return new ValueTask(Task.CompletedTask);
                 
-                lock (_executed)
+                lock (this)
                 {
-                    if (Executed)
+                    if (_executed)
                         return new ValueTask(Task.CompletedTask);
 
-                    _tcs[0] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    return new ValueTask(Tcs!.Task);
+                    _tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    return new ValueTask(_tcs.Task);
                 }
             }
         }

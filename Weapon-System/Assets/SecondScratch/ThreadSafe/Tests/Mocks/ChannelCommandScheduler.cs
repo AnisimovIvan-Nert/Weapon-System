@@ -21,7 +21,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
         private Task? _consumerTask;
         private readonly object _consumerTaskLock = new();
 
-        public int TotalPendingCommands => _pending;
+        public int TotalPendingCommands => Volatile.Read(ref _pending);
 
         public async ValueTask DisposeAsync()
         {
