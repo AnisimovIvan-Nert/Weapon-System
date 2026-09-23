@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks
@@ -28,7 +29,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             private readonly Player _target;
             private readonly int _value;
 
-            private bool _executed;
+            private int _executed;
             private TaskCompletionSource<bool>? _tcs;
 
             public object Target => _target;
@@ -41,34 +42,28 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 
             public void Execute()
             {
-                lock (this)
+                if (Interlocked.Exchange(ref _executed, 1) != 0)
                 {
-                    if (_executed)
-                    {
-                        _tcs?.SetException(new InvalidOperationException("Multiple execution"));
-                        throw new InvalidOperationException("Multiple execution");
-                    }
-                
-                    _target.IncreaseHealth(_value);
-                
-                    _executed = true;
-                    _tcs?.SetResult(true);
+                    _tcs?.TrySetException(new InvalidOperationException("Multiple execution"));
+                    throw new InvalidOperationException("Multiple execution");
                 }
+
+                _target.IncreaseHealth(_value);
+                _tcs?.TrySetResult(true);
             }
 
             public ValueTask WaitExecution()
             {
-                if (_executed)
+                if (Volatile.Read(ref _executed) != 0)
                     return new ValueTask(Task.CompletedTask);
-                
-                lock (this)
-                {
-                    if (_executed)
-                        return new ValueTask(Task.CompletedTask);
 
-                    _tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    return new ValueTask(_tcs.Task);
-                }
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                tcs = Interlocked.CompareExchange(ref _tcs, tcs, null) ?? tcs;
+
+                if (Volatile.Read(ref _executed) != 0)
+                    tcs.TrySetResult(true);
+
+                return new ValueTask(tcs.Task);
             }
         }
     }

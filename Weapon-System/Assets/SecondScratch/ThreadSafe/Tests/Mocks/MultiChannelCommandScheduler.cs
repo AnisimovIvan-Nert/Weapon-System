@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -9,10 +9,22 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 {
     public class MultiChannelCommandScheduler : IAsyncDisposable
     {
-        private readonly Channel<ICommand>[] _channels;
+        private readonly Channel<Entry>[] _channels;
         private readonly int[] _pendingCounts;
         private readonly CancellationTokenSource _cts = new();
-        private readonly ConditionalWeakTable<object, TargetState> _targetStates = new();
+        private readonly ConcurrentDictionary<object, TargetState> _targetStates = new();
+
+        private readonly struct Entry
+        {
+            public readonly ICommand Command;
+            public readonly TargetState State;
+
+            public Entry(ICommand command, TargetState state)
+            {
+                Command = command;
+                State = state;
+            }
+        }
 
         private Task[]? _consumerTasks;
         private readonly object _consumerTasksLock = new();
@@ -33,12 +45,12 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             if (channelCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(channelCount));
 
-            _channels = new Channel<ICommand>[channelCount];
+            _channels = new Channel<Entry>[channelCount];
             _pendingCounts = new int[channelCount];
 
             for (var i = 0; i < channelCount; i++)
             {
-                _channels[i] = Channel.CreateUnbounded<ICommand>(new UnboundedChannelOptions
+                _channels[i] = Channel.CreateUnbounded<Entry>(new UnboundedChannelOptions
                 {
                     SingleReader = true,
                     SingleWriter = false,
@@ -61,8 +73,8 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 
         public void ScheduleCommand(ICommand command)
         {
-            var targetState = _targetStates.GetValue(command.Target, static _ => new TargetState());
-            targetState.Enqueue(command, this);
+            var targetState = _targetStates.GetOrAdd(command.Target, static _ => new TargetState());
+            targetState.Enqueue(new Entry(command, targetState), this);
         }
 
         public void RunConsumers()
@@ -90,8 +102,8 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 
             while (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
             {
-                while (reader.TryRead(out var command))
-                    ExecuteAndTrack(command, channelIndex);
+                while (reader.TryRead(out var entry))
+                    ExecuteAndTrack(entry, channelIndex);
 
                 if (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
                     await Task.Yield();
@@ -106,8 +118,8 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 
                 while (await reader.WaitToReadAsync(_cts.Token).ConfigureAwait(false))
                 {
-                    while (reader.TryRead(out var command))
-                        ExecuteAndTrack(command, channelIndex);
+                    while (reader.TryRead(out var entry))
+                        ExecuteAndTrack(entry, channelIndex);
                 }
             }
             catch (OperationCanceledException)
@@ -119,11 +131,11 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             }
         }
 
-        private void ExecuteAndTrack(ICommand command, int channelIndex)
+        private void ExecuteAndTrack(Entry entry, int channelIndex)
         {
             try
             {
-                command.Execute();
+                entry.Command.Execute();
             }
             catch (Exception e)
             {
@@ -132,8 +144,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             finally
             {
                 Interlocked.Decrement(ref _pendingCounts[channelIndex]);
-                if (_targetStates.TryGetValue(command.Target, out var state))
-                    state.DecrementPending();
+                entry.State.DecrementPending();
             }
         }
 
@@ -163,7 +174,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             private int _pending;
             private int _channelIndex;
 
-            public void Enqueue(ICommand command, MultiChannelCommandScheduler scheduler)
+            public void Enqueue(Entry entry, MultiChannelCommandScheduler scheduler)
             {
                 lock (_gate)
                 {
@@ -174,7 +185,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
                     _pending++;
                     Interlocked.Increment(ref scheduler._pendingCounts[channelIndex]);
 
-                    if (scheduler._channels[channelIndex].Writer.TryWrite(command))
+                    if (scheduler._channels[channelIndex].Writer.TryWrite(entry))
                         return;
 
                     Interlocked.Decrement(ref scheduler._pendingCounts[channelIndex]);
