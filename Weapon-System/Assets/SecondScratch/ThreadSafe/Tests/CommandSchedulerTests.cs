@@ -84,8 +84,8 @@ namespace SecondScratch.ThreadSafe.Tests
 
             await Task.WhenAll(producers);
 
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-            while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < deadline)
+            var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < timeout)
                 await Task.Delay(1);
 
             Assert.AreEqual(0, scheduler.TotalPendingCommands);
@@ -151,8 +151,8 @@ namespace SecondScratch.ThreadSafe.Tests
 
             await Task.WhenAll(producers);
 
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-            while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < deadline)
+            var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < timeout)
                 await Task.Delay(1);
 
             Assert.AreEqual(0, scheduler.TotalPendingCommands);
