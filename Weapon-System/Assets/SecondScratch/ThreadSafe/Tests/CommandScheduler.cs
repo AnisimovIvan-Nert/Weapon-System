@@ -106,7 +106,13 @@ namespace SecondScratch.ThreadSafe.Tests
         {
             try
             {
-                await ConsumeChannelAsync(channelIndex, _cts.Token).ConfigureAwait(false);
+                var reader = _channels[channelIndex].Reader;
+
+            while (await reader.WaitToReadAsync(_cts.Token).ConfigureAwait(false))
+            {
+                while (reader.TryRead(out var command))
+                    ExecuteAndTrack(command, channelIndex);
+            }
             }
             catch (OperationCanceledException)
             {
@@ -117,29 +123,35 @@ namespace SecondScratch.ThreadSafe.Tests
             }
         }
 
-        internal async Task ConsumeChannelAsync(int channelIndex, CancellationToken cancellationToken = default)
+        internal async Task DrainChannelAsync(int channelIndex)
         {
             var reader = _channels[channelIndex].Reader;
 
-            while (await reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+            while (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
             {
                 while (reader.TryRead(out var command))
-                {
-                    try
-                    {
-                        command.Execute();
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogException(e);
-                    }
-                    finally
-                    {
-                        Interlocked.Decrement(ref _pendingCounts[channelIndex]);
-                        if (_targetStates.TryGetValue(command.Target, out var state))
-                            state.DecrementPending();
-                    }
-                }
+                    ExecuteAndTrack(command, channelIndex);
+
+                if (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
+                    await Task.Yield();
+            }
+        }
+
+        private void ExecuteAndTrack(ICommand command, int channelIndex)
+        {
+            try
+            {
+                command.Execute();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _pendingCounts[channelIndex]);
+                if (_targetStates.TryGetValue(command.Target, out var state))
+                    state.DecrementPending();
             }
         }
 

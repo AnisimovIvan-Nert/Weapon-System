@@ -189,7 +189,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 Assert.AreEqual(commandsPerTarget, scheduler.PendingCommandCount(channelIndex));
 
             for (var channelIndex = 0; channelIndex < channelCount; channelIndex++)
-                await scheduler.ConsumeChannelAsync(channelIndex);
+                await scheduler.DrainChannelAsync(channelIndex);
 
             foreach (var target in targets)
                 Assert.AreEqual(commandsPerTarget * Value, target.Health);
@@ -202,7 +202,7 @@ namespace SecondScratch.ThreadSafe.Tests
             for (var channelIndex = 1; channelIndex < channelCount; channelIndex++)
                 Assert.AreEqual(0, scheduler.PendingCommandCount(channelIndex));
 
-            await scheduler.ConsumeChannelAsync(0);
+            await scheduler.DrainChannelAsync(0);
 
             Assert.AreEqual((commandsPerTarget + commandsPerTarget / 2) * Value, targets[0].Health);
         }
