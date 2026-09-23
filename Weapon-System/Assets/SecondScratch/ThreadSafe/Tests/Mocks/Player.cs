@@ -28,27 +28,53 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             private readonly Player _target;
             private readonly int _value;
 
-            private readonly TaskCompletionSource<bool> _tcs;
-            public Task ExecutionTask => _tcs.Task;
-            
+            private readonly bool[] _executed;
+            private readonly TaskCompletionSource<bool>?[] _tcs;
+
+            private bool Executed => _executed[0];
+            private TaskCompletionSource<bool>? Tcs => _tcs[0];
+
             public object Target => _target;
 
             public IncreaseHealthCommand(Player target, int value)
             {
                 _target = target;
                 _value = value;
-                
-                _tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                _executed = new bool[1];
+                _tcs = new TaskCompletionSource<bool>?[1];
             }
 
             public void Execute()
             {
-                if (ExecutionTask.IsCompleted)
-                    throw new InvalidOperationException("Multiple calls");
+                lock (_executed)
+                {
+                    if (Executed)
+                    {
+                        Tcs?.SetException(new InvalidOperationException("Multiple execution"));
+                        throw new InvalidOperationException("Multiple execution");
+                    }
                 
-                _target.IncreaseHealth(_value);
+                    _target.IncreaseHealth(_value);
                 
-                _tcs.TrySetResult(true);
+                    _executed[0] = true;
+                    Tcs?.SetResult(true);
+                }
+            }
+
+            public ValueTask WaitExecution()
+            {
+                if (Executed)
+                    return new ValueTask(Task.CompletedTask);
+                
+                lock (_executed)
+                {
+                    if (Executed)
+                        return new ValueTask(Task.CompletedTask);
+
+                    _tcs[0] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    return new ValueTask(Tcs!.Task);
+                }
             }
         }
     }

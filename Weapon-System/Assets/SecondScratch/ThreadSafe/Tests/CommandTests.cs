@@ -58,7 +58,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     commandChannel.Writer.TryWrite(player.CreateIncreaseHealthCommand(Value));
 
             await processTask;
-            
+
             commandChannel.Writer.TryComplete();
 
             foreach (var player in players)
@@ -103,7 +103,7 @@ namespace SecondScratch.ThreadSafe.Tests
             }
 
             if (lastCommand != null)
-                await lastCommand.ExecutionTask;
+                await lastCommand.WaitExecution();
 
             Assert.AreEqual(0, scheduler.TotalPendingCommands);
 
@@ -120,7 +120,6 @@ namespace SecondScratch.ThreadSafe.Tests
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
                 players[i] = new Player();
-            var lastCommands = new ICommand[ProducerCount];
 
             await using var scheduler = new MultiChannelCommandScheduler(ChannelCount);
             scheduler.RunConsumers();
@@ -129,19 +128,15 @@ namespace SecondScratch.ThreadSafe.Tests
                 .Select(producerIndex => Task.Run(() =>
                 {
                     for (var playerIndex = 0; playerIndex < PlayerCount; playerIndex++)
-                    {
-                        for (var i = 0; i < repeatCount; i++)
-                        {
-                            lastCommands[producerIndex] = players[playerIndex].CreateIncreaseHealthCommand(Value);
-                            scheduler.ScheduleCommand(lastCommands[producerIndex]);
-                        }
-                    }
+                    for (var i = 0; i < repeatCount; i++)
+                        scheduler.ScheduleCommand(players[playerIndex].CreateIncreaseHealthCommand(Value));
                 }))
                 .ToArray();
 
             await Task.WhenAll(producers);
 
-            await Task.WhenAll(lastCommands.Select(command => command.ExecutionTask).ToArray());
+            while (scheduler.TotalPendingCommands > 0)
+                await Task.Yield();
 
             Assert.AreEqual(0, scheduler.TotalPendingCommands);
 
@@ -212,7 +207,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     var processTask = Task.Run(() => ProcessCommands(commandChannel));
                     await processTask;
                 }
-                
+
                 commandChannel.Writer.TryComplete();
 
                 foreach (var player in players)
@@ -221,6 +216,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     player.Reset();
                 }
             }
+
             return;
 
             async ValueTask ProcessCommands(Channel<ICommand> channel)
@@ -252,25 +248,18 @@ namespace SecondScratch.ThreadSafe.Tests
 
                 await using var scheduler = new ChannelCommandScheduler();
 
-                ICommand? lastCommand = null;
-
                 using (Measure.Scope(ScheduleCommandsScope))
                 {
                     foreach (var player in players)
-                    {
                         for (var j = 0; j < RepeatCount; j++)
-                        {
-                            lastCommand = player.CreateIncreaseHealthCommand(Value);
-                            scheduler.ScheduleCommand(lastCommand);
-                        }
-                    }
+                            scheduler.ScheduleCommand(player.CreateIncreaseHealthCommand(Value));
                 }
 
                 using (Measure.Scope(ExecuteCommandsScope))
                 {
                     scheduler.RunConsumers();
-                    if (lastCommand != null)
-                        await lastCommand.ExecutionTask;
+                    while (scheduler.TotalPendingCommands > 0)
+                        await Task.Yield();
                 }
 
                 Assert.AreEqual(0, scheduler.TotalPendingCommands);
@@ -292,9 +281,8 @@ namespace SecondScratch.ThreadSafe.Tests
                 var players = new Player[PlayerCount];
                 for (var i = 0; i < PlayerCount; i++)
                     players[i] = new Player();
-                var lastCommands = new ICommand[ProducerCount];
 
-                await using var scheduler = new ChannelCommandScheduler();
+                await using var scheduler = new MultiChannelCommandScheduler(ChannelCount);
 
                 using (Measure.Scope(ScheduleCommandsScope))
                 {
@@ -302,14 +290,8 @@ namespace SecondScratch.ThreadSafe.Tests
                         .Select(producerIndex => Task.Run(() =>
                         {
                             for (var playerIndex = 0; playerIndex < PlayerCount; playerIndex++)
-                            {
-                                for (var i = 0; i < repeatCount; i++)
-                                {
-                                    lastCommands[producerIndex] =
-                                        players[playerIndex].CreateIncreaseHealthCommand(Value);
-                                    scheduler.ScheduleCommand(lastCommands[producerIndex]);
-                                }
-                            }
+                            for (var i = 0; i < repeatCount; i++)
+                                scheduler.ScheduleCommand(players[playerIndex].CreateIncreaseHealthCommand(Value));
                         }))
                         .ToArray();
 
@@ -319,7 +301,8 @@ namespace SecondScratch.ThreadSafe.Tests
                 using (Measure.Scope(ExecuteCommandsScope))
                 {
                     scheduler.RunConsumers();
-                    await Task.WhenAll(lastCommands.Select(command => command.ExecutionTask).ToArray());
+                    while (scheduler.TotalPendingCommands > 0)
+                        await Task.Yield();
                 }
 
                 Assert.AreEqual(0, scheduler.TotalPendingCommands);
