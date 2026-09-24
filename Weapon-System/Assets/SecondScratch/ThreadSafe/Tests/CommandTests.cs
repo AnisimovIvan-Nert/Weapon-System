@@ -3,7 +3,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Unity.PerformanceTesting;
 using System.Threading.Channels;
-using SecondScratch.ThreadSafe.Scheduler;
+using SecondScratch.ThreadSafe.Commands;
+using SecondScratch.ThreadSafe.Schedulers;
 using SecondScratch.ThreadSafe.Tests.Mocks;
 
 namespace SecondScratch.ThreadSafe.Tests
@@ -12,7 +13,7 @@ namespace SecondScratch.ThreadSafe.Tests
     {
         private const int Value = 10;
         private const int RepeatCount = 1024;
-        private const int PlayerCount = 100;
+        private const int PlayerCount = 1000;
         private const int ProducerCount = 16;
         private const int ChannelCount = 16;
 

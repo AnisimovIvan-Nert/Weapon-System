@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
-using SecondScratch.ThreadSafe.Tests.Mocks;
+using SecondScratch.ThreadSafe.Commands;
 
-namespace SecondScratch.ThreadSafe.Scheduler
+namespace SecondScratch.ThreadSafe.Schedulers
 {
     public class MultiChannelCommandScheduler : ChannelCommandSchedulerBase<MultiChannelCommandScheduler.Entry>
     {

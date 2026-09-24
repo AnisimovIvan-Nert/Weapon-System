@@ -4,7 +4,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace SecondScratch.ThreadSafe.Scheduler
+namespace SecondScratch.ThreadSafe.Schedulers
 {
     public abstract class ChannelCommandSchedulerBase<TCommand> : IAsyncDisposable
     {

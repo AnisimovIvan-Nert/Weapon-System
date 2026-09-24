@@ -1,7 +1,7 @@
 ﻿using System;
-using SecondScratch.ThreadSafe.Tests.Mocks;
+using SecondScratch.ThreadSafe.Commands;
 
-namespace SecondScratch.ThreadSafe.Scheduler
+namespace SecondScratch.ThreadSafe.Schedulers
 {
     public class ChannelCommandScheduler : ChannelCommandSchedulerBase<ICommand>
     {

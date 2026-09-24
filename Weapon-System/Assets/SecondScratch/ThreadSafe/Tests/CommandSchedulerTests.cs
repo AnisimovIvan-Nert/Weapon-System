@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using SecondScratch.ThreadSafe.Scheduler;
+using SecondScratch.ThreadSafe.Schedulers;
 using SecondScratch.ThreadSafe.Tests.Mocks;
 
 namespace SecondScratch.ThreadSafe.Tests
