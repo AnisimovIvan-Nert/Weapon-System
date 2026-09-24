@@ -67,20 +67,4 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
             }
         }
     }
-
-    //view
-    public partial class Player
-    {
-        public View ToModel() => new(Health);
-
-        public readonly struct View
-        {
-            public int Health { get; }
-
-            public View(int health)
-            {
-                Health = health;
-            }
-        }
-    }
 }

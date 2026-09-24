@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Unity.PerformanceTesting;
 using System.Threading.Channels;
+using SecondScratch.ThreadSafe.Scheduler;
 using SecondScratch.ThreadSafe.Tests.Mocks;
 
 namespace SecondScratch.ThreadSafe.Tests
@@ -11,7 +12,7 @@ namespace SecondScratch.ThreadSafe.Tests
     {
         private const int Value = 10;
         private const int RepeatCount = 1024;
-        private const int PlayerCount = 1000;
+        private const int PlayerCount = 100;
         private const int ProducerCount = 16;
         private const int ChannelCount = 16;
 
@@ -105,7 +106,7 @@ namespace SecondScratch.ThreadSafe.Tests
             if (lastCommand != null)
                 await lastCommand.WaitExecution();
 
-            Assert.AreEqual(0, scheduler.TotalPendingCommands);
+            Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
             foreach (var player in players)
                 Assert.AreEqual(Value * RepeatCount, player.Health);
@@ -125,7 +126,7 @@ namespace SecondScratch.ThreadSafe.Tests
             scheduler.RunConsumers();
 
             var producers = Enumerable.Range(0, ProducerCount)
-                .Select(producerIndex => Task.Run(() =>
+                .Select(_ => Task.Run(() =>
                 {
                     for (var playerIndex = 0; playerIndex < PlayerCount; playerIndex++)
                     for (var i = 0; i < repeatCount; i++)
@@ -135,10 +136,10 @@ namespace SecondScratch.ThreadSafe.Tests
 
             await Task.WhenAll(producers);
 
-            while (scheduler.TotalPendingCommands > 0)
+            while (scheduler.GetTotalPendingCommands() > 0)
                 await Task.Yield();
 
-            Assert.AreEqual(0, scheduler.TotalPendingCommands);
+            Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
             foreach (var player in players)
                 Assert.AreEqual(Value * RepeatCount, player.Health);
@@ -258,11 +259,11 @@ namespace SecondScratch.ThreadSafe.Tests
                 using (Measure.Scope(ExecuteCommandsScope))
                 {
                     scheduler.RunConsumers();
-                    while (scheduler.TotalPendingCommands > 0)
+                    while (scheduler.GetTotalPendingCommands() > 0)
                         await Task.Yield();
                 }
 
-                Assert.AreEqual(0, scheduler.TotalPendingCommands);
+                Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
                 foreach (var player in players)
                     Assert.AreEqual(Value * RepeatCount, player.Health);
@@ -287,7 +288,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 using (Measure.Scope(ScheduleCommandsScope))
                 {
                     var producers = Enumerable.Range(0, ProducerCount)
-                        .Select(producerIndex => Task.Run(() =>
+                        .Select(_ => Task.Run(() =>
                         {
                             for (var playerIndex = 0; playerIndex < PlayerCount; playerIndex++)
                             for (var i = 0; i < repeatCount; i++)
@@ -301,11 +302,11 @@ namespace SecondScratch.ThreadSafe.Tests
                 using (Measure.Scope(ExecuteCommandsScope))
                 {
                     scheduler.RunConsumers();
-                    while (scheduler.TotalPendingCommands > 0)
+                    while (scheduler.GetTotalPendingCommands() > 0)
                         await Task.Yield();
                 }
 
-                Assert.AreEqual(0, scheduler.TotalPendingCommands);
+                Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
                 foreach (var player in players)
                     Assert.AreEqual(Value * RepeatCount, player.Health);

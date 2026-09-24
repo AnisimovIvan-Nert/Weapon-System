@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using SecondScratch.ThreadSafe.Scheduler;
 using SecondScratch.ThreadSafe.Tests.Mocks;
 
 namespace SecondScratch.ThreadSafe.Tests
@@ -36,7 +37,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 Assert.AreEqual(commandsPerTarget, scheduler.PendingCommandCount(channelIndex));
 
             for (var channelIndex = 0; channelIndex < channelCount; channelIndex++)
-                await scheduler.DrainChannelAsync(channelIndex);
+                await scheduler.DrainAsync();
 
             foreach (var target in targets)
                 Assert.AreEqual(commandsPerTarget * Value, target.Health);
@@ -49,7 +50,7 @@ namespace SecondScratch.ThreadSafe.Tests
             for (var channelIndex = 1; channelIndex < channelCount; channelIndex++)
                 Assert.AreEqual(0, scheduler.PendingCommandCount(channelIndex));
 
-            await scheduler.DrainChannelAsync(0);
+            await scheduler.DrainAsync();
 
             Assert.AreEqual((commandsPerTarget + commandsPerTarget / 2) * Value, targets[0].Health);
         }
@@ -85,10 +86,10 @@ namespace SecondScratch.ThreadSafe.Tests
             await Task.WhenAll(producers);
 
             var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-            while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < timeout)
+            while (scheduler.GetTotalPendingCommands() > 0 && DateTime.UtcNow < timeout)
                 await Task.Delay(1);
 
-            Assert.AreEqual(0, scheduler.TotalPendingCommands);
+            Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
             for (var i = 0; i < playerCount; i++)
                 Assert.AreEqual(scheduled[i] * Value, players[i].Health);
@@ -113,9 +114,9 @@ namespace SecondScratch.ThreadSafe.Tests
                 foreach (var target in targets)
                     scheduler.ScheduleCommand(target.CreateIncreaseHealthCommand(Value));
 
-            Assert.AreEqual(commandsPerTarget * targets.Length, scheduler.TotalPendingCommands);
+            Assert.AreEqual(commandsPerTarget * targets.Length, scheduler.GetTotalPendingCommands());
             
-            await scheduler.DrainChannelAsync();
+            await scheduler.DrainAsync();
 
             foreach (var target in targets)
                 Assert.AreEqual(commandsPerTarget * Value, target.Health);
@@ -152,10 +153,10 @@ namespace SecondScratch.ThreadSafe.Tests
             await Task.WhenAll(producers);
 
             var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-            while (scheduler.TotalPendingCommands > 0 && DateTime.UtcNow < timeout)
+            while (scheduler.GetTotalPendingCommands() > 0 && DateTime.UtcNow < timeout)
                 await Task.Delay(1);
 
-            Assert.AreEqual(0, scheduler.TotalPendingCommands);
+            Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
             for (var i = 0; i < playerCount; i++)
                 Assert.AreEqual(scheduled[i] * Value, players[i].Health);
