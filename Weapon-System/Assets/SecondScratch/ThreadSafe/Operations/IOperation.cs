@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace SecondScratch.ThreadSafe.Operations.TaskBasedImplementation
+namespace SecondScratch.ThreadSafe.Operations
 {
-    internal interface IInteraction
+    internal interface IOperation
     {
         Guid Id { get; }
         bool IsCompleted { get; }
-        ValueTask ExecuteAsync();
+        ValueTask Execute();
         void Cancel();
     }
 }

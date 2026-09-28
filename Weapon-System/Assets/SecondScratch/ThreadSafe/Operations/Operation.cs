@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SecondScratch.ThreadSafe.Operations.TaskBasedImplementation
+namespace SecondScratch.ThreadSafe.Operations
 {
     public enum InteractionState
     {
@@ -15,13 +15,12 @@ namespace SecondScratch.ThreadSafe.Operations.TaskBasedImplementation
         Failed
     }
 
-    public sealed class Interaction<TContext> : IInteraction, IDisposable
+    public sealed class Operation<TContext> : IOperation, IDisposable
         where TContext : class, new()
     {
-        private readonly InteractionStage<TContext>[] _stages;
+        private readonly OperationStage<TContext>[] _stages;
         private readonly Transaction _transaction = new();
         private readonly CancellationTokenSource _cts;
-        private int _currentStage;
 
         public Guid Id { get; } = Guid.NewGuid();
         public TContext Context { get; } = new();
@@ -34,7 +33,7 @@ namespace SecondScratch.ThreadSafe.Operations.TaskBasedImplementation
             or InteractionState.RolledBack
             or InteractionState.Failed;
 
-        public Interaction(IEnumerable<InteractionStage<TContext>> stages, CancellationToken externalToken)
+        public Operation(IEnumerable<OperationStage<TContext>> stages, CancellationToken externalToken)
         {
             _stages = stages.ToArray();
             _cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
@@ -50,18 +49,16 @@ namespace SecondScratch.ThreadSafe.Operations.TaskBasedImplementation
 
         public void Cancel() => _cts.Cancel();
 
-        public async ValueTask ExecuteAsync()
+        public async ValueTask Execute()
         {
             State = InteractionState.Running;
 
             try
             {
-                for (; _currentStage < _stages.Length; _currentStage++)
+                foreach (var stage in _stages)
                 {
                     _cts.Token.ThrowIfCancellationRequested();
-
-                    var stage = _stages[_currentStage];
-                    await stage.ExecuteAsync(_transaction, Context, _cts.Token).ConfigureAwait(false);
+                    await stage.Execute(_transaction, Context, _cts.Token).ConfigureAwait(false);
                 }
 
                 if (_transaction.TryCommit())

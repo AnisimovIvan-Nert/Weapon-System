@@ -4,18 +4,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace SecondScratch.ThreadSafe.Operations.TaskBasedImplementation
+namespace SecondScratch.ThreadSafe.Operations
 {
+    public delegate ValueTask Rollback();
+
+    public delegate ValueTask StatefulRollback<in T>(T state);
+    
     public enum TransactionStatus
     {
         Active = 0,
         Committed = 1,
         RolledBack = 2
     }
-
-    public delegate ValueTask Rollback();
-
-    public delegate ValueTask StatefulRollback<in T>(T state);
 
     public sealed class Transaction
     {
