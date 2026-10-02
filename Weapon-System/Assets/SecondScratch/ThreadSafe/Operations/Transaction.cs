@@ -6,10 +6,14 @@ using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Operations
 {
+    public delegate ValueTask Mutation();
+    
+    public delegate ValueTask<T> StatefulMutation<T>();
+
     public delegate ValueTask Rollback();
 
     public delegate ValueTask StatefulRollback<in T>(T state);
-    
+
     public enum TransactionStatus
     {
         Active = 0,
@@ -29,23 +33,29 @@ namespace SecondScratch.ThreadSafe.Operations
 
         public TransactionStatus Status => (TransactionStatus)Volatile.Read(ref _status);
         public bool IsActive => Status == TransactionStatus.Active;
-
-        public T Apply<T>(Func<T> mutation, StatefulRollback<T> rollback)
+        
+        public async ValueTask Apply(Mutation mutation, Rollback rollback)
         {
-            if (!IsActive)
-                throw new InvalidOperationException("Transaction is no longer active.");
+            ThrowIfNotActive();
+            
+            await mutation();
+            _rollbacks.Push(rollback);
+        }
 
-            var result = mutation();
+        public async ValueTask<T> Apply<T>(StatefulMutation<T> mutation, StatefulRollback<T> rollback)
+        {
+            ThrowIfNotActive();
+            
+            var result = await mutation();
             _rollbacks.Push(async () => await rollback(result));
             return result;
         }
 
         public void RegisterRollback(Rollback rollback)
         {
-            if (!IsActive)
-                throw new InvalidOperationException("Transaction is no longer active.");
-
-            _rollbacks.Push(async () => await rollback());
+            ThrowIfNotActive();
+            
+            _rollbacks.Push(rollback);
         }
 
         public bool TryCommit()
@@ -62,6 +72,12 @@ namespace SecondScratch.ThreadSafe.Operations
             return true;
         }
 
+        private void ThrowIfNotActive()
+        {
+            if (!IsActive)
+                throw new InvalidOperationException("Transaction is no longer active.");
+        }
+        
         private async ValueTask CallRollbacks()
         {
             while (_rollbacks.TryPop(out var rollback))

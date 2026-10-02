@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace SecondScratch.ThreadSafe.Operations
 {
-    internal interface IOperation
+    public interface IOperation
     {
         Guid Id { get; }
         bool IsCompleted { get; }
