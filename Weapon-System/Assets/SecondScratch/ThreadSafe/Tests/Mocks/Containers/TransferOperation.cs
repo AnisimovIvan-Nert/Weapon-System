@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations;
+using SecondScratch.ThreadSafe.Schedulers;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 {
@@ -48,12 +49,12 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             var item = context.Item;
 
             await transaction.Apply(
-                mutation: async () => await from.CreateRemoveCommand(item).WaitExecution(),
-                rollback: async () => await from.CreateAddCommand(item).WaitExecution());
+                mutation: async () => await from.CreateRemoveCommand(item).Schedule(),
+                rollback: async () => await from.CreateAddCommand(item).Schedule());
 
             await transaction.Apply(
-                mutation: async () => await to.CreateAddCommand(item).WaitExecution(),
-                rollback: async () => await to.CreateRemoveCommand(item).WaitExecution());
+                mutation: async () => await to.CreateAddCommand(item).Schedule(),
+                rollback: async () => await to.CreateRemoveCommand(item).Schedule());
         }
     }
 

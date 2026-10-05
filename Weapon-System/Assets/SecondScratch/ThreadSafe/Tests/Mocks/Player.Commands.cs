@@ -6,17 +6,20 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
     {
         public IncreaseHealthCommand CreateIncreaseHealthCommand(int value) => new(this, value);
 
-        public class IncreaseHealthCommand : BaseCommand<Player>
+        public readonly struct IncreaseHealthCommand : ICommand
         {
+            private readonly Player _target;
             private readonly int _value;
 
+            public object Target => _target;
+
             public IncreaseHealthCommand(Player target, int value)
-                 : base(target)
             {
+                _target = target;
                 _value = value;
             }
 
-            protected override void InnerExecute() => TypedTarget.IncreaseHealth(_value);
+            public void Execute() => _target.IncreaseHealth(_value);
         }
     }
 }

@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Commands;
 
-namespace SecondScratch.ThreadSafe.Schedulers
+namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 {
     public class ChannelCommandScheduler : ChannelCommandSchedulerBase<ICommand>
     {
@@ -10,7 +11,15 @@ namespace SecondScratch.ThreadSafe.Schedulers
         {
         }
 
-        public void ScheduleCommand(ICommand command)
+        public override ValueTask ScheduleCommand(ICommand command)
+        {
+            if (TryScheduleToChannel(0, command, out var task))
+                return task;
+
+            throw new InvalidOperationException("Channel was completed.");
+        }
+
+        public override void SendCommand(ICommand command)
         {
             if (TryScheduleToChannel(0, command))
                 return;

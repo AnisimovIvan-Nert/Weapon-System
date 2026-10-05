@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Commands;
 
-namespace SecondScratch.ThreadSafe.Schedulers
+namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 {
     public class MultiChannelCommandScheduler : ChannelCommandSchedulerBase<MultiChannelCommandScheduler.Entry>
     {
@@ -14,10 +15,18 @@ namespace SecondScratch.ThreadSafe.Schedulers
         {
         }
 
-        public void ScheduleCommand(ICommand command)
+        public override ValueTask ScheduleCommand(ICommand command)
         {
             var targetState = _targetStates.GetOrAdd(command.Target, static _ => new TargetState());
-            targetState.Enqueue(new Entry(command, targetState), this);
+            var entry = new Entry(command, targetState);
+            return targetState.EnqueueSchedule(entry, this);
+        }
+        
+        public override void SendCommand(ICommand command)
+        {
+            var targetState = _targetStates.GetOrAdd(command.Target, static _ => new TargetState());
+            var entry = new Entry(command, targetState);
+            targetState.EnqueueSend(entry, this);
         }
 
         protected override void ExecuteCommand(Entry entry) => entry.Command.Execute();
@@ -41,7 +50,25 @@ namespace SecondScratch.ThreadSafe.Schedulers
             private int _pending;
             private int _channelIndex;
 
-            public void Enqueue(Entry entry, MultiChannelCommandScheduler scheduler)
+            public ValueTask EnqueueSchedule(Entry entry, MultiChannelCommandScheduler scheduler)
+            {
+                lock (_gate)
+                {
+                    var channelIndex = _pending > 0
+                        ? _channelIndex
+                        : AssignChannel(scheduler);
+
+                    _pending++;
+
+                    if (scheduler.TryScheduleToChannel(channelIndex, entry, out var task ))
+                        return task;
+
+                    _pending--;
+                    throw new InvalidOperationException("Channel was completed.");
+                }
+            }
+            
+            public void EnqueueSend(Entry entry, MultiChannelCommandScheduler scheduler)
             {
                 lock (_gate)
                 {
