@@ -62,7 +62,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
         public AddCommand CreateAddCommand(Item item) => new(this, item);
         public RemoveCommand CreateRemoveCommand(Item item) => new(this, item);
         
-        public readonly struct AddCommand : ICommand
+        public class AddCommand : ICommand
         {
             private readonly Container _target;
             private readonly Item _item;
@@ -78,7 +78,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             public void Execute() => _target.Add(_item);
         }
         
-        public readonly struct RemoveCommand : ICommand
+        public class RemoveCommand : ICommand
         {
             private readonly Container _target;
             private readonly Item _item;

@@ -6,7 +6,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
     {
         public IncreaseHealthCommand CreateIncreaseHealthCommand(int value) => new(this, value);
 
-        public readonly struct IncreaseHealthCommand : ICommand
+        public class IncreaseHealthCommand : ICommand
         {
             private readonly Player _target;
             private readonly int _value;
