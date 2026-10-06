@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Sources;
 using SecondScratch.ThreadSafe.Commands;
 using UnityEngine;
 
@@ -11,8 +9,6 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 {
     public abstract class ChannelCommandSchedulerBase<TCommand> : ICommandScheduler
     {
-        private readonly ConcurrentQueue<ReusableTaskSource> _taskSourcePool = new();
-
         private readonly CancellationTokenSource _cts = new();
         private readonly Channel<AwaitableCommand>[] _channels;
         private readonly int[] _pendingCounts;
@@ -142,18 +138,14 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         
         protected bool TryScheduleToChannel(int channelIndex, TCommand command, out ValueTask task)
         {
-            if (_taskSourcePool.TryDequeue(out var taskSource))
-                taskSource.Reset();
-            else
-                taskSource = new ReusableTaskSource();
-            task = taskSource.GetValueTask();
+            var taskSource = new TaskCompletionSource<bool>();
+            task = new ValueTask(taskSource.Task);
 
             var awaitableCommand = new AwaitableCommand(command, taskSource);
             if (TryScheduleToChannel(channelIndex, awaitableCommand))
                 return true;
 
             task = default;
-            _taskSourcePool.Enqueue(taskSource);
             return false;
         }
         
@@ -212,6 +204,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         private void ExecuteAndTrack(AwaitableCommand item, int channelIndex)
         {
             var command = item.Command;
+            Exception? error = null;
             try
             {
                 ExecuteCommand(command);
@@ -219,7 +212,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             catch (Exception e)
             {
                 Debug.LogException(e);
-                item.Tcs?.SetException(e);
+                error = e;
             }
             finally
             {
@@ -228,8 +221,10 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 
                 if (item.Tcs != null)
                 {
-                    item.Tcs.SetResult();
-                    _taskSourcePool.Enqueue(item.Tcs);
+                    if (error != null)
+                        item.Tcs.TrySetException(error);
+                    else
+                        item.Tcs.TrySetResult(true);
                 }
             }
         }
@@ -245,38 +240,12 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         protected readonly struct AwaitableCommand
         {
             public TCommand Command { get; }
-            public ReusableTaskSource? Tcs { get; }
+            public TaskCompletionSource<bool>? Tcs { get; }
 
-            public AwaitableCommand(TCommand command, ReusableTaskSource? tcs)
+            public AwaitableCommand(TCommand command, TaskCompletionSource<bool>? tcs)
             {
                 Command = command;
                 Tcs = tcs;
-            }
-        }
-
-        protected class ReusableTaskSource : IValueTaskSource
-        {
-            private ManualResetValueTaskSourceCore<bool> _core = new()
-            {
-                RunContinuationsAsynchronously = true
-            };
-
-            public void Reset() => _core.Reset();
-
-            public ValueTask GetValueTask() => new(this, _core.Version);
-            public void SetResult() => _core.SetResult(true);
-            public void SetException(Exception exception) => _core.SetException(exception);
-
-            ValueTaskSourceStatus IValueTaskSource.GetStatus(short token) => _core.GetStatus(token);
-            void IValueTaskSource.GetResult(short token) => _core.GetResult(token);
-
-            void IValueTaskSource.OnCompleted(
-                Action<object?> continuation,
-                object? state,
-                short token,
-                ValueTaskSourceOnCompletedFlags flags)
-            {
-                _core.OnCompleted(continuation, state, token, flags);
             }
         }
     }

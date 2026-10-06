@@ -116,8 +116,8 @@ namespace SecondScratch.ThreadSafe.Tests
         [Test]
         public async Task Command_MultiChannelCommandScheduler_Test()
         {
-            const int repeatCount = RepeatCount / ProducerCount;
-            Assert.AreEqual(RepeatCount, repeatCount * ProducerCount);
+            const int playerPerProducer = PlayerCount / ProducerCount;
+            Assert.AreEqual(PlayerCount, playerPerProducer * ProducerCount);
 
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
@@ -127,15 +127,27 @@ namespace SecondScratch.ThreadSafe.Tests
             scheduler.RunConsumers();
 
             var producers = Enumerable.Range(0, ProducerCount)
-                .Select(index => Task.Run(async () =>
+                .Select(producerIndex => Task.Run(async () =>
                 {
-                    ValueTask? lastTask = null;
-                    for (var playerIndex = 0; playerIndex < PlayerCount; playerIndex++)
-                    for (var i = 0; i < repeatCount; i++)
-                        lastTask = scheduler.ScheduleCommand(players[playerIndex].CreateIncreaseHealthCommand(Value));
-                    
-                    if (lastTask != null)
-                        await lastTask.Value;
+                    var lastTasks = new ValueTask[playerPerProducer];
+                    var taskIndex = 0;
+
+                    var start = producerIndex * playerPerProducer;
+                    var end = start + playerPerProducer;
+                    for (var i = start; i < end; i++)
+                    {
+                        for (var j = 0; j < RepeatCount; j++)
+                        {
+                            var command = players[i].CreateIncreaseHealthCommand(Value);
+                            if (j == RepeatCount - 1)
+                                lastTasks[taskIndex++] = scheduler.ScheduleCommand(command);
+                            else
+                                scheduler.SendCommand(command);
+                        }
+                    }
+
+                    foreach (var lastTask in lastTasks)
+                        await lastTask;
                 }))
                 .ToArray();
 
@@ -244,7 +256,7 @@ namespace SecondScratch.ThreadSafe.Tests
         public async Task Command_ChannelCommandScheduler_PerformanceTest()
         {
             await using var scheduler = new ChannelCommandScheduler();
-            
+
             for (var warmup = 0; warmup < WarmupCount + 1; warmup++)
             {
                 var players = new Player[PlayerCount];
@@ -274,7 +286,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     if (lastTask != null)
                         await lastTask.Value;
                 }
-                
+
                 scheduler.KillConsumers();
 
                 Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
@@ -290,7 +302,7 @@ namespace SecondScratch.ThreadSafe.Tests
         {
             const int playerPerProducer = PlayerCount / ProducerCount;
             Assert.AreEqual(PlayerCount, playerPerProducer * ProducerCount);
-            
+
             await using var scheduler = new MultiChannelCommandScheduler(ChannelCount);
 
             for (var warmup = 0; warmup < WarmupCount + 1; warmup++)
@@ -298,7 +310,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 var players = new Player[PlayerCount];
                 for (var i = 0; i < PlayerCount; i++)
                     players[i] = new Player();
-                
+
                 var lastTasks = new ValueTask[PlayerCount];
 
                 using (Measure.Scope(ScheduleCommandsScope))
@@ -313,7 +325,7 @@ namespace SecondScratch.ThreadSafe.Tests
                                 for (var j = 0; j < RepeatCount; j++)
                                 {
                                     var command = players[i].CreateIncreaseHealthCommand(Value);
-                                    if (j == PlayerCount - 1)
+                                    if (j == RepeatCount - 1)
                                         lastTasks[i] = scheduler.ScheduleCommand(command);
                                     else
                                         scheduler.SendCommand(command);
@@ -330,7 +342,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     scheduler.RunConsumers();
                     await Task.WhenAll(lastTasks.Select(o => o.AsTask()));
                 }
-                
+
                 scheduler.KillConsumers();
 
                 Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
