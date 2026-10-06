@@ -102,7 +102,7 @@ namespace SecondScratch.ThreadSafe.Tests
             const int channelCount = 4;
             const int playerCount = 32;
             const int producerCount = 6;
-            const int commandsPerPlayer = 1000;
+            const int commandsPerProducer = 1000;
 
             await using var scheduler = new MultiChannelCommandScheduler(channelCount);
             scheduler.RunConsumers();
@@ -115,13 +115,16 @@ namespace SecondScratch.ThreadSafe.Tests
                 probes[i] = new TargetProbe();
             }
 
+            var sent = new int[playerCount];
+
             var producers = Enumerable.Range(0, producerCount)
                 .Select(producerIndex => Task.Run(() =>
                 {
-                    for (var i = 0; i < commandsPerPlayer; i++)
+                    for (var i = 0; i < commandsPerProducer; i++)
                     {
                         var playerIndex = (i * 7 + producerIndex) % playerCount;
                         scheduler.SendCommand(new ProbeCommand(probes[playerIndex], players[playerIndex]));
+                        Interlocked.Increment(ref sent[playerIndex]);
                     }
                 }))
                 .ToArray();
@@ -135,10 +138,10 @@ namespace SecondScratch.ThreadSafe.Tests
             Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
             for (var i = 0; i < playerCount; i++)
+            {
                 Assert.AreEqual(1, probes[i].MaxConcurrency, $"target {i} ran commands on two channels at once");
-
-            foreach (var player in players)
-                Assert.AreEqual(commandsPerPlayer * Value, player.Health);
+                Assert.AreEqual(sent[i] * Value, players[i].Health);
+            }
 
             Assert.AreEqual(0, scheduler.RegisteredTargetStateCount);
         }
