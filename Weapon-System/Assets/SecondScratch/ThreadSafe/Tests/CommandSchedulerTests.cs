@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using SecondScratch.ThreadSafe.Commands;
 using SecondScratch.ThreadSafe.Schedulers.Implementations;
 using SecondScratch.ThreadSafe.Tests.Mocks;
 
@@ -93,6 +94,105 @@ namespace SecondScratch.ThreadSafe.Tests
 
             for (var i = 0; i < playerCount; i++)
                 Assert.AreEqual(scheduled[i] * Value, players[i].Health);
+        }
+
+        [Test]
+        public async Task MultiChanelCommandScheduler_TargetAffinityAndStateRelease_Test()
+        {
+            const int channelCount = 4;
+            const int playerCount = 32;
+            const int producerCount = 6;
+            const int commandsPerPlayer = 1000;
+
+            await using var scheduler = new MultiChannelCommandScheduler(channelCount);
+            scheduler.RunConsumers();
+
+            var players = new Player[playerCount];
+            var probes = new TargetProbe[playerCount];
+            for (var i = 0; i < playerCount; i++)
+            {
+                players[i] = new Player();
+                probes[i] = new TargetProbe();
+            }
+
+            var producers = Enumerable.Range(0, producerCount)
+                .Select(producerIndex => Task.Run(() =>
+                {
+                    for (var i = 0; i < commandsPerPlayer; i++)
+                    {
+                        var playerIndex = (i * 7 + producerIndex) % playerCount;
+                        scheduler.SendCommand(new ProbeCommand(probes[playerIndex], players[playerIndex]));
+                    }
+                }))
+                .ToArray();
+
+            await Task.WhenAll(producers);
+
+            var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (scheduler.GetTotalPendingCommands() > 0 && DateTime.UtcNow < timeout)
+                await Task.Delay(1);
+
+            Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
+
+            for (var i = 0; i < playerCount; i++)
+                Assert.AreEqual(1, probes[i].MaxConcurrency, $"target {i} ran commands on two channels at once");
+
+            foreach (var player in players)
+                Assert.AreEqual(commandsPerPlayer * Value, player.Health);
+
+            Assert.AreEqual(0, scheduler.RegisteredTargetStateCount);
+        }
+
+        private sealed class TargetProbe
+        {
+            private int _concurrent;
+            private int _maxConcurrency;
+
+            public int MaxConcurrency => Volatile.Read(ref _maxConcurrency);
+
+            public void Enter()
+            {
+                var concurrent = Interlocked.Increment(ref _concurrent);
+
+                var max = Volatile.Read(ref _maxConcurrency);
+                while (concurrent > max)
+                {
+                    var previous = Interlocked.CompareExchange(ref _maxConcurrency, concurrent, max);
+                    if (previous == max)
+                        return;
+
+                    max = previous;
+                }
+            }
+
+            public void Exit() => Interlocked.Decrement(ref _concurrent);
+        }
+
+        private sealed class ProbeCommand : ICommand
+        {
+            private readonly TargetProbe _probe;
+            private readonly Player _target;
+
+            public ProbeCommand(TargetProbe probe, Player target)
+            {
+                _probe = probe;
+                _target = target;
+            }
+
+            public object Target => _target;
+
+            public void Execute()
+            {
+                _probe.Enter();
+                try
+                {
+                    _target.IncreaseHealth(Value);
+                }
+                finally
+                {
+                    _probe.Exit();
+                }
+            }
         }
 
         [Test]

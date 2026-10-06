@@ -10,6 +10,8 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
     {
         private readonly ConcurrentDictionary<object, TargetState> _targetStates = new();
 
+        public int RegisteredTargetStateCount => _targetStates.Count;
+
         public MultiChannelCommandScheduler(int channelCount = 16)
             : base(channelCount)
         {
@@ -17,20 +19,45 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 
         public override ValueTask ScheduleCommand(ICommand command)
         {
-            var targetState = _targetStates.GetOrAdd(command.Target, static _ => new TargetState());
-            var entry = new Entry(command, targetState);
-            return targetState.EnqueueSchedule(entry, this);
+            var target = command.Target;
+            while (true)
+            {
+                var targetState = GetState(target);
+                var entry = new Entry(command, targetState);
+                if (targetState.TryEnqueue(entry, this, awaitable: true, out var task))
+                    return task;
+
+                DropState(target, targetState);
+            }
         }
-        
+
         public override void SendCommand(ICommand command)
         {
-            var targetState = _targetStates.GetOrAdd(command.Target, static _ => new TargetState());
-            var entry = new Entry(command, targetState);
-            targetState.EnqueueSend(entry, this);
+            var target = command.Target;
+            while (true)
+            {
+                var targetState = GetState(target);
+                var entry = new Entry(command, targetState);
+                if (targetState.TryEnqueue(entry, this, awaitable: false, out _))
+                    return;
+
+                DropState(target, targetState);
+            }
         }
 
         protected override void ExecuteCommand(Entry entry) => entry.Command.Execute();
-        protected override void OnCommandExecuted(Entry entry) => entry.State.DecrementPending();
+        protected override void OnCommandExecuted(Entry entry) => entry.State.DecrementPending(this, entry);
+        
+        private TargetState GetState(object target)
+        {
+            return _targetStates.GetOrAdd(target, static _ => new TargetState());
+        }
+        
+        private void DropState(object target, TargetState targetState)
+        {
+            if (_targetStates.TryGetValue(target, out var state) && state == targetState)
+                _targetStates.TryRemove(target, out _);
+        }
 
         public readonly struct Entry
         {
@@ -48,54 +75,64 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         {
             private readonly object _gate = new();
             private int _pending;
-            private int _channelIndex;
-
-            public ValueTask EnqueueSchedule(Entry entry, MultiChannelCommandScheduler scheduler)
+            private int _channelIndex = -1;
+            private bool _retired;
+            
+            public bool TryEnqueue(Entry entry, MultiChannelCommandScheduler scheduler, bool awaitable, out ValueTask task)
             {
                 lock (_gate)
                 {
-                    var channelIndex = _pending > 0
-                        ? _channelIndex
-                        : AssignChannel(scheduler);
+                    if (_retired)
+                    {
+                        task = default;
+                        return false;
+                    }
 
-                    _pending++;
+                    var channelIndex = GetChannel(scheduler);
 
-                    if (scheduler.TryScheduleToChannel(channelIndex, entry, out var task ))
-                        return task;
+                    Interlocked.Increment(ref _pending);
 
-                    _pending--;
+                    if (awaitable)
+                    {
+                        if (scheduler.TryScheduleToChannel(channelIndex, entry, out task))
+                            return true;
+                    }
+                    else
+                    {
+                        task = default;
+                        if (scheduler.TryScheduleToChannel(channelIndex, entry))
+                            return true;
+                    }
+
+                    Interlocked.Decrement(ref _pending);
                     throw new InvalidOperationException("Channel was completed.");
                 }
             }
             
-            public void EnqueueSend(Entry entry, MultiChannelCommandScheduler scheduler)
+            public void DecrementPending(MultiChannelCommandScheduler scheduler, Entry entry)
+            {
+                if (Interlocked.Decrement(ref _pending) != 0)
+                    return;
+
+                lock (_gate)
+                {
+                    if (_retired || Volatile.Read(ref _pending) > 0)
+                        return;
+
+                    _retired = true;
+                }
+
+                scheduler.DropState(entry.Command.Target, this);
+            }
+
+            private int GetChannel(MultiChannelCommandScheduler scheduler)
             {
                 lock (_gate)
                 {
-                    var channelIndex = _pending > 0
-                        ? _channelIndex
-                        : AssignChannel(scheduler);
-
-                    _pending++;
-
-                    if (scheduler.TryScheduleToChannel(channelIndex, entry))
-                        return;
-
-                    _pending--;
-                    throw new InvalidOperationException("Channel was completed.");
+                    if (_channelIndex == -1)
+                        _channelIndex = scheduler.FindLeastPendingChannel();
+                    return _channelIndex;
                 }
-            }
-
-            public void DecrementPending()
-            {
-                Interlocked.Decrement(ref _pending);
-            }
-
-            private int AssignChannel(MultiChannelCommandScheduler scheduler)
-            {
-                var index = scheduler.FindLeastPendingChannel();
-                _channelIndex = index;
-                return index;
             }
         }
     }
