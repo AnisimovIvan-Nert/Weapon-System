@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using SecondScratch.ThreadSafe.Operations;
+using SecondScratch.ThreadSafe.Operations.Common;
 using SecondScratch.ThreadSafe.Tests.Mocks.Containers;
 using SecondScratch.ThreadSafe.Tests.Mocks.Extensions;
 using UnityEngine;
@@ -88,13 +89,13 @@ namespace SecondScratch.ThreadSafe.Tests
             for (var i = 0; i < attempts.Count; i++)
                 attempts[i].Outcome = interactions[i].State;
 
-            var committed = attempts.Count(a => a.Outcome == InteractionState.Committed);
-            var denied = attempts.Count(a => a.Outcome != InteractionState.Committed);
+            var committed = attempts.Count(a => a.Outcome == OperationState.Committed);
+            var denied = attempts.Count(a => a.Outcome != OperationState.Committed);
             Debug.Log($"[Test] {attempts.Count} attempts: {committed} committed, {denied} denied, {exceptions} errors.");
 
             AssertIntegrity();
 
-            foreach (var attempt in attempts.Where(a => a.Outcome == InteractionState.Committed))
+            foreach (var attempt in attempts.Where(a => a.Outcome == OperationState.Committed))
                 Assert.IsTrue(attempt.To.Contains(attempt.Item),
                     $"Committed move of '{attempt.Item}' did not reach '{attempt.To}'.");
 
@@ -152,7 +153,7 @@ namespace SecondScratch.ThreadSafe.Tests
         {
             public Item Item;
             public Container To;
-            public InteractionState Outcome;
+            public OperationState Outcome;
 
             public Attempt(Item item, Container to)
             {
