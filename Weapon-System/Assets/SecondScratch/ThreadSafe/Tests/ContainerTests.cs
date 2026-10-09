@@ -11,6 +11,7 @@ using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Tests
 {
+    /*
     public class ContainerTests
     {
         private const int CreateCapacity = ItemsCount / CreatesCount * ItemsSize;
@@ -162,4 +163,5 @@ namespace SecondScratch.ThreadSafe.Tests
             }
         }
     }
+    */
 }

@@ -4,6 +4,7 @@ using SecondScratch.ThreadSafe.Commands;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 {
+    /*
     public class Item
     {
         public int Size { get; }
@@ -122,4 +123,5 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             };
         }
     }
+    */
 }

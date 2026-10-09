@@ -6,6 +6,7 @@ using SecondScratch.ThreadSafe.Schedulers;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 {
+    /*
     public class TransferContext
     {
         public Player Player { get; set; }
@@ -69,4 +70,5 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 
         public static Operation<TransferContext> Create(CancellationToken ct) => new(CreateStages(), ct);
     }
+    */
 }

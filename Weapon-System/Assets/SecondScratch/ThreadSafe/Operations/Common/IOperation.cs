@@ -15,12 +15,11 @@ namespace SecondScratch.ThreadSafe.Operations.Common
         IEnumerable<OperationMember> Members { get; }
         
         bool IsCompleted { get; }
-        
-        void Cancel();
     }
     
-    public interface IOperation<TContext> : IOperation
+    public interface IOperation<in TContext> : IOperation
+        where TContext : IOperationContext
     {
-        ValueTask Execute(ref Transaction transaction, ref TContext context, CancellationToken ct);
+        ValueTask Execute(Transaction transaction, TContext context, CancellationToken ct);
     }
 }

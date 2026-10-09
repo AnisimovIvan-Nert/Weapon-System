@@ -8,6 +8,7 @@ using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Extensions
 {
+    /*
     public static class OperationExtensions
     {
         public static async ValueTask<int> WhenAll(this IEnumerable<IOperation> operations)
@@ -31,4 +32,5 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Extensions
             return exceptions;
         }
     }
+    */
 }

@@ -21,23 +21,15 @@ namespace SecondScratch.ThreadSafe.Operations
         RolledBack = 2
     }
 
-    public struct Transaction
+    public class Transaction
     {
         private const int Commited = (int)TransactionStatus.Committed;
         private const int Active = (int)TransactionStatus.Active;
         private const int RolledBack = (int)TransactionStatus.RolledBack;
 
-        private readonly Stack<Rollback> _rollbacks;
+        private readonly Stack<Rollback> _rollbacks = new();
 
         private int _status;
-
-        public static Transaction Create() => new(0);
-
-        private Transaction(int _)
-        {
-            _rollbacks = new Stack<Rollback>();
-            _status = 0;
-        }
 
         public TransactionStatus Status => (TransactionStatus)Volatile.Read(ref _status);
         public bool IsActive => Status == TransactionStatus.Active;
