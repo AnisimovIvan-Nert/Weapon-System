@@ -66,10 +66,11 @@ namespace SecondScratch.ThreadSafe.Operations
                     await ExecuteOperation(operation, transaction, middlewares, executedMiddlewares);
                 }
 
-                if (!transaction.TryCommit())
-                    throw new InvalidOperationException($"Operation {Id} failed to commit");
-
-                State = OperationState.Committed;
+                Commit(transaction);
+            }
+            catch (OperationEnforceComplete)
+            {
+                Commit(transaction);
             }
             catch (OperationCanceledException)
             {
@@ -91,7 +92,6 @@ namespace SecondScratch.ThreadSafe.Operations
             Stack<IOperationMiddleware> executedMiddlewares)
         {
             executedMiddlewares.Clear();
-            var canceled = false;
 
             try
             {
@@ -103,10 +103,17 @@ namespace SecondScratch.ThreadSafe.Operations
                 }
 
                 await operation.Execute(transaction, _context, _cts.Token).ConfigureAwait(false);
+                
+                while (executedMiddlewares.TryPop(out var middleware))
+                    await middleware.AfterExecution(operation, transaction, _context, _cts.Token);
+            }
+            catch (OperationEnforceComplete e)
+            {
+                if (e.Cascade)
+                    throw;
             }
             catch (OperationCanceledException)
             {
-                canceled = true;
                 throw;
             }
             catch (Exception e)
@@ -114,21 +121,40 @@ namespace SecondScratch.ThreadSafe.Operations
                 var handled = false;
                 foreach (var middleware in middlewares)
                 {
-                    handled = await middleware.TryHandleException(operation, e, transaction, _context);
-                    break;
+                    handled = await TryHandle(middleware, e, operation, transaction);
+                    if (handled)
+                        break;
                 }
 
                 if (!handled)
                     throw;
             }
-            finally
+        }
+
+        private async ValueTask<bool> TryHandle(IOperationMiddleware middleware, 
+            Exception exception, 
+            IOperation<TContext> operation,
+            Transaction transaction)
+        {
+            try
             {
-                if (!canceled)
-                {
-                    while (executedMiddlewares.TryPop(out var middleware))
-                        await middleware.AfterExecution(operation, transaction, _context, _cts.Token);
-                }
+                return await middleware.TryHandleException(operation, exception, transaction, _context);
             }
+            catch (OperationEnforceComplete enforce)
+            {
+                if (enforce.Cascade)
+                    throw;
+
+                return true;
+            }
+        }
+
+        private void Commit(Transaction transaction)
+        {
+            if (!transaction.TryCommit())
+                throw new InvalidOperationException($"Operation {Id} failed to commit");
+
+            State = OperationState.Committed;
         }
     }
 }

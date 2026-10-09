@@ -12,6 +12,18 @@ namespace SecondScratch.ThreadSafe.Tests
     public class OperationTests
     {
         private const int OperationCount = 5;
+        private const int ThrowIndex = OperationCount - 1;
+        private const int EnforceIndex = OperationCount - 3;
+
+        [SetUp]
+        public void SetUp()
+        {
+            if (OperationCount - ThrowIndex < 1 || ThrowIndex < 1)
+                throw new InvalidOperationException("Broke assertion");
+            
+            if (OperationCount - EnforceIndex < 3 || EnforceIndex < 1)
+                throw new InvalidOperationException("Broke assertion");
+        }
 
         [Test]
         public async Task Operation_Execute_Test()
@@ -34,7 +46,7 @@ namespace SecondScratch.ThreadSafe.Tests
             var context = new SimpleContext();
             var operation = SimpleOperationBuilder<SimpleContext>
                 .Create((i, subjects, types, members) =>
-                    new SimpleOperation(subjects, types, members, i == OperationCount - 1))
+                    new SimpleOperation(subjects, types, members, i == ThrowIndex))
                 .Build(OperationCount, context);
 
             Assert.CatchAsync<SimpleOperationException>(async () => await operation.Execute());
@@ -110,7 +122,7 @@ namespace SecondScratch.ThreadSafe.Tests
             var context = new SimpleContext();
             var operation = SimpleOperationBuilder<SimpleContext>
                 .Create((i, subjects, types, members) =>
-                    new SimpleOperation(subjects, types, members, i == OperationCount - 1))
+                    new SimpleOperation(subjects, types, members, i == ThrowIndex))
                 .WithMiddlewares(new List<IOperationMiddleware>
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
@@ -183,7 +195,7 @@ namespace SecondScratch.ThreadSafe.Tests
             var context = new SimpleContext();
             var operation = SimpleOperationBuilder<SimpleContext>
                 .Create((i, subjects, types, members) =>
-                    new SimpleOperation(subjects, types, members, i == OperationCount - 1))
+                    new SimpleOperation(subjects, types, members, i == ThrowIndex))
                 .WithMiddlewares(new List<IOperationMiddleware>
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
@@ -207,7 +219,7 @@ namespace SecondScratch.ThreadSafe.Tests
             var operation = SimpleOperationBuilder<SimpleContext>
                 .Create((_, subjects, types, members) =>
                     new SimpleOperation(subjects, types, members))
-                .WithSubjects(i => i != OperationCount - 1
+                .WithSubjects(i => i != ThrowIndex
                     ? null
                     : new List<IOperationSubject>
                     {
@@ -232,7 +244,7 @@ namespace SecondScratch.ThreadSafe.Tests
             var operation = SimpleOperationBuilder<SimpleContext>
                 .Create((_, subjects, types, members) =>
                     new SimpleOperation(subjects, types, members))
-                .WithSubjects(i => i != OperationCount - 1
+                .WithSubjects(i => i != ThrowIndex
                     ? null
                     : new List<IOperationSubject>
                     {
@@ -248,6 +260,340 @@ namespace SecondScratch.ThreadSafe.Tests
             Assert.True(operation.IsCompleted);
             Assert.AreEqual(0, context.Counter);
             Assert.AreEqual(0, context.StatefulCounter);
+        }
+
+        [Test]
+        public async Task Operation_EnforceCompletion_Cascade_Test()
+        {
+            const int exceptedOperationCount = EnforceIndex;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((i, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members, false, i == EnforceIndex, true))
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Operation_EnforceCompletion_Test()
+        {
+            const int exceptedOperationCount = OperationCount - 1;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((i, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members, false, i == EnforceIndex))
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Middleware_BeforeExecution_EnforceCompletion_Cascade_Test()
+        {
+            const int exceptedOperationCount = EnforceIndex;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithMembers(i => i != EnforceIndex 
+                    ? null 
+                    : new List<OperationMember>
+                    {
+                        new(Members.Executor, null!)
+                    })
+                .WithMiddlewares(new List<IOperationMiddleware>
+                {
+                    new SimpleMiddleware<SimpleOperation, SimpleContext>
+                    {
+                        BeforeExecutionAction = (o, _, _) =>
+                        {
+                            if (o.Members.Any(m => m.Type == Members.Executor))
+                                throw new OperationEnforceComplete(true);
+                        }
+                    }
+                })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Middleware_BeforeExecution_EnforceCompletion_Test()
+        {
+            const int exceptedOperationCount = OperationCount - 1;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithMembers(i => i != EnforceIndex 
+                    ? null 
+                    : new List<OperationMember>
+                    {
+                        new(Members.Executor, null!)
+                    })
+                .WithMiddlewares(new List<IOperationMiddleware>
+                {
+                    new SimpleMiddleware<SimpleOperation, SimpleContext>
+                    {
+                        BeforeExecutionAction = (o, _, _) =>
+                        {
+                            if (o.Members.Any(m => m.Type == Members.Executor))
+                                throw new OperationEnforceComplete(false);
+                        }
+                    }
+                })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Middleware_AfterExecution_EnforceCompletion_Cascade_Test()
+        {
+            const int exceptedOperationCount = EnforceIndex + 1;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithMembers(i => i != EnforceIndex 
+                    ? null 
+                    : new List<OperationMember>
+                    {
+                        new(Members.Executor, null!)
+                    })
+                .WithMiddlewares(new List<IOperationMiddleware>
+                {
+                    new SimpleMiddleware<SimpleOperation, SimpleContext>
+                    {
+                        AfterExecutionAction = (o, _, _) =>
+                        {
+                            if (o.Members.Any(m => m.Type == Members.Executor))
+                                throw new OperationEnforceComplete(true);
+                        }
+                    }
+                })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Middleware_AfterExecution_EnforceCompletion_Test()
+        {
+            const int exceptedOperationCount = OperationCount;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithMembers(i => i != EnforceIndex 
+                    ? null 
+                    : new List<OperationMember>
+                    {
+                        new(Members.Executor, null!)
+                    })
+                .WithMiddlewares(new List<IOperationMiddleware>
+                {
+                    new SimpleMiddleware<SimpleOperation, SimpleContext>
+                    {
+                        AfterExecutionAction = (o, _, _) =>
+                        {
+                            if (o.Members.Any(m => m.Type == Members.Executor))
+                                throw new OperationEnforceComplete(false);
+                        }
+                    }
+                })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Middleware_TryHandleException_EnforceCompletion_Cascade_Test()
+        {
+            const int exceptedOperationCount = EnforceIndex + 1;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((i, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members, i == EnforceIndex))
+                .WithMiddlewares(new List<IOperationMiddleware>
+                {
+                    new SimpleMiddleware<SimpleOperation, SimpleContext>
+                    {
+                        TryHandleExceptionAction = (_, _, _) => throw new OperationEnforceComplete(true)
+                    }
+                })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Middleware_TryHandleException_EnforceCompletion_Test()
+        {
+            const int exceptedOperationCount = OperationCount;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((i, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members, i == EnforceIndex))
+                .WithMiddlewares(new List<IOperationMiddleware>
+                {
+                    new SimpleMiddleware<SimpleOperation, SimpleContext>
+                    {
+                        TryHandleExceptionAction = (_, _, _) => throw new OperationEnforceComplete(false)
+                    }
+                })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Subject_Upstream_EnforceCompletion_Cascade_Test()
+        {
+            const int exceptedOperationCount = EnforceIndex;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithSubjects(i => i != EnforceIndex
+                    ? null
+                    : new List<IOperationSubject>
+                    {
+                        new SimpleOperationSubject<SimpleOperation, SimpleContext>
+                        {
+                            UpstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(true)
+                        }
+                    })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Subject_Upstream_EnforceCompletion_Test()
+        {
+            const int exceptedOperationCount = OperationCount - 1;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithSubjects(i => i != EnforceIndex
+                    ? null
+                    : new List<IOperationSubject>
+                    {
+                        new SimpleOperationSubject<SimpleOperation, SimpleContext>
+                        {
+                            UpstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(false)
+                        }
+                    })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Subject_Downstream_EnforceCompletion_Cascade_Test()
+        {
+            const int exceptedOperationCount = EnforceIndex;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithSubjects(i => i != EnforceIndex
+                    ? null
+                    : new List<IOperationSubject>
+                    {
+                        new SimpleOperationSubject<SimpleOperation, SimpleContext>
+                        {
+                            DownstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(true)
+                        }
+                    })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
+        }
+        
+        [Test]
+        public async Task Subject_Downstream_EnforceCompletion_Test()
+        {
+            const int exceptedOperationCount = OperationCount - 1;
+            
+            var context = new SimpleContext();
+            var operation = SimpleOperationBuilder<SimpleContext>
+                .Create((_, subjects, types, members) =>
+                    new SimpleOperation(subjects, types, members))
+                .WithSubjects(i => i != EnforceIndex
+                    ? null
+                    : new List<IOperationSubject>
+                    {
+                        new SimpleOperationSubject<SimpleOperation, SimpleContext>
+                        {
+                            DownstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(false)
+                        }
+                    })
+                .Build(OperationCount, context);
+
+            await operation.Execute();
+            
+            Assert.True(operation.IsCompleted);
+            Assert.AreEqual(exceptedOperationCount, context.Counter);
+            Assert.AreEqual(exceptedOperationCount * context.StatefulDiff, context.StatefulCounter);
         }
 
         private class TestException : Exception

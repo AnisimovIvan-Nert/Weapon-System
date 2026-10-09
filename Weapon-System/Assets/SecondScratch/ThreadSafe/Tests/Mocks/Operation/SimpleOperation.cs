@@ -45,20 +45,29 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Operation
     public class SimpleOperation : AbstractOperation<SimpleContext>
     {
         public bool MustThrow;
+        public bool EnforceComplete;
+        public bool Cascade;
 
         public SimpleOperation(
             IEnumerable<IOperationSubject> subjects,
             IEnumerable<OperationTypes> types,
             IEnumerable<OperationMember> members,
-            bool mustThrow = false)
+            bool mustThrow = false,
+            bool enforceComplete = false,
+            bool cascade = false)
             : base(subjects, types, members)
         {
             MustThrow = mustThrow;
+            EnforceComplete = enforceComplete;
+            Cascade = cascade;
         }
 
         protected override async ValueTask InnerExecute(Transaction transaction, SimpleContext context,
             CancellationToken ct)
         {
+            if (EnforceComplete)
+                throw new OperationEnforceComplete(Cascade);
+            
             await transaction.Apply(context.Mutate, context.Rollback);
             await transaction.Apply(context.StatefulMutate, context.StatefulRollback);
 
