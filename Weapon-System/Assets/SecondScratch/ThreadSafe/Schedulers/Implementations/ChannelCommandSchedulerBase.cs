@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -8,10 +9,12 @@ using UnityEngine;
 namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 {
     public abstract class ChannelCommandSchedulerBase<TCommand> : ICommandScheduler
+        where TCommand : ICommand
     {
         private readonly CancellationTokenSource _cts = new();
         private readonly Channel<AwaitableCommand>[] _channels;
         private readonly int[] _pendingCounts;
+        private readonly ConcurrentQueue<AwaitableCommand>[] _deferredCommands;
 
         private CancellationTokenSource? _consumerCts;
         private CancellationTokenSource? _consumerLinkedCts;
@@ -25,10 +28,13 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             if (channelCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(channelCount));
 
-            _channels = new Channel<AwaitableCommand>[channelCount];
             _pendingCounts = new int[channelCount];
 
-            // ReSharper disable once VirtualMemberCallInConstructor
+            _deferredCommands = new ConcurrentQueue<AwaitableCommand>[channelCount];
+            for (var i = 0; i < channelCount; i++)
+                _deferredCommands[i] = new ConcurrentQueue<AwaitableCommand>();
+
+            _channels = new Channel<AwaitableCommand>[channelCount];
             for (var i = 0; i < channelCount; i++)
                 _channels[i] = CreateChannel();
         }
@@ -83,7 +89,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             {
                 if (_consumerTasks == null || _consumerCts == null || _consumerLinkedCts == null)
                     throw new InvalidOperationException();
-                
+
                 _consumerCts.Cancel();
 
                 foreach (var consumerTask in _consumerTasks)
@@ -93,10 +99,10 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                 }
 
                 _consumerTasks = null;
-                
+
                 _consumerCts.Dispose();
                 _consumerCts = null;
-                
+
                 _consumerLinkedCts.Dispose();
                 _consumerLinkedCts = null;
             }
@@ -116,15 +122,12 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 
             while (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
             {
-                while (reader.TryRead(out var item))
-                    ExecuteAndTrack(item, channelIndex);
+                await ReadCommands(channelIndex, reader);
 
                 if (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
                     await Task.Yield();
             }
         }
-
-        protected abstract void ExecuteCommand(TCommand command);
 
         protected virtual void OnCommandExecuted(TCommand command)
         {
@@ -135,7 +138,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             var awaitableCommand = new AwaitableCommand(command, null);
             return TryScheduleToChannel(channelIndex, awaitableCommand);
         }
-        
+
         protected bool TryScheduleToChannel(int channelIndex, TCommand command, out ValueTask task)
         {
             var taskSource = new TaskCompletionSource<bool>();
@@ -148,11 +151,11 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             task = default;
             return false;
         }
-        
+
         protected bool TryScheduleToChannel(int channelIndex, AwaitableCommand command)
         {
             Interlocked.Increment(ref _pendingCounts[channelIndex]);
-            
+
             if (_channels[channelIndex].Writer.TryWrite(command))
                 return true;
 
@@ -185,12 +188,9 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             try
             {
                 var reader = _channels[channelIndex].Reader;
-                
+
                 while (await reader.WaitToReadAsync(cts.Token).ConfigureAwait(false))
-                {
-                    while (reader.TryRead(out var item))
-                        ExecuteAndTrack(item, channelIndex);
-                }
+                    await ReadCommands(channelIndex, reader);
             }
             catch (OperationCanceledException)
             {
@@ -201,13 +201,34 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             }
         }
 
-        private void ExecuteAndTrack(AwaitableCommand item, int channelIndex)
+        private async ValueTask ReadCommands(int channelIndex, ChannelReader<AwaitableCommand> reader)
         {
-            var command = item.Command;
+            var deferredCommands = _deferredCommands[channelIndex];
+            while (true)
+            {
+                while (reader.TryRead(out var item))
+                    ExecuteCommand(item, channelIndex);
+
+                while (deferredCommands.TryDequeue(out var item))
+                    ExecuteCommand(item, channelIndex);
+
+                if (deferredCommands.IsEmpty)
+                    break;
+
+                await Task.Yield();
+            }
+        }
+
+        private void ExecuteCommand(AwaitableCommand awaitableCommand, int channelIndex)
+        {
+            var command = awaitableCommand.Command;
             Exception? error = null;
+            var executed = true;
             try
             {
-                ExecuteCommand(command);
+                executed = TryExecuteCommand(command);
+                if (!executed)
+                    _deferredCommands[channelIndex].Enqueue(awaitableCommand);
             }
             catch (Exception e)
             {
@@ -216,16 +237,38 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             }
             finally
             {
-                Interlocked.Decrement(ref _pendingCounts[channelIndex]);
-                OnCommandExecuted(command);
-
-                if (item.Tcs != null)
+                if (executed)
                 {
-                    if (error != null)
-                        item.Tcs.TrySetException(error);
-                    else
-                        item.Tcs.TrySetResult(true);
+                    Interlocked.Decrement(ref _pendingCounts[channelIndex]);
+                    OnCommandExecuted(command);
+
+                    if (awaitableCommand.Tcs != null)
+                    {
+                        if (error != null)
+                            awaitableCommand.Tcs.TrySetException(error);
+                        else
+                            awaitableCommand.Tcs.TrySetResult(true);
+                    }
                 }
+            }
+        }
+
+        private static bool TryExecuteCommand(TCommand command)
+        {
+            if (!command.CanExecute())
+                return false;
+
+            if (!Monitor.TryEnter(command.Target))
+                return false;
+
+            try
+            {
+                command.Execute();
+                return true;
+            }
+            finally
+            {
+                Monitor.Exit(command.Target);
             }
         }
 

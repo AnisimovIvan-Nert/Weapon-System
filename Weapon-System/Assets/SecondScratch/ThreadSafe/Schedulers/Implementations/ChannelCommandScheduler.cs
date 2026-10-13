@@ -26,7 +26,5 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 
             throw new InvalidOperationException("Channel was completed.");
         }
-
-        protected override void ExecuteCommand(ICommand command) => command.Execute();
     }
 }

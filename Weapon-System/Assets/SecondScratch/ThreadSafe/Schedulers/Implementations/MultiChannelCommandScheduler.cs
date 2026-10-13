@@ -44,8 +44,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                 DropState(target, targetState);
             }
         }
-
-        protected override void ExecuteCommand(Entry entry) => entry.Command.Execute();
+        
         protected override void OnCommandExecuted(Entry entry) => entry.State.DecrementPending(this, entry);
         
         private TargetState GetState(object target)
@@ -59,7 +58,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                 _targetStates.TryRemove(target, out _);
         }
 
-        public readonly struct Entry
+        public readonly struct Entry : ICommand
         {
             internal readonly ICommand Command;
             internal readonly TargetState State;
@@ -69,6 +68,11 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                 Command = command;
                 State = state;
             }
+
+            public object Target => Command.Target;
+            public bool IsCompleted => Command.IsCompleted;
+            public void Execute() => Command.Execute();
+            public bool CanExecute() => Command.CanExecute();
         }
 
         internal sealed class TargetState

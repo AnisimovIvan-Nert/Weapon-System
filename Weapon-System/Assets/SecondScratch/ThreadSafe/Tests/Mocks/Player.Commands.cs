@@ -4,22 +4,20 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks
 {
     public partial class Player
     {
-        public IncreaseHealthCommand CreateIncreaseHealthCommand(int value) => new(this, value);
+        public IncreaseHealthCommand CreateIncreaseHealthCommand(int value, ICommand? dependency = null) =>
+            new(this, value, dependency);
 
-        public class IncreaseHealthCommand : ICommand
+        public class IncreaseHealthCommand : AbstractCommand<Player>
         {
-            private readonly Player _target;
             private readonly int _value;
 
-            public object Target => _target;
-
-            public IncreaseHealthCommand(Player target, int value)
+            public IncreaseHealthCommand(Player target, int value, ICommand? dependency = null)
+                : base(target, dependency)
             {
-                _target = target;
                 _value = value;
             }
 
-            public void Execute() => _target.IncreaseHealth(_value);
+            protected override void InnerExecute() => TypedTarget.IncreaseHealth(_value);
         }
     }
 }

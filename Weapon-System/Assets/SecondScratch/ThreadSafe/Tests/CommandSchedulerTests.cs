@@ -171,25 +171,22 @@ namespace SecondScratch.ThreadSafe.Tests
             public void Exit() => Interlocked.Decrement(ref _concurrent);
         }
 
-        private sealed class ProbeCommand : ICommand
+        private sealed class ProbeCommand : AbstractCommand<Player>
         {
             private readonly TargetProbe _probe;
-            private readonly Player _target;
 
-            public ProbeCommand(TargetProbe probe, Player target)
+            public ProbeCommand(TargetProbe probe, Player target, ICommand? dependency = null)
+                : base(target)
             {
                 _probe = probe;
-                _target = target;
             }
 
-            public object Target => _target;
-
-            public void Execute()
+            protected override void InnerExecute()
             {
                 _probe.Enter();
                 try
                 {
-                    _target.IncreaseHealth(Value);
+                    TypedTarget.IncreaseHealth(Value);
                 }
                 finally
                 {
