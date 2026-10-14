@@ -6,19 +6,9 @@ namespace SecondScratch.ThreadSafe.Commands
     {
         object Target { get; }
 
-        event EventHandler<CommandEventArg> OnReadyForExecute;
+        event Action OnReadyForExecute;
 
         void Execute();
         bool CanExecute();
-    }
-
-    public readonly struct CommandEventArg
-    {
-        public readonly ICommand Command;
-
-        public CommandEventArg(ICommand command)
-        {
-            Command = command;
-        }
     }
 }

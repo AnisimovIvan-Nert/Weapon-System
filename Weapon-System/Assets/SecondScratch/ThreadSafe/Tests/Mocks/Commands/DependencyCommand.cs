@@ -1,17 +1,13 @@
-﻿using SecondScratch.ThreadSafe.Commands;
+﻿using System;
+using SecondScratch.ThreadSafe.Commands;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Commands
 {
     public class DependencyCommand : AbstractCommand<DependencyObject>
     {
         public DependencyCommand(DependencyObject target, ICommandDependency? dependency = null) 
-            : base(target, dependency)
+            : base(target, new CommandDependencyAggregator(target, dependency))
         {
-        }
-
-        public override bool CanExecute()
-        {
-            return base.CanExecute() && TypedTarget.CanExecute;
         }
 
         protected override void InnerExecute()
@@ -19,8 +15,15 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Commands
         }
     }
 
-    public class DependencyObject
+    public class DependencyObject : ICommandDependency
     {
-        public bool CanExecute;
+        public bool IsCompleted { get; private set; }
+        public event Action? OnCompleted;
+
+        public void Complete()
+        {
+            IsCompleted = true;
+            OnCompleted?.Invoke();
+        }
     }
 }

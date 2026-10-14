@@ -74,7 +74,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             public void Execute() => Command.Execute();
             public bool CanExecute() => Command.CanExecute();
             
-            public event EventHandler<CommandEventArg>? OnReadyForExecute
+            public event Action? OnReadyForExecute
             {
                 add => Command.OnReadyForExecute += value;
                 remove => Command.OnReadyForExecute -= value;

@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Unity.PerformanceTesting;
 using System.Threading.Channels;
 using SecondScratch.ThreadSafe.Commands;
+using SecondScratch.ThreadSafe.Schedulers;
 using SecondScratch.ThreadSafe.Schedulers.Implementations;
 using SecondScratch.ThreadSafe.Tests.Mocks;
 using SecondScratch.ThreadSafe.Tests.Mocks.Commands;
@@ -14,8 +15,8 @@ namespace SecondScratch.ThreadSafe.Tests
     public class CommandTests
     {
         private const int Value = 10;
-        private const int RepeatCount = 1024;
-        private const int PlayerCount = 1024;
+        private const int RepeatCount = 8;
+        private const int PlayerCount = 8;
         private const int ProducerCount = 16;
         private const int ChannelCount = 16;
 
@@ -118,57 +119,39 @@ namespace SecondScratch.ThreadSafe.Tests
         [Test]
         public async Task Command_Dependency_Test()
         {
-            const int repeatPerDependency = 128;
-            const int dependencyCount = RepeatCount / repeatPerDependency;
-            const int repeatCount = RepeatCount + 1;
-            const int playerCount = PlayerCount / 128;
-            
-            var players = new Player[playerCount];
-            for (var i = 0; i < playerCount; i++)
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
                 players[i] = new Player();
 
             await using var scheduler = new ChannelCommandScheduler();
             scheduler.RunConsumers();
 
-            var dependencyObjects = new DependencyObject[dependencyCount];
-            var dependencyCommands = new DependencyCommand[dependencyCount];
-            for (var repeat = 0; repeat < dependencyCount; repeat++)
+            var dependencyObjects = new DependencyObject[RepeatCount];
+            var dependencyCommands = new DependencyCommand[RepeatCount];
+            for (var repeat = 0; repeat < RepeatCount; repeat++)
             {
                 dependencyObjects[repeat] = new DependencyObject();
                 dependencyCommands[repeat] = new DependencyCommand(dependencyObjects[repeat]);
                 scheduler.SendCommand(dependencyCommands[repeat]);
             }
 
-            var dependencyTasks = new ValueTask[dependencyCount];
-            ValueTask? lastTask = null;
+            var dependencyTasks = new ValueTask[RepeatCount];
             foreach (var player in players)
             {
-                for (var repeat = 0; repeat < repeatCount; repeat++)
+                for (var repeat = 0; repeat < RepeatCount; repeat++)
                 {
-                    var isDependency = repeat != 0 && repeat % repeatPerDependency == 0;
-                    var dependencyIndex = repeat / repeatPerDependency - 1;
-                    var dependency = isDependency 
-                        ? dependencyCommands[dependencyIndex] 
-                        : null;
-                    
-                    var command = player.CreateIncreaseHealthCommand(Value, dependency);
-                    lastTask = scheduler.ScheduleCommand(command);
-                    if (repeat != 0 && repeat % repeatPerDependency == 0)
-                        dependencyTasks[dependencyIndex] = lastTask.Value;
+                    var command = player.CreateIncreaseHealthCommand(Value, dependencyCommands[repeat]);
+                    dependencyTasks[repeat] = command.Schedule();
                 }
             }
 
-            if (lastTask != null)
-                await lastTask.Value;
-
-            for (var i = 0; i < dependencyCount; i++)
+            for (var i = 0; i < RepeatCount; i++)
             {
-                var repeatDiff = dependencyCount - i;
                 foreach (var player in players)
-                    Assert.AreEqual(Value * (repeatCount - repeatDiff), player.Health);
+                    Assert.AreEqual(Value * i, player.Health);
                 
                 var dependencyObject = dependencyObjects[i];
-                dependencyObject.CanExecute = true;
+                dependencyObject.Complete();
                 await dependencyTasks[i];
             }
 

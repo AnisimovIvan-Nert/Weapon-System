@@ -2,6 +2,10 @@
 
 namespace SecondScratch.ThreadSafe.Commands
 {
+    public class CommandInvalidExecuteException : Exception
+    {
+    }
+    
     public abstract class AbstractCommand<T> : ICommand
         where T : notnull
     {
@@ -11,7 +15,7 @@ namespace SecondScratch.ThreadSafe.Commands
         public object Target => TypedTarget;
         public bool IsCompleted { get; private set; }
         
-        public event EventHandler<CommandEventArg>? OnReadyForExecute;
+        public event Action? OnReadyForExecute;
         public event Action? OnCompleted;
 
         public AbstractCommand(T target, ICommandDependency? dependency = null)
@@ -25,6 +29,9 @@ namespace SecondScratch.ThreadSafe.Commands
 
         public void Execute()
         {
+            if (!CanExecute())
+                throw new CommandInvalidExecuteException();
+            
             try
             {
                 InnerExecute();
@@ -40,9 +47,6 @@ namespace SecondScratch.ThreadSafe.Commands
 
         protected abstract void InnerExecute();
 
-        protected virtual void OnDependencyComplete()
-        {
-            OnReadyForExecute?.Invoke(this, new CommandEventArg(this));
-        }
+        protected virtual void OnDependencyComplete() => OnReadyForExecute?.Invoke();
     }
 }

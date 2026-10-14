@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -12,13 +12,8 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         where TCommand : ICommand
     {
         private readonly CancellationTokenSource _cts = new();
-        private readonly Channel<AwaitableCommand>[] _channels;
-        private readonly int[] _pendingCounts;
-
-        private CancellationTokenSource? _consumerCts;
-        private CancellationTokenSource? _consumerLinkedCts;
-        private Task[]? _consumerTasks;
-        private readonly object _consumerTasksLock = new();
+        private readonly DeferredChanel<AwaitableCommand>[] _channels;
+        private readonly ChanelConsumer _chanelConsumer;
 
         public int ChannelCount => _channels.Length;
 
@@ -27,236 +22,125 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             if (channelCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(channelCount));
 
-            _pendingCounts = new int[channelCount];
+            _chanelConsumer = new ChanelConsumer(channelCount);
 
-            _channels = new Channel<AwaitableCommand>[channelCount];
+            _channels = new DeferredChanel<AwaitableCommand>[channelCount];
             for (var i = 0; i < channelCount; i++)
-                _channels[i] = CreateChannel();
+            {
+                var chanel = Channel.CreateUnbounded<AwaitableCommand>(
+                    new UnboundedChannelOptions
+                    {
+                        SingleReader = true,
+                        SingleWriter = false,
+                        AllowSynchronousContinuations = true,
+                    });
+                _channels[i] = new DeferredChanel<AwaitableCommand>(chanel, TryExecuteCommand, OnStateChange);
+            }
+            return;
+
+            void OnStateChange(AwaitableCommand command, Action action)
+            {
+                command.Command.OnReadyForExecute += action;
+            }
         }
 
         public async ValueTask DisposeAsync()
         {
             _cts.Cancel();
             foreach (var channel in _channels)
-                channel.Writer.TryComplete();
+                channel.Dispose();
 
-            if (_consumerTasks != null)
-                await Task.WhenAll(_consumerTasks);
+            await _chanelConsumer.DisposeAsync();
 
             _cts.Dispose();
         }
 
+        public int GetTotalPendingCommands() => _channels.Select(chanel => chanel.PendingCount).Sum();
+        public int PendingCommandCount(int channelIndex) => _channels[channelIndex].PendingCount;
+
+        public void RunConsumers() => _chanelConsumer.RunConsumers(ConsumeChannel, _cts);
+        public Task KillConsumersAsync() => _chanelConsumer.KillConsumersAsync();
+
         public abstract ValueTask ScheduleCommand(ICommand command);
         public abstract void SendCommand(ICommand command);
-
-        public int GetTotalPendingCommands()
-        {
-            var total = 0;
-            for (var i = 0; i < _pendingCounts.Length; i++)
-                total += PendingCommandCount(i);
-            return total;
-        }
-
-        public int PendingCommandCount(int channelIndex) => Volatile.Read(ref _pendingCounts[channelIndex]);
-
-        public void RunConsumers()
-        {
-            lock (_consumerTasksLock)
-            {
-                if (_consumerTasks != null)
-                    throw new SchedulerAlreadyRunConsumersException();
-
-                _consumerTasks = new Task[_channels.Length];
-                _consumerCts = new CancellationTokenSource();
-                _consumerLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _consumerCts.Token);
-
-                for (var i = 0; i < _channels.Length; i++)
-                {
-                    var channelIndex = i;
-                    _consumerTasks[i] = Task.Run(() => ConsumeChannel(channelIndex, _consumerLinkedCts));
-                }
-            }
-        }
-        
-        public async Task KillConsumersAsync()
-        {
-            lock (_consumerTasksLock)
-            {
-                if (_consumerTasks == null || _consumerCts == null || _consumerLinkedCts == null)
-                    return;
-
-                _consumerCts.Cancel();
-            }
-
-            await Task.WhenAll(_consumerTasks);
-
-            lock (_consumerTasksLock)
-            {
-                _consumerTasks = null;
-
-                _consumerCts.Dispose();
-                _consumerCts = null;
-
-                _consumerLinkedCts.Dispose();
-                _consumerLinkedCts = null;
-            }
-        }
 
         protected virtual void OnCommandExecuted(TCommand command)
         {
         }
 
-        protected bool TryScheduleToChannel(int channelIndex, TCommand command)
+        protected bool TryScheduleToChannel(int chanelIndex, TCommand command)
         {
+            var chanel = _channels[chanelIndex];
             var awaitableCommand = new AwaitableCommand(command, null);
-            return TryScheduleToChannel(channelIndex, awaitableCommand);
+            return chanel.TryWriteToChannel(awaitableCommand);
         }
 
-        protected bool TryScheduleToChannel(int channelIndex, TCommand command, out ValueTask task)
+        protected bool TryScheduleToChannel(int chanelIndex, TCommand command,
+            out ValueTask task)
         {
+            var chanel = _channels[chanelIndex];
+            
             var taskSource = new TaskCompletionSource<bool>();
             task = new ValueTask(taskSource.Task);
 
             var awaitableCommand = new AwaitableCommand(command, taskSource);
-            if (TryScheduleToChannel(channelIndex, awaitableCommand))
+            if (chanel.TryWriteToChannel(awaitableCommand))
                 return true;
 
             task = default;
             return false;
         }
 
-        protected bool TryScheduleToChannel(int channelIndex, AwaitableCommand command)
-        {
-            Interlocked.Increment(ref _pendingCounts[channelIndex]);
-
-            if (_channels[channelIndex].Writer.TryWrite(command))
-                return true;
-
-            Interlocked.Decrement(ref _pendingCounts[channelIndex]);
-            return false;
-        }
-
         protected int FindLeastPendingChannel()
         {
-            var result = 0;
+            var resultChanel = 0;
             var leastPending = int.MaxValue;
 
-            for (var i = 0; i < _pendingCounts.Length; i++)
+            for (var i = 0; i < _channels.Length; i++)
             {
-                var pending = Volatile.Read(ref _pendingCounts[i]);
-                if (pending >= leastPending)
+                var chanel = _channels[i];
+                var pending = chanel.PendingCount;
+
+                if (chanel.PendingCount >= leastPending)
                     continue;
 
                 leastPending = pending;
-                result = i;
+                resultChanel = i;
                 if (pending == 0)
                     break;
             }
 
-            return result;
+            return resultChanel;
         }
 
         private async ValueTask ConsumeChannel(int channelIndex, CancellationTokenSource cts)
         {
-            try
-            {
-                var reader = _channels[channelIndex].Reader;
-
-                while (await reader.WaitToReadAsync(cts.Token).ConfigureAwait(false))
-                    await ReadCommands(channelIndex, reader);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-            }
+            var chanel = _channels[channelIndex];
+            await chanel.ConsumeChannel(cts);
         }
 
-        private async ValueTask ReadCommands(int channelIndex, ChannelReader<AwaitableCommand> reader)
-        {
-            var deferredCommands = _deferredCommands[channelIndex];
-            while (true)
-            {
-                while (reader.TryRead(out var item))
-                    TryExecuteCommand(item, channelIndex);
-
-                for (var i = 0; i < deferredCommands.Count; i++)
-                {
-                    if (!deferredCommands.TryDequeue(out var item))
-                        break;
-                    
-                    TryExecuteCommand(item, channelIndex);
-                }
-
-                if (deferredCommands.Count == 0)
-                    break;
-
-                await Task.Yield();
-            }
-        }
-
-        private bool TryExecuteCommand(AwaitableCommand awaitableCommand, int channelIndex)
+        private bool TryExecuteCommand(AwaitableCommand awaitableCommand)
         {
             var command = awaitableCommand.Command;
-            Exception? error = null;
-            var executed = true;
+            var tcs = awaitableCommand.Tcs;
+
             try
             {
-                executed = TryExecuteCommand(command);
+                if (!command.CanExecute())
+                    return false;
+                
+                command.Execute();
+                OnCommandExecuted(command);
+                tcs?.SetResult(true);
+                return true;
             }
             catch (Exception e)
             {
                 Debug.LogException(e);
-                error = e;
-            }
-            finally
-            {
-                if (executed)
-                {
-                    Interlocked.Decrement(ref _pendingCounts[channelIndex]);
-                    OnCommandExecuted(command);
-
-                    if (awaitableCommand.Tcs != null)
-                    {
-                        if (error != null)
-                            awaitableCommand.Tcs.TrySetException(error);
-                        else
-                            awaitableCommand.Tcs.TrySetResult(true);
-                    }
-                }
-            }
-
-            return executed;
-        }
-
-        private static bool TryExecuteCommand(TCommand command)
-        {
-            if (!command.CanExecute())
-                return false;
-
-            if (!Monitor.TryEnter(command.Target))
-                return false;
-
-            try
-            {
-                command.Execute();
+                tcs?.TrySetException(e);
                 return true;
             }
-            finally
-            {
-                Monitor.Exit(command.Target);
-            }
         }
-
-        private static Channel<AwaitableCommand> CreateChannel() => Channel.CreateUnbounded<AwaitableCommand>(
-            new UnboundedChannelOptions
-            {
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = true,
-            });
 
         protected readonly struct AwaitableCommand
         {
