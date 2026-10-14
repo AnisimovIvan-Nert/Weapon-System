@@ -4,7 +4,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Commands
 {
     public class DependencyCommand : AbstractCommand<DependencyObject>
     {
-        public DependencyCommand(DependencyObject target, ICommand? dependency = null) 
+        public DependencyCommand(DependencyObject target, ICommandDependency? dependency = null) 
             : base(target, dependency)
         {
         }

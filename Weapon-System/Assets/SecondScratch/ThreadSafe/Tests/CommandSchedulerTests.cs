@@ -6,6 +6,7 @@ using NUnit.Framework;
 using SecondScratch.ThreadSafe.Commands;
 using SecondScratch.ThreadSafe.Schedulers.Implementations;
 using SecondScratch.ThreadSafe.Tests.Mocks;
+using SecondScratch.ThreadSafe.Tests.Mocks.Extensions;
 
 namespace SecondScratch.ThreadSafe.Tests
 {
@@ -37,8 +38,7 @@ namespace SecondScratch.ThreadSafe.Tests
             for (var channelIndex = 0; channelIndex < channelCount; channelIndex++)
                 Assert.AreEqual(commandsPerTarget, scheduler.PendingCommandCount(channelIndex));
 
-            for (var channelIndex = 0; channelIndex < channelCount; channelIndex++)
-                await scheduler.DrainAsync();
+            await scheduler.DrainConsumers();
 
             foreach (var target in targets)
                 Assert.AreEqual(commandsPerTarget * Value, target.Health);
@@ -51,7 +51,7 @@ namespace SecondScratch.ThreadSafe.Tests
             for (var channelIndex = 1; channelIndex < channelCount; channelIndex++)
                 Assert.AreEqual(0, scheduler.PendingCommandCount(channelIndex));
 
-            await scheduler.DrainAsync();
+            await scheduler.DrainConsumers();
 
             Assert.AreEqual((commandsPerTarget + commandsPerTarget / 2) * Value, targets[0].Health);
         }
@@ -175,8 +175,8 @@ namespace SecondScratch.ThreadSafe.Tests
         {
             private readonly TargetProbe _probe;
 
-            public ProbeCommand(TargetProbe probe, Player target, ICommand? dependency = null)
-                : base(target)
+            public ProbeCommand(TargetProbe probe, Player target, ICommandDependency? dependency = null)
+                : base(target, dependency)
             {
                 _probe = probe;
             }
@@ -216,7 +216,7 @@ namespace SecondScratch.ThreadSafe.Tests
 
             Assert.AreEqual(commandsPerTarget * targets.Length, scheduler.GetTotalPendingCommands());
             
-            await scheduler.DrainAsync();
+            await scheduler.DrainConsumers();
 
             foreach (var target in targets)
                 Assert.AreEqual(commandsPerTarget * Value, target.Health);

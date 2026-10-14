@@ -4,6 +4,10 @@ using SecondScratch.ThreadSafe.Commands;
 
 namespace SecondScratch.ThreadSafe.Schedulers
 {
+    public class SchedulerAlreadyRunConsumersException : Exception
+    {
+    }
+    
     public interface ICommandScheduler : IAsyncDisposable
     {
         int ChannelCount { get; }
@@ -15,8 +19,6 @@ namespace SecondScratch.ThreadSafe.Schedulers
         int PendingCommandCount(int channelIndex);
         
         void RunConsumers();
-        void KillConsumers();
-        
-        Task DrainAsync();
+        Task KillConsumersAsync();
     }
 }

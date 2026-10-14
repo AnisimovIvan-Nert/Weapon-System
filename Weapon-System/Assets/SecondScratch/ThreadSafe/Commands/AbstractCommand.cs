@@ -1,19 +1,26 @@
-﻿namespace SecondScratch.ThreadSafe.Commands
+﻿using System;
+
+namespace SecondScratch.ThreadSafe.Commands
 {
     public abstract class AbstractCommand<T> : ICommand
         where T : notnull
     {
-        private readonly ICommand? _dependency;
+        private readonly ICommandDependency? _dependency;
         protected readonly T TypedTarget;
 
         public object Target => TypedTarget;
-        
         public bool IsCompleted { get; private set; }
+        
+        public event EventHandler<CommandEventArg>? OnReadyForExecute;
+        public event Action? OnCompleted;
 
-        public AbstractCommand(T target, ICommand? dependency = null)
+        public AbstractCommand(T target, ICommandDependency? dependency = null)
         {
             TypedTarget = target;
             _dependency = dependency;
+
+            if (dependency != null)
+                dependency.OnCompleted += OnDependencyComplete;
         }
 
         public void Execute()
@@ -25,11 +32,17 @@
             finally
             {
                 IsCompleted = true;
+                OnCompleted?.Invoke();
             }
         }
 
         public virtual bool CanExecute() => _dependency?.IsCompleted ?? true;
 
         protected abstract void InnerExecute();
+
+        protected virtual void OnDependencyComplete()
+        {
+            OnReadyForExecute?.Invoke(this, new CommandEventArg(this));
+        }
     }
 }

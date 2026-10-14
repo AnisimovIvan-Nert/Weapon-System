@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -14,7 +14,6 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         private readonly CancellationTokenSource _cts = new();
         private readonly Channel<AwaitableCommand>[] _channels;
         private readonly int[] _pendingCounts;
-        private readonly ConcurrentQueue<AwaitableCommand>[] _deferredCommands;
 
         private CancellationTokenSource? _consumerCts;
         private CancellationTokenSource? _consumerLinkedCts;
@@ -29,10 +28,6 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                 throw new ArgumentOutOfRangeException(nameof(channelCount));
 
             _pendingCounts = new int[channelCount];
-
-            _deferredCommands = new ConcurrentQueue<AwaitableCommand>[channelCount];
-            for (var i = 0; i < channelCount; i++)
-                _deferredCommands[i] = new ConcurrentQueue<AwaitableCommand>();
 
             _channels = new Channel<AwaitableCommand>[channelCount];
             for (var i = 0; i < channelCount; i++)
@@ -69,7 +64,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             lock (_consumerTasksLock)
             {
                 if (_consumerTasks != null)
-                    throw new InvalidOperationException();
+                    throw new SchedulerAlreadyRunConsumersException();
 
                 _consumerTasks = new Task[_channels.Length];
                 _consumerCts = new CancellationTokenSource();
@@ -82,22 +77,21 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                 }
             }
         }
-
-        public void KillConsumers()
+        
+        public async Task KillConsumersAsync()
         {
             lock (_consumerTasksLock)
             {
                 if (_consumerTasks == null || _consumerCts == null || _consumerLinkedCts == null)
-                    throw new InvalidOperationException();
+                    return;
 
                 _consumerCts.Cancel();
+            }
 
-                foreach (var consumerTask in _consumerTasks)
-                {
-                    consumerTask.Wait();
-                    consumerTask.Dispose();
-                }
+            await Task.WhenAll(_consumerTasks);
 
+            lock (_consumerTasksLock)
+            {
                 _consumerTasks = null;
 
                 _consumerCts.Dispose();
@@ -105,27 +99,6 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 
                 _consumerLinkedCts.Dispose();
                 _consumerLinkedCts = null;
-            }
-        }
-
-        public async Task DrainAsync()
-        {
-            var drainTasks = new Task[_channels.Length];
-            for (var i = 0; i < _channels.Length; i++)
-                drainTasks[i] = DrainChannelAsync(i);
-            await Task.WhenAll(drainTasks);
-        }
-
-        protected async Task DrainChannelAsync(int channelIndex)
-        {
-            var reader = _channels[channelIndex].Reader;
-
-            while (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
-            {
-                await ReadCommands(channelIndex, reader);
-
-                if (Volatile.Read(ref _pendingCounts[channelIndex]) > 0)
-                    await Task.Yield();
             }
         }
 
@@ -207,19 +180,24 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             while (true)
             {
                 while (reader.TryRead(out var item))
-                    ExecuteCommand(item, channelIndex);
+                    TryExecuteCommand(item, channelIndex);
 
-                while (deferredCommands.TryDequeue(out var item))
-                    ExecuteCommand(item, channelIndex);
+                for (var i = 0; i < deferredCommands.Count; i++)
+                {
+                    if (!deferredCommands.TryDequeue(out var item))
+                        break;
+                    
+                    TryExecuteCommand(item, channelIndex);
+                }
 
-                if (deferredCommands.IsEmpty)
+                if (deferredCommands.Count == 0)
                     break;
 
                 await Task.Yield();
             }
         }
 
-        private void ExecuteCommand(AwaitableCommand awaitableCommand, int channelIndex)
+        private bool TryExecuteCommand(AwaitableCommand awaitableCommand, int channelIndex)
         {
             var command = awaitableCommand.Command;
             Exception? error = null;
@@ -227,8 +205,6 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             try
             {
                 executed = TryExecuteCommand(command);
-                if (!executed)
-                    _deferredCommands[channelIndex].Enqueue(awaitableCommand);
             }
             catch (Exception e)
             {
@@ -251,6 +227,8 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                     }
                 }
             }
+
+            return executed;
         }
 
         private static bool TryExecuteCommand(TCommand command)
