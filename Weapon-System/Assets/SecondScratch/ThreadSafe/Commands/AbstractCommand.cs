@@ -16,17 +16,20 @@ namespace SecondScratch.ThreadSafe.Commands
         public object Target => TypedTarget;
         public bool IsCompleted { get; private set; }
         
-        public ConditionalEvent OnReadyForExecute { get; }
+        public ConditionalEvent? OnReadyForExecute { get; }
         public event Action? OnCompleted;
 
-        public AbstractCommand(T target, ICommandDependency? dependency = null)
+        protected AbstractCommand(T target, ICommandDependency? dependency = null, bool? canExecute = null)
         {
             TypedTarget = target;
             _dependency = dependency;
-            OnReadyForExecute = new ConditionalEvent(CanExecute);
 
             if (dependency != null)
                 dependency.OnCompleted += OnDependencyComplete;
+            
+            canExecute ??= IsDependencyCompleted();
+            if (!canExecute.Value)
+                OnReadyForExecute = new ConditionalEvent(CanExecute);
         }
 
         public void Execute()
@@ -45,13 +48,15 @@ namespace SecondScratch.ThreadSafe.Commands
             }
         }
 
-        public virtual bool CanExecute() => _dependency?.IsCompleted ?? true;
+        public virtual bool CanExecute() => IsDependencyCompleted();
 
         protected abstract void InnerExecute();
 
         protected virtual void OnDependencyComplete()
         {
-            OnReadyForExecute.Invoke();
+            OnReadyForExecute?.Invoke();
         }
+
+        private bool IsDependencyCompleted() => _dependency?.IsCompleted ?? true;
     }
 }

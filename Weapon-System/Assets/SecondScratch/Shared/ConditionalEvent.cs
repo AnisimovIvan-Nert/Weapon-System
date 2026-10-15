@@ -4,9 +4,8 @@ namespace SecondScratch.Shared
 {
     public delegate bool EventCondition();
 
-    public class ConditionalEvent
+    public sealed class ConditionalEvent
     {
-        private readonly object _lock = new();
         private readonly EventCondition _condition;
 
         private bool _pass;
@@ -25,7 +24,7 @@ namespace SecondScratch.Shared
                 return true;
             }
 
-            lock (_lock)
+            lock (this)
             {
                 if (_pass || _condition.Invoke())
                 {
@@ -40,14 +39,14 @@ namespace SecondScratch.Shared
 
         public void Unsubscribe(Action action)
         {
-            lock (_lock)
+            lock (this)
                 _handlers -= action;
         }
 
         public void Invoke()
         {
             Action? handlers;
-            lock (_lock)
+            lock (this)
             {
                 handlers = _handlers;
                 _pass = true;
@@ -58,7 +57,7 @@ namespace SecondScratch.Shared
 
         public void Reset()
         {
-            lock (_lock)
+            lock (this)
                 _pass = false;
         }
     }

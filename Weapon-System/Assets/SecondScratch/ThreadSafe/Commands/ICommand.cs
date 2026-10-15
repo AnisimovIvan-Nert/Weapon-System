@@ -6,7 +6,7 @@ namespace SecondScratch.ThreadSafe.Commands
     {
         object Target { get; }
 
-        ConditionalEvent OnReadyForExecute { get; }
+        ConditionalEvent? OnReadyForExecute { get; }
 
         void Execute();
         bool CanExecute();

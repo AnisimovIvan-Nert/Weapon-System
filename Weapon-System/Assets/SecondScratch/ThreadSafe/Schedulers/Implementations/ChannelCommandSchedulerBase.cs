@@ -81,7 +81,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             if (command.CanExecute())
                 chanel.WriteToChannel(awaitableCommand);
             else
-                command.OnReadyForExecute.CallOrSubscribe(() => chanel.WriteToChannel(awaitableCommand));
+                command.OnReadyForExecute!.CallOrSubscribe(() => chanel.WriteToChannel(awaitableCommand));
             
             chanel.IncrementPending();
         }
