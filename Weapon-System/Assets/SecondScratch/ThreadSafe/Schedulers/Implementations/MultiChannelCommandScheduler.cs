@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SecondScratch.Shared;
 using SecondScratch.ThreadSafe.Commands;
+using SecondScratch.ThreadSafe.LockableObject;
 
 namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 {
@@ -70,7 +71,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                 State = state;
             }
 
-            public object Target => Command.Target;
+            public ILockableObject Target => Command.Target;
             
             public bool IsCompleted => Command.IsCompleted;
             public void Execute() => Command.Execute();

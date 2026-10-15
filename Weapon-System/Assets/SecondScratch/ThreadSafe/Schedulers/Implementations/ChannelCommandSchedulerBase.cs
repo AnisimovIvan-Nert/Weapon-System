@@ -114,7 +114,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             await chanel.ConsumeChannel(cts);
         }
 
-        private void ExecuteCommand(AwaitableCommand awaitableCommand)
+        private void ExecuteCommand(DeferredChanel<AwaitableCommand> chanel, AwaitableCommand awaitableCommand)
         {
             var command = awaitableCommand.Command;
             var tcs = awaitableCommand.Tcs;
@@ -123,15 +123,32 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             {
                 if (!command.CanExecute())
                     throw new InvalidOperationException();
+                
+                if (!command.Target.OnReadyForLock.PassOrSubscribe(WriteToChanel))
+                    return;
 
-                command.Execute();
-                OnCommandExecuted(command);
-                tcs?.SetResult(true);
+                try
+                {
+                    command.Execute();
+                    OnCommandExecuted(command);
+                    tcs?.SetResult(true);
+                }
+                finally
+                {
+                    command.Target.Release();
+                }
             }
             catch (Exception e)
             {
                 Debug.LogException(e);
                 tcs?.TrySetException(e);
+            }
+            return;
+
+            void WriteToChanel()
+            {
+                chanel.WriteToChannel(awaitableCommand);
+                chanel.IncrementPending();
             }
         }
 

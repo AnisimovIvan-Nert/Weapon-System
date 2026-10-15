@@ -1,10 +1,11 @@
 ﻿using SecondScratch.Shared;
+using SecondScratch.ThreadSafe.LockableObject;
 
 namespace SecondScratch.ThreadSafe.Commands
 {
     public interface ICommand : ICommandDependency
     {
-        object Target { get; }
+        ILockableObject Target { get; }
 
         ConditionalEvent? OnReadyForExecute { get; }
 

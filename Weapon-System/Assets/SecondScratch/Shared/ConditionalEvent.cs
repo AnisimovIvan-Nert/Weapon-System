@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace SecondScratch.Shared
 {
@@ -7,30 +7,36 @@ namespace SecondScratch.Shared
     public sealed class ConditionalEvent
     {
         private readonly EventCondition _condition;
+        private readonly bool _alwaysValidateCondition;
 
         private bool _pass;
         private Action? _handlers;
 
-        public ConditionalEvent(EventCondition condition)
+        private bool Pass => !_alwaysValidateCondition && _pass;
+
+        public ConditionalEvent(EventCondition condition, bool alwaysValidateCondition = true)
         {
             _condition = condition;
+            _alwaysValidateCondition = alwaysValidateCondition;
         }
 
         public bool CallOrSubscribe(Action action)
         {
-            if (_pass || _condition.Invoke())
-            {
+            var pass = PassOrSubscribe(action);
+            if (pass)
                 action.Invoke();
+            return pass;
+        }
+        
+        public bool PassOrSubscribe(Action action)
+        {
+            if (Pass || _condition.Invoke())
                 return true;
-            }
 
             lock (this)
             {
-                if (_pass || _condition.Invoke())
-                {
-                    action.Invoke();
+                if (Pass || _condition.Invoke())
                     return true;
-                }
 
                 _handlers += action;
                 return false;

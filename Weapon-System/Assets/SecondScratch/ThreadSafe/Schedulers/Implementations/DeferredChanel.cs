@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 {
-    public delegate void HandleItem<in T>(T item);
+    public delegate void HandleItem<T>(DeferredChanel<T> chanel, T item);
 
     public class ChanelCompletedException : Exception
     {
@@ -66,7 +66,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         {
             while (_channel.Reader.TryRead(out var item))
             {
-                _handleItem(item);
+                _handleItem(this, item);
                 Interlocked.Decrement(ref _pendingCount);
             }
         }

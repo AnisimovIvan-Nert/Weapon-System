@@ -1,8 +1,9 @@
 ﻿using SecondScratch.ThreadSafe.Commands;
+using SecondScratch.ThreadSafe.LockableObject;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks
 {
-    public partial class Player
+    public partial class Player : AbstractLockableObject
     {
         public IncreaseHealthCommand CreateIncreaseHealthCommand(int value, ICommandDependency? dependency = null) =>
             new(this, value, dependency);

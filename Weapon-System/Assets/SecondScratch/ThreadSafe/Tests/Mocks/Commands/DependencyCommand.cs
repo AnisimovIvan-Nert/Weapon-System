@@ -1,5 +1,6 @@
 ﻿using System;
 using SecondScratch.ThreadSafe.Commands;
+using SecondScratch.ThreadSafe.LockableObject;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Commands
 {
@@ -15,7 +16,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Commands
         }
     }
 
-    public class DependencyObject : ICommandDependency
+    public class DependencyObject : AbstractLockableObject, ICommandDependency
     {
         public bool IsCompleted { get; private set; }
         public event Action? OnCompleted;

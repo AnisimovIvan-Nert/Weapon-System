@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -116,6 +117,52 @@ namespace SecondScratch.ThreadSafe.Tests
         }
         
         [Test]
+        public async Task Command_MultiChannelCommandScheduler_Test()
+        {
+            const int playerPerProducer = PlayerCount / ProducerCount;
+            Assert.AreEqual(PlayerCount, playerPerProducer * ProducerCount);
+
+            var players = new Player[PlayerCount];
+            for (var i = 0; i < PlayerCount; i++)
+                players[i] = new Player();
+
+            await using var scheduler = new MultiChannelCommandScheduler(ChannelCount);
+            scheduler.RunConsumers();
+
+            var producers = Enumerable.Range(0, ProducerCount)
+                .Select(producerIndex => Task.Run(async () =>
+                {
+                    var lastTasks = new ValueTask[playerPerProducer];
+                    var taskIndex = 0;
+
+                    var start = producerIndex * playerPerProducer;
+                    var end = start + playerPerProducer;
+                    for (var i = start; i < end; i++)
+                    {
+                        for (var j = 0; j < RepeatCount; j++)
+                        {
+                            var command = players[i].CreateIncreaseHealthCommand(Value);
+                            if (j == RepeatCount - 1)
+                                lastTasks[taskIndex++] = scheduler.ScheduleCommand(command);
+                            else
+                                scheduler.SendCommand(command);
+                        }
+                    }
+
+                    foreach (var lastTask in lastTasks)
+                        await lastTask;
+                }))
+                .ToArray();
+
+            await Task.WhenAll(producers);
+
+            Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
+
+            foreach (var player in players)
+                Assert.AreEqual(Value * RepeatCount, player.Health);
+        }
+        
+        [Test]
         public async Task Command_Dependency_Test()
         {
             var players = new Player[PlayerCount];
@@ -161,44 +208,47 @@ namespace SecondScratch.ThreadSafe.Tests
         }
 
         [Test]
-        public async Task Command_MultiChannelCommandScheduler_Test()
+        public async Task Command_Lock_Test()
         {
-            const int playerPerProducer = PlayerCount / ProducerCount;
-            Assert.AreEqual(PlayerCount, playerPerProducer * ProducerCount);
-
             var players = new Player[PlayerCount];
             for (var i = 0; i < PlayerCount; i++)
                 players[i] = new Player();
 
-            await using var scheduler = new MultiChannelCommandScheduler(ChannelCount);
+            await using var scheduler = new ChannelCommandScheduler();
             scheduler.RunConsumers();
 
-            var producers = Enumerable.Range(0, ProducerCount)
-                .Select(producerIndex => Task.Run(async () =>
+            var dependencyObjects = new DependencyObject[RepeatCount];
+            var dependencyCommands = new DependencyCommand[RepeatCount];
+            for (var repeat = 0; repeat < RepeatCount; repeat++)
+            {
+                var dependencyObject = new DependencyObject();
+                dependencyObject.Complete();
+                if (!dependencyObject.TryLock())
+                    throw new InvalidOperationException();
+                dependencyObjects[repeat] = dependencyObject;
+                dependencyCommands[repeat] = new DependencyCommand(dependencyObjects[repeat]);
+                scheduler.SendCommand(dependencyCommands[repeat]);
+            }
+
+            var dependencyTasks = new ValueTask[RepeatCount];
+            foreach (var player in players)
+            {
+                for (var repeat = 0; repeat < RepeatCount; repeat++)
                 {
-                    var lastTasks = new ValueTask[playerPerProducer];
-                    var taskIndex = 0;
+                    var command = player.CreateIncreaseHealthCommand(Value, dependencyCommands[repeat]);
+                    dependencyTasks[repeat] = scheduler.ScheduleCommand(command);
+                }
+            }
 
-                    var start = producerIndex * playerPerProducer;
-                    var end = start + playerPerProducer;
-                    for (var i = start; i < end; i++)
-                    {
-                        for (var j = 0; j < RepeatCount; j++)
-                        {
-                            var command = players[i].CreateIncreaseHealthCommand(Value);
-                            if (j == RepeatCount - 1)
-                                lastTasks[taskIndex++] = scheduler.ScheduleCommand(command);
-                            else
-                                scheduler.SendCommand(command);
-                        }
-                    }
-
-                    foreach (var lastTask in lastTasks)
-                        await lastTask;
-                }))
-                .ToArray();
-
-            await Task.WhenAll(producers);
+            for (var i = 0; i < RepeatCount; i++)
+            {
+                foreach (var player in players)
+                    Assert.AreEqual(Value * i, player.Health);
+                
+                var dependencyObject = dependencyObjects[i];
+                dependencyObject.Release();
+                await dependencyTasks[i];
+            }
 
             Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 

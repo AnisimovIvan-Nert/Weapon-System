@@ -1,5 +1,6 @@
 ﻿using System;
 using SecondScratch.Shared;
+using SecondScratch.ThreadSafe.LockableObject;
 
 namespace SecondScratch.ThreadSafe.Commands
 {
@@ -8,12 +9,12 @@ namespace SecondScratch.ThreadSafe.Commands
     }
     
     public abstract class AbstractCommand<T> : ICommand
-        where T : notnull
+        where T : ILockableObject
     {
         private readonly ICommandDependency? _dependency;
         protected readonly T TypedTarget;
 
-        public object Target => TypedTarget;
+        public ILockableObject Target => TypedTarget;
         public bool IsCompleted { get; private set; }
         
         public ConditionalEvent? OnReadyForExecute { get; }
