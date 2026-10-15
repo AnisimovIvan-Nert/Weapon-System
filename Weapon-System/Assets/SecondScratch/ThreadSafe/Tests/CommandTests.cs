@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Unity.PerformanceTesting;
@@ -333,12 +334,12 @@ namespace SecondScratch.ThreadSafe.Tests
                         await lastTask.Value;
                 }
 
-                await scheduler.KillConsumersAsync();
-
                 Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
                 foreach (var player in players)
                     Assert.AreEqual(Value * RepeatCount, player.Health);
+                
+                await scheduler.KillConsumersAsync();
             }
         }
 
@@ -389,12 +390,72 @@ namespace SecondScratch.ThreadSafe.Tests
                     await Task.WhenAll(lastTasks.Select(o => o.AsTask()));
                 }
 
+                Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
+
+                foreach (var player in players)
+                    Assert.AreEqual(Value * RepeatCount, player.Health);
+                
                 await scheduler.KillConsumersAsync();
+            }
+        }
+        
+        [Test]
+        [Performance]
+        public async Task Command_Dependency_PerformanceTest()
+        {
+            await using var scheduler = new ChannelCommandScheduler();
+
+            for (var warmup = 0; warmup < WarmupCount + 1; warmup++)
+            {
+                var players = new Player[PlayerCount];
+                for (var i = 0; i < PlayerCount; i++)
+                    players[i] = new Player();
+
+                var previousCommands = new Player.IncreaseHealthCommand[RepeatCount];
+                var commands = new List<Player.IncreaseHealthCommand>();
+                foreach (var player in players)
+                {
+                    for (var repeat = 0; repeat < RepeatCount; repeat++)
+                    {
+                        var dependency = repeat == 0 ? null : previousCommands[repeat - 1];
+                        var command = player.CreateIncreaseHealthCommand(Value, dependency);
+                        previousCommands[repeat] = command;
+                        commands.Add(command);
+                    }
+                }
+
+                commands.Reverse();
+
+                var lastTasks = new ValueTask[PlayerCount];
+                using (Measure.Scope(ScheduleCommandsScope))
+                {
+                    for (var i = 0; i < players.Length; i++)
+                    {
+                        for (var j = 0; j < RepeatCount; j++)
+                        {
+                            var index = i * RepeatCount + j;
+                            var command = commands[index];
+                            if (j == 0)
+                                lastTasks[i] = scheduler.ScheduleCommand(command);
+                            else
+                                scheduler.SendCommand(command);
+                        }
+                    }
+                }
+
+                var task = Task.WhenAll(lastTasks.Select(o => o.AsTask()));
+                using (Measure.Scope(ExecuteCommandsScope))
+                {
+                    scheduler.RunConsumers();
+                    await task;
+                }
 
                 Assert.AreEqual(0, scheduler.GetTotalPendingCommands());
 
                 foreach (var player in players)
                     Assert.AreEqual(Value * RepeatCount, player.Health);
+                
+                await scheduler.KillConsumersAsync();
             }
         }
     }
