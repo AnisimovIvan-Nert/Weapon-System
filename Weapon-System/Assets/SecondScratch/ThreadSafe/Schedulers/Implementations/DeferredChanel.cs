@@ -35,14 +35,9 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             _channel.Writer.TryComplete();
         }
 
-        public void WriteToChannel(T value, bool incrementPending = true)
+        public void WriteToChannel(T value)
         {
-            if (_channel.Writer.TryWrite(value))
-            {
-                if (incrementPending)
-                    IncrementPending();
-            }
-            else
+            if (!_channel.Writer.TryWrite(value))
                 throw new ChanelCompletedException();
         }
 

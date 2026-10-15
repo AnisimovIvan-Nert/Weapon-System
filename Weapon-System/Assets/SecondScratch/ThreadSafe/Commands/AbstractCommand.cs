@@ -1,4 +1,5 @@
 ﻿using System;
+using SecondScratch.Shared;
 
 namespace SecondScratch.ThreadSafe.Commands
 {
@@ -15,13 +16,14 @@ namespace SecondScratch.ThreadSafe.Commands
         public object Target => TypedTarget;
         public bool IsCompleted { get; private set; }
         
-        public event Action? OnReadyForExecute;
+        public ConditionalEvent OnReadyForExecute { get; }
         public event Action? OnCompleted;
 
         public AbstractCommand(T target, ICommandDependency? dependency = null)
         {
             TypedTarget = target;
             _dependency = dependency;
+            OnReadyForExecute = new ConditionalEvent(CanExecute);
 
             if (dependency != null)
                 dependency.OnCompleted += OnDependencyComplete;
@@ -47,6 +49,9 @@ namespace SecondScratch.ThreadSafe.Commands
 
         protected abstract void InnerExecute();
 
-        protected virtual void OnDependencyComplete() => OnReadyForExecute?.Invoke();
+        protected virtual void OnDependencyComplete()
+        {
+            OnReadyForExecute.Invoke();
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+﻿using SecondScratch.Shared;
 
 namespace SecondScratch.ThreadSafe.Commands
 {
@@ -6,7 +6,7 @@ namespace SecondScratch.ThreadSafe.Commands
     {
         object Target { get; }
 
-        event Action OnReadyForExecute;
+        ConditionalEvent OnReadyForExecute { get; }
 
         void Execute();
         bool CanExecute();

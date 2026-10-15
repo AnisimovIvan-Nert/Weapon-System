@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using SecondScratch.Shared;
 using SecondScratch.ThreadSafe.Commands;
 
 namespace SecondScratch.ThreadSafe.Schedulers.Implementations
@@ -70,15 +71,12 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             }
 
             public object Target => Command.Target;
+            
             public bool IsCompleted => Command.IsCompleted;
             public void Execute() => Command.Execute();
             public bool CanExecute() => Command.CanExecute();
-            
-            public event Action? OnReadyForExecute
-            {
-                add => Command.OnReadyForExecute += value;
-                remove => Command.OnReadyForExecute -= value;
-            }
+
+            public ConditionalEvent OnReadyForExecute => Command.OnReadyForExecute;
             
             public event Action? OnCompleted
             {

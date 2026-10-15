@@ -78,15 +78,12 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             var chanel = _channels[chanelIndex];
             var awaitableCommand = new AwaitableCommand(command, tcs);
 
-            if (awaitableCommand.Command.CanExecute())
-            {
+            if (command.CanExecute())
                 chanel.WriteToChannel(awaitableCommand);
-            }
             else
-            {
-                chanel.IncrementPending();
-                awaitableCommand.Command.OnReadyForExecute += () => chanel.WriteToChannel(awaitableCommand, false);
-            }
+                command.OnReadyForExecute.CallOrSubscribe(() => chanel.WriteToChannel(awaitableCommand));
+            
+            chanel.IncrementPending();
         }
 
         protected int FindLeastPendingChannel()
