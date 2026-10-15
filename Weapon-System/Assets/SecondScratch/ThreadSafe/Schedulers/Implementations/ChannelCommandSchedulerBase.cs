@@ -34,13 +34,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                         SingleWriter = false,
                         AllowSynchronousContinuations = true,
                     });
-                _channels[i] = new DeferredChanel<AwaitableCommand>(chanel, TryExecuteCommand, OnStateChange);
-            }
-            return;
-
-            void OnStateChange(AwaitableCommand command, Action action)
-            {
-                command.Command.OnReadyForExecute += action;
+                _channels[i] = new DeferredChanel<AwaitableCommand>(chanel, ExecuteCommand);
             }
         }
 
@@ -68,27 +62,31 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
         {
         }
 
-        protected bool TryScheduleToChannel(int chanelIndex, TCommand command)
-        {
-            var chanel = _channels[chanelIndex];
-            var awaitableCommand = new AwaitableCommand(command, null);
-            return chanel.TryWriteToChannel(awaitableCommand);
-        }
+        protected void ScheduleToChannel(int chanelIndex, TCommand command) =>
+            ScheduleToChannel(chanelIndex, command, null);
 
-        protected bool TryScheduleToChannel(int chanelIndex, TCommand command,
+        protected void ScheduleToChannel(int chanelIndex, TCommand command,
             out ValueTask task)
         {
+            var tcs = new TaskCompletionSource<bool>();
+            task = new ValueTask(tcs.Task);
+            ScheduleToChannel(chanelIndex, command, tcs);
+        }
+
+        private void ScheduleToChannel(int chanelIndex, TCommand command, TaskCompletionSource<bool>? tcs)
+        {
             var chanel = _channels[chanelIndex];
-            
-            var taskSource = new TaskCompletionSource<bool>();
-            task = new ValueTask(taskSource.Task);
+            var awaitableCommand = new AwaitableCommand(command, tcs);
 
-            var awaitableCommand = new AwaitableCommand(command, taskSource);
-            if (chanel.TryWriteToChannel(awaitableCommand))
-                return true;
-
-            task = default;
-            return false;
+            if (awaitableCommand.Command.CanExecute())
+            {
+                chanel.WriteToChannel(awaitableCommand);
+            }
+            else
+            {
+                chanel.IncrementPending();
+                awaitableCommand.Command.OnReadyForExecute += () => chanel.WriteToChannel(awaitableCommand, false);
+            }
         }
 
         protected int FindLeastPendingChannel()
@@ -119,7 +117,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             await chanel.ConsumeChannel(cts);
         }
 
-        private bool TryExecuteCommand(AwaitableCommand awaitableCommand)
+        private void ExecuteCommand(AwaitableCommand awaitableCommand)
         {
             var command = awaitableCommand.Command;
             var tcs = awaitableCommand.Tcs;
@@ -127,18 +125,16 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             try
             {
                 if (!command.CanExecute())
-                    return false;
-                
+                    throw new InvalidOperationException();
+
                 command.Execute();
                 OnCommandExecuted(command);
                 tcs?.SetResult(true);
-                return true;
             }
             catch (Exception e)
             {
                 Debug.LogException(e);
                 tcs?.TrySetException(e);
-                return true;
             }
         }
 

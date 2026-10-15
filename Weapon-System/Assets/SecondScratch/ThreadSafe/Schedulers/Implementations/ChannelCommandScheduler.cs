@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Commands;
 
 namespace SecondScratch.ThreadSafe.Schedulers.Implementations
@@ -13,18 +12,10 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
 
         public override ValueTask ScheduleCommand(ICommand command)
         {
-            if (TryScheduleToChannel(0, command, out var task))
-                return task;
-
-            throw new InvalidOperationException("Channel was completed.");
+            ScheduleToChannel(0, command, out var task);
+            return task;
         }
 
-        public override void SendCommand(ICommand command)
-        {
-            if (TryScheduleToChannel(0, command))
-                return;
-
-            throw new InvalidOperationException("Channel was completed.");
-        }
+        public override void SendCommand(ICommand command) => ScheduleToChannel(0, command);
     }
 }

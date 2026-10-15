@@ -11,6 +11,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Extensions
             try
             {
                 scheduler.RunConsumers();
+                await Task.Yield();
             }
             catch (ConsumersAlreadyRunningException)
             {

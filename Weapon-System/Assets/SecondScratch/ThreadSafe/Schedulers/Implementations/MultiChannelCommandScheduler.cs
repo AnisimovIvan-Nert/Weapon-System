@@ -96,32 +96,31 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             
             public bool TryEnqueue(Entry entry, MultiChannelCommandScheduler scheduler, bool awaitable, out ValueTask task)
             {
+                task = default;
+                
                 lock (_gate)
                 {
                     if (_retired)
-                    {
-                        task = default;
                         return false;
-                    }
 
                     var channelIndex = GetChannel(scheduler);
 
                     Interlocked.Increment(ref _pending);
 
-                    if (awaitable)
+                    try
                     {
-                        if (scheduler.TryScheduleToChannel(channelIndex, entry, out task))
-                            return true;
-                    }
-                    else
-                    {
-                        task = default;
-                        if (scheduler.TryScheduleToChannel(channelIndex, entry))
-                            return true;
-                    }
+                        if (awaitable)
+                            scheduler.ScheduleToChannel(channelIndex, entry, out task);
+                        else
+                            scheduler.ScheduleToChannel(channelIndex, entry);
 
-                    Interlocked.Decrement(ref _pending);
-                    throw new InvalidOperationException("Channel was completed.");
+                        return true;
+                    }
+                    catch (Exception)
+                    {
+                        Interlocked.Decrement(ref _pending);
+                        throw;
+                    }
                 }
             }
             

@@ -4,19 +4,17 @@ using NUnit.Framework;
 using Unity.PerformanceTesting;
 using System.Threading.Channels;
 using SecondScratch.ThreadSafe.Commands;
-using SecondScratch.ThreadSafe.Schedulers;
 using SecondScratch.ThreadSafe.Schedulers.Implementations;
 using SecondScratch.ThreadSafe.Tests.Mocks;
 using SecondScratch.ThreadSafe.Tests.Mocks.Commands;
-using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Tests
 {
     public class CommandTests
     {
         private const int Value = 10;
-        private const int RepeatCount = 8;
-        private const int PlayerCount = 8;
+        private const int RepeatCount = 1024;
+        private const int PlayerCount = 1024;
         private const int ProducerCount = 16;
         private const int ChannelCount = 16;
 
@@ -141,7 +139,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 for (var repeat = 0; repeat < RepeatCount; repeat++)
                 {
                     var command = player.CreateIncreaseHealthCommand(Value, dependencyCommands[repeat]);
-                    dependencyTasks[repeat] = command.Schedule();
+                    dependencyTasks[repeat] = scheduler.ScheduleCommand(command);
                 }
             }
 

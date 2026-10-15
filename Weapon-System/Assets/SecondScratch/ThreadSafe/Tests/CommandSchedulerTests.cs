@@ -37,7 +37,7 @@ namespace SecondScratch.ThreadSafe.Tests
             // Each target binds to its own channel while it still has pending commands.
             for (var channelIndex = 0; channelIndex < channelCount; channelIndex++)
                 Assert.AreEqual(commandsPerTarget, scheduler.PendingCommandCount(channelIndex));
-
+            
             await scheduler.DrainConsumers();
 
             foreach (var target in targets)
@@ -50,7 +50,7 @@ namespace SecondScratch.ThreadSafe.Tests
             Assert.AreEqual(commandsPerTarget / 2, scheduler.PendingCommandCount(0));
             for (var channelIndex = 1; channelIndex < channelCount; channelIndex++)
                 Assert.AreEqual(0, scheduler.PendingCommandCount(channelIndex));
-
+            
             await scheduler.DrainConsumers();
 
             Assert.AreEqual((commandsPerTarget + commandsPerTarget / 2) * Value, targets[0].Health);
