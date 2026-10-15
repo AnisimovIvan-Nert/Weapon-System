@@ -55,6 +55,7 @@ namespace SecondScratch.Shared
             lock (this)
             {
                 handlers = _handlers;
+                _handlers = null;
                 _pass = true;
             }
 

@@ -31,8 +31,7 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
                     new UnboundedChannelOptions
                     {
                         SingleReader = true,
-                        SingleWriter = false,
-                        AllowSynchronousContinuations = true,
+                        SingleWriter = false
                     });
                 _channels[i] = new DeferredChanel<AwaitableCommand>(chanel, ExecuteCommand);
             }

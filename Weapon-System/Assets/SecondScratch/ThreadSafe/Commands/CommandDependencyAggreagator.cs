@@ -12,6 +12,9 @@ namespace SecondScratch.ThreadSafe.Commands
         {
             foreach (var dependency in dependencies.OfType<ICommandDependency>())
             {
+                if (dependency.IsCompleted)
+                    continue;
+                
                 Interlocked.Increment(ref _completedDependenciesCounter);
                 dependency.OnCompleted += OnDependencyComplete;
             }

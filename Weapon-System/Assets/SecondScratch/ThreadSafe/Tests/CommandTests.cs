@@ -52,8 +52,7 @@ namespace SecondScratch.ThreadSafe.Tests
             var commandChannel = Channel.CreateUnbounded<ICommand>(new UnboundedChannelOptions
             {
                 SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = true,
+                SingleWriter = false
             });
 
             var processTask = Task.Run(ProcessCommands);
@@ -303,8 +302,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 var commandChannel = Channel.CreateUnbounded<ICommand>(new UnboundedChannelOptions
                 {
                     SingleReader = true,
-                    SingleWriter = false,
-                    AllowSynchronousContinuations = true
+                    SingleWriter = false
                 });
 
                 using (Measure.Scope(ScheduleCommandsScope))
