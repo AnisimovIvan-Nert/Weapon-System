@@ -6,12 +6,11 @@ using NUnit.Framework;
 using SecondScratch.ThreadSafe.Operations;
 using SecondScratch.ThreadSafe.Operations.Common;
 using SecondScratch.ThreadSafe.Tests.Mocks.Containers;
-using SecondScratch.ThreadSafe.Tests.Mocks.Extensions;
+using SecondScratch.ThreadSafe.Tests.Mocks.Operation;
 using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Tests
 {
-    /*
     public class ContainerTests
     {
         private const int CreateCapacity = ItemsCount / CreatesCount * ItemsSize;
@@ -32,6 +31,8 @@ namespace SecondScratch.ThreadSafe.Tests
         private Item[] _allItems;
 
         private Container[] _allContainers;
+
+        private SimpleOperationMiddlewareSource _middlewareSource;
 
         [SetUp]
         public void SetUp()
@@ -58,13 +59,15 @@ namespace SecondScratch.ThreadSafe.Tests
             }
             
             _allContainers = _playerInventories.Concat(_creates).Concat(new[] { _warehouse }).ToArray();
+
+            _middlewareSource = new SimpleOperationMiddlewareSource();
         }
 
         [Test]
         public async Task EveryoneMovesEveryReachableItemConcurrently_NoDataLost()
         {
             var attempts = new List<Attempt>();
-            var interactions = new List<Operation<TransferContext>>();
+            var handlers = new List<OperationHandler<TransferContext>>();
 
             for (var i = 0; i < _players.Length; i++)
             {
@@ -76,19 +79,18 @@ namespace SecondScratch.ThreadSafe.Tests
 
                     attempts.Add(new Attempt(item, destination));
 
-                    var interaction = TransferOperation.Create(CancellationToken.None);
-                    interaction.Context.Player = player;
-                    interaction.Context.From = _warehouse;
-                    interaction.Context.To = destination;
-                    interaction.Context.Item = item;
-                    interactions.Add(interaction);
+                    var context = new TransferContext(player, _warehouse, destination, item);
+                    var removeOperation = ContainerRemoveOperation.Create(context);
+                    var addOperation = ContainerAddOperation.Create(context);
+                    var handler = new OperationHandler<TransferContext>(_middlewareSource, context, removeOperation, addOperation);
+                    handlers.Add(operationHandler);
                 }
             }
 
-            var exceptions = await interactions.WhenAll();
+            var exceptions = await handlers.WhenAll();
 
             for (var i = 0; i < attempts.Count; i++)
-                attempts[i].Outcome = interactions[i].State;
+                attempts[i].Outcome = handlers[i].State;
 
             var committed = attempts.Count(a => a.Outcome == OperationState.Committed);
             var denied = attempts.Count(a => a.Outcome != OperationState.Committed);
@@ -163,5 +165,4 @@ namespace SecondScratch.ThreadSafe.Tests
             }
         }
     }
-    */
 }

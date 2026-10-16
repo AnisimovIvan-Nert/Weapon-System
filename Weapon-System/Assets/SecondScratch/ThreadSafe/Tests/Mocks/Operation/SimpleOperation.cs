@@ -62,11 +62,13 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Operation
             Cascade = cascade;
         }
 
-        protected override async ValueTask InnerExecute(Transaction transaction, SimpleContext context,
-            CancellationToken ct)
+        protected override async ValueTask InnerExecute(OperationData<SimpleContext> data)
         {
             if (EnforceComplete)
                 throw new OperationEnforceComplete(Cascade);
+
+            var transaction = data.Transaction;
+            var context = data.Context;
             
             await transaction.Apply(context.Mutate, context.Rollback);
             await transaction.Apply(context.StatefulMutate, context.StatefulRollback);

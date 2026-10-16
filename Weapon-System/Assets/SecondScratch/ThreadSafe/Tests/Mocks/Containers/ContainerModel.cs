@@ -1,11 +1,9 @@
 using System;
-using System.Collections.Generic;
-using SecondScratch.ThreadSafe.Commands;
+using SecondScratch.ThreadSafe.Operations;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 {
-    /*
-    public class Item
+    public class Item : AbstractOperationSubject
     {
         public int Size { get; }
 
@@ -14,15 +12,12 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             Size = size;
         }
     }
-    
-    public partial class Container : IOwnedContainer
+
+    public class Container : AbstractOperationSubject, IContainer
     {
-        private readonly List<Item> _items = new();
-        
         public int Capacity { get; }
         public int? OwnerId { get; }
 
-        public IReadOnlyList<Item> Items => _items;
         public int UsedCapacity { get; private set; }
 
         public int FreeCapacity => Capacity - UsedCapacity;
@@ -35,75 +30,27 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 
         public void Add(Item item)
         {
+            var exceedCapacityMessage = $"'{nameof(Container)} has {FreeCapacity} free, item needs {item.Size}.";
             if (item.Size > FreeCapacity)
-                throw new InvalidOperationException(
-                    $"'{nameof(Container)} has {FreeCapacity} free, item needs {item.Size}.");
+                throw new InvalidOperationException(exceedCapacityMessage);
 
-            _items.Add(item);
+            AddChild(item);
             UsedCapacity += item.Size;
         }
 
-        public bool Remove(Item item)
+        public void Remove(Item item)
         {
-            if (!_items.Remove(item))
-                return false;
-
+            RemoveChild(item);
             UsedCapacity -= item.Size;
-            return true;
-        }
-
-        public bool Contains(Item item)
-        {
-            return _items.Contains(item);
-        }
-    }
-    
-    public partial class Container
-    {
-        public AddCommand CreateAddCommand(Item item) => new(this, item);
-        public RemoveCommand CreateRemoveCommand(Item item) => new(this, item);
-        
-        public class AddCommand : ICommand
-        {
-            private readonly Container _target;
-            private readonly Item _item;
-            
-            public object Target => _target;
-
-            public AddCommand(Container target, Item item)
-            {
-                _target = target;
-                _item = item;
-            }
-
-            public void Execute() => _target.Add(_item);
-        }
-        
-        public class RemoveCommand : ICommand
-        {
-            private readonly Container _target;
-            private readonly Item _item;
-            
-            public object Target => _target;
-
-            public RemoveCommand(Container target, Item item)
-            {
-                _target = target;
-                _item = item;
-            }
-
-            public void Execute() => _target.Remove(_item);
         }
     }
 
-    public interface IOwnedContainer : IContainer
+    public interface IContainer
     {
         int? OwnerId { get; }
 
         bool HasAccess(int id) => OwnerId == null || OwnerId.Equals(id);
     }
-    
-    public interface IContainer { }
 
     public class Player
     {
@@ -114,14 +61,6 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             Id = id;
         }
 
-        public bool HasAccessTo(IContainer container)
-        {
-            return container switch
-            {
-                IOwnedContainer ownedContainer => ownedContainer.HasAccess(Id),
-                _ => false
-            };
-        }
+        public bool HasAccessTo(IContainer container) => container.HasAccess(Id);
     }
-    */
 }

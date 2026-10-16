@@ -1,74 +1,160 @@
 using System;
-using System.Threading;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations;
+using SecondScratch.ThreadSafe.Operations.Common;
 using SecondScratch.ThreadSafe.Schedulers;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 {
-    /*
-    public class TransferContext
+    public interface ITransferContext : IOperationContext
+    {
+        public Player Player { get; set; }
+        public Item Item { get; set; }
+
+        ValueTask Validate();
+    }
+    
+    public interface IAddContext : ITransferContext
+    {
+        public Container To { get; set; }
+
+        ValueTask MutateTo();
+        ValueTask RollbackTo();
+    }
+
+    public interface IRemoveContext : ITransferContext
+    {
+        public Container From { get; set; }
+
+        ValueTask MutateFrom();
+        ValueTask RollbackFrom();
+    }
+    
+    public class TransferContext : IAddContext, IRemoveContext
     {
         public Player Player { get; set; }
         public Container From { get; set; }
         public Container To { get; set; }
         public Item Item { get; set; }
+        
+        public TransferContext(Player player, Container from, Container to, Item item)
+        {
+            Player = player;
+            From = from;
+            To = to;
+            Item = item;
+        }
 
-        public bool AccessOk { get; set; }
+        public ValueTask Validate()
+        {
+            if (!Player.HasAccessTo(From))
+                throw new TransferAccessException(this, TransferAccessException.Member.From);
+            if (!Player.HasAccessTo(To))
+                throw new TransferAccessException(this, TransferAccessException.Member.To);
+
+            return new ValueTask(Task.CompletedTask);
+        }
+        public async ValueTask MutateFrom() => await From.CreateRemoveChildCommand(Item).Schedule();
+        public async ValueTask RollbackFrom() => await From.CreateAddChildCommand(Item).Schedule();
+        
+        public async ValueTask MutateTo() => await To.CreateAddChildCommand(Item).Schedule();
+        public async ValueTask RollbackTo() => await To.CreateRemoveChildCommand(Item).Schedule();
     }
 
     public class TransferAccessException : Exception
     {
-        public TransferAccessException(TransferContext cxt)
+        public Member Source { get; }
+        
+        public TransferAccessException(TransferContext cxt, Member member)
             : base($"'{cxt.Player}' has no access to move '{cxt.Item}' between '{cxt.From}' -> '{cxt.To}'.")
         {
+            Source = member;
         }
-    }
 
-    public class ValidateTransferStage : OperationStage<TransferContext>
-    {
-        public override string Name => "ValidateTransfer";
-
-        public override ValueTask Execute(Transaction transaction, TransferContext context, CancellationToken ct)
+        public enum Member
         {
-            context.AccessOk = context.Player.HasAccessTo(context.From) && context.Player.HasAccessTo(context.To);
-            if (!context.AccessOk)
-                throw new TransferAccessException(context);
-
-            return new ValueTask(Task.CompletedTask);
+            None,
+            From,
+            To
         }
     }
-
-    public class MoveItemStage : OperationStage<TransferContext>
+    
+    public class ContainerAddOperation : AbstractOperation<IAddContext>
     {
-        public override string Name => "MoveItem";
-
-        public override async ValueTask Execute(Transaction transaction, TransferContext context, CancellationToken ct)
+        private ContainerAddOperation(
+            IEnumerable<IOperationSubject> subjects,
+            IEnumerable<OperationTypes> types,
+            IEnumerable<OperationMember> members) 
+            : base(subjects, types, members)
         {
-            var from = context.From;
-            var to = context.To;
-            var item = context.Item;
-
-            await transaction.Apply(
-                mutation: async () => await from.CreateRemoveCommand(item).Schedule(),
-                rollback: async () => await from.CreateAddCommand(item).Schedule());
-
-            await transaction.Apply(
-                mutation: async () => await to.CreateAddCommand(item).Schedule(),
-                rollback: async () => await to.CreateRemoveCommand(item).Schedule());
         }
-    }
 
-    public static class TransferOperation
-    {
-        public static OperationStage<TransferContext>[] CreateStages() =>
-            new OperationStage<TransferContext>[]
+        public static ContainerAddOperation Create(IAddContext context)
+        {
+            var subjects = new IOperationSubject[]
             {
-                new ValidateTransferStage(),
-                new MoveItemStage()
+                context.To
             };
+            var types = new[]
+            {
+                OperationTypes.ContainerInteractionAdd,
+            };
+            var members = new OperationMember[]
+            {
+                new(Operations.Common.Members.Executor, context.Player),
+                new(Operations.Common.Members.Subject, context.Item),
+                new(Operations.Common.Members.Destination, context.To)
+            };
+            return new ContainerAddOperation(subjects, types, members);
+        }
 
-        public static Operation<TransferContext> Create(CancellationToken ct) => new(CreateStages(), ct);
+        protected override async ValueTask InnerExecute(OperationData<IAddContext> data)
+        {
+            var transaction = data.Transaction;
+            var context = data.Context;
+
+            await context.Validate();
+            await transaction.Apply(context.MutateTo, context.RollbackTo);
+        }
     }
-    */
+
+    public class ContainerRemoveOperation : AbstractOperation<IRemoveContext>
+    {
+        private ContainerRemoveOperation(
+            IEnumerable<IOperationSubject> subjects,
+            IEnumerable<OperationTypes> types,
+            IEnumerable<OperationMember> members) 
+            : base(subjects, types, members)
+        {
+        }
+
+        public static ContainerRemoveOperation Create(IRemoveContext context)
+        {
+            var subjects = new IOperationSubject[]
+            {
+                context.From
+            };
+            var types = new[]
+            {
+                OperationTypes.ContainerInteractionRemove
+            };
+            var members = new OperationMember[]
+            {
+                new(Operations.Common.Members.Executor, context.Player),
+                new(Operations.Common.Members.Subject, context.Item),
+                new(Operations.Common.Members.Source, context.From)
+            };
+            return new ContainerRemoveOperation(subjects, types, members);
+        }
+
+        protected override async ValueTask InnerExecute(OperationData<IRemoveContext> data)
+        {
+            var transaction = data.Transaction;
+            var context = data.Context;
+
+            await context.Validate();
+            await transaction.Apply(context.MutateFrom, context.RollbackFrom);
+        }
+    }
 }

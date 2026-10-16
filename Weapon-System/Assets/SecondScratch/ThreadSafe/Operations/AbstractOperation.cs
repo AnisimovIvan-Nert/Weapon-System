@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations.Common;
 
@@ -34,17 +33,17 @@ namespace SecondScratch.ThreadSafe.Operations
         {
         }
 
-        public virtual async ValueTask Execute(Transaction transaction, TContext context, CancellationToken ct)
+        public virtual async ValueTask Execute(OperationData<TContext> data)
         {
             foreach (var subject in Subjects)
             {
-                await subject.UpstreamOperation(this, transaction, context, ct);
-                await subject.DownstreamOperation(this, transaction, context, ct);
+                await subject.UpstreamOperation(this, data);
+                await subject.DownstreamOperation(this, data);
             }
 
-            await InnerExecute(transaction, context, ct);
+            await InnerExecute(data);
         }
 
-        protected abstract ValueTask InnerExecute(Transaction transaction, TContext context, CancellationToken ct);
+        protected abstract ValueTask InnerExecute(OperationData<TContext> data);
     }
 }

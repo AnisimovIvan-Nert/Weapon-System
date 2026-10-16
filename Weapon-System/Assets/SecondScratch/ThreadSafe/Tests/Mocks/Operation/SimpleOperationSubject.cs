@@ -1,36 +1,36 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations;
 using SecondScratch.ThreadSafe.Operations.Common;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Operation
 {
-    public class SimpleOperationSubject<TOperation, TContext> : IOperationSubject
+    public class SimpleOperationSubject<TOperation, TContext> : AbstractOperationSubject
+        where TContext : IOperationContext
     {
-        public Action<TOperation, Transaction, TContext>? UpstreamOperationAction;
-        public Action<TOperation, Transaction, TContext>? DownstreamOperationAction;
+        public Action<TOperation, OperationData<TContext>>? UpstreamOperationAction;
+        public Action<TOperation, OperationData<TContext>>? DownstreamOperationAction;
         
-        public ValueTask UpstreamOperation<T>(IOperation operation, Transaction transaction, T context, CancellationToken ct)
-            where T : IOperationContext
+        public override async ValueTask UpstreamOperation<T>(IOperation operation, OperationData<T> data)
         {
-            if (operation is not TOperation typedOperation || context is not TContext typedContext)
-                return new ValueTask(Task.CompletedTask);
-            
-            UpstreamOperationAction?.Invoke(typedOperation, transaction, typedContext);
-            
-            return new ValueTask(Task.CompletedTask);
+            await base.UpstreamOperation(operation, data);
+
+            if (operation is not TOperation typedOperation || data.Context is not TContext typedContext)
+                return;
+
+            var typedData = data.WithContext(typedContext);
+            UpstreamOperationAction?.Invoke(typedOperation, typedData);
         }
 
-        public ValueTask DownstreamOperation<T>(IOperation operation, Transaction transaction, T context, CancellationToken ct) 
-            where T : IOperationContext
+        public override async ValueTask DownstreamOperation<T>(IOperation operation, OperationData<T> data) 
         {
-            if (operation is not TOperation typedOperation || context is not TContext typedContext)
-                return new ValueTask(Task.CompletedTask);
+            await base.DownstreamOperation(operation, data);
             
-            DownstreamOperationAction?.Invoke(typedOperation, transaction, typedContext);
+            if (operation is not TOperation typedOperation || data.Context is not TContext typedContext)
+                return;
             
-            return new ValueTask(Task.CompletedTask);
+            var typedData = data.WithContext(typedContext);
+            DownstreamOperationAction?.Invoke(typedOperation, typedData);
         }
     }
 }

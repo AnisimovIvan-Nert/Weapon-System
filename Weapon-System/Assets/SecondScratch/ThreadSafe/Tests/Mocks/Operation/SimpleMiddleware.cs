@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations;
 using SecondScratch.ThreadSafe.Operations.Common;
@@ -7,40 +6,44 @@ using SecondScratch.ThreadSafe.Operations.Common;
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Operation
 {
     public class SimpleMiddleware<TOperation, TContext> : IOperationMiddleware
+        where TContext : IOperationContext
     {
-        public Action<TOperation, Transaction, TContext>? BeforeExecutionAction;
-        public Action<TOperation, Transaction, TContext>? AfterExecutionAction;
-        public Func<TOperation, Transaction, TContext, bool>? TryHandleExceptionAction;
+        public Action<TOperation, OperationData<TContext>>? BeforeExecutionAction;
+        public Action<TOperation, OperationData<TContext>>? AfterExecutionAction;
+        public Func<TOperation, OperationData<TContext>, bool>? TryHandleExceptionAction;
         
-        public ValueTask<bool> BeforeExecution<T>(IOperation operation, Transaction transaction, T context, CancellationToken ct) 
+        public ValueTask<bool> BeforeExecution<T>(IOperation operation, OperationData<T> data) 
             where T : IOperationContext
         {
-            if (operation is not TOperation typedOperation || context is not TContext typedContext)
+            if (operation is not TOperation typedOperation || data.Context is not TContext typedContext)
                 return new ValueTask<bool>(false);
-            
-            BeforeExecutionAction?.Invoke(typedOperation, transaction, typedContext);
+
+            var typedData = data.WithContext(typedContext);
+            BeforeExecutionAction?.Invoke(typedOperation, typedData);
             
             return new ValueTask<bool>(true);
         }
 
-        public ValueTask AfterExecution<T>(IOperation operation, Transaction transaction, T context, CancellationToken ct)
+        public ValueTask AfterExecution<T>(IOperation operation, OperationData<T> data)
             where T : IOperationContext
         {
-            if (operation is not TOperation typedOperation || context is not TContext typedContext)
+            if (operation is not TOperation typedOperation || data.Context is not TContext typedContext)
                 return new ValueTask(Task.CompletedTask);
             
-            AfterExecutionAction?.Invoke(typedOperation, transaction, typedContext);
+            var typedData = data.WithContext(typedContext);
+            AfterExecutionAction?.Invoke(typedOperation, typedData);
             
             return new ValueTask(Task.CompletedTask);
         }
 
-        public ValueTask<bool> TryHandleException<T>(IOperation operation, Exception exception, Transaction transaction, T context)
+        public ValueTask<bool> TryHandleException<T>(IOperation operation, Exception exception, OperationData<T> data)
             where T : IOperationContext
         {
-            if (operation is not TOperation typedOperation || context is not TContext typedContext)
+            if (operation is not TOperation typedOperation || data.Context is not TContext typedContext)
                 return new ValueTask<bool>(false);
             
-            var result = TryHandleExceptionAction?.Invoke(typedOperation, transaction, typedContext);
+            var typedData = data.WithContext(typedContext);
+            var result = TryHandleExceptionAction?.Invoke(typedOperation, typedData);
             result ??= false;
             
             return new ValueTask<bool>(result.Value);

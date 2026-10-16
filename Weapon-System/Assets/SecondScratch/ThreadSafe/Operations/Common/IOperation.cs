@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SecondScratch.ThreadSafe.Operations.Common
@@ -20,6 +19,6 @@ namespace SecondScratch.ThreadSafe.Operations.Common
     public interface IOperation<in TContext> : IOperation
         where TContext : IOperationContext
     {
-        ValueTask Execute(Transaction transaction, TContext context, CancellationToken ct);
+        ValueTask Execute(TContext context, OperationData<TContext> data);
     }
 }

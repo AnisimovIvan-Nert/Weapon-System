@@ -63,7 +63,8 @@ namespace SecondScratch.ThreadSafe.Operations
                 foreach (var operation in _operations)
                 {
                     _cts.Token.ThrowIfCancellationRequested();
-                    await ExecuteOperation(operation, transaction, middlewares, executedMiddlewares);
+                    var data = new OperationData<TContext>(transaction, _context, _cts);
+                    await ExecuteOperation(operation, data, middlewares, executedMiddlewares);
                 }
 
                 Commit(transaction);
@@ -84,10 +85,18 @@ namespace SecondScratch.ThreadSafe.Operations
                 throw;
             }
         }
+        
+        private void Commit(Transaction transaction)
+        {
+            if (!transaction.TryCommit())
+                throw new InvalidOperationException($"Operation {Id} failed to commit");
 
-        private async ValueTask ExecuteOperation(
+            State = OperationState.Committed;
+        }
+
+        private static async ValueTask ExecuteOperation(
             IOperation<TContext> operation,
-            Transaction transaction,
+            OperationData<TContext> data,
             IOperationMiddleware[] middlewares,
             Stack<IOperationMiddleware> executedMiddlewares)
         {
@@ -97,15 +106,15 @@ namespace SecondScratch.ThreadSafe.Operations
             {
                 foreach (var middleware in middlewares)
                 {
-                    var executed = await middleware.BeforeExecution(operation, transaction, _context, _cts.Token);
+                    var executed = await middleware.BeforeExecution(operation, data);
                     if (executed)
                         executedMiddlewares.Push(middleware);
                 }
 
-                await operation.Execute(transaction, _context, _cts.Token).ConfigureAwait(false);
+                await operation.Execute(data).ConfigureAwait(false);
                 
                 while (executedMiddlewares.TryPop(out var middleware))
-                    await middleware.AfterExecution(operation, transaction, _context, _cts.Token);
+                    await middleware.AfterExecution(operation, data);
             }
             catch (OperationEnforceComplete e)
             {
@@ -121,7 +130,7 @@ namespace SecondScratch.ThreadSafe.Operations
                 var handled = false;
                 foreach (var middleware in middlewares)
                 {
-                    handled = await TryHandle(middleware, e, operation, transaction);
+                    handled = await TryHandle(middleware, e, operation, data);
                     if (handled)
                         break;
                 }
@@ -131,14 +140,14 @@ namespace SecondScratch.ThreadSafe.Operations
             }
         }
 
-        private async ValueTask<bool> TryHandle(IOperationMiddleware middleware, 
+        private static async ValueTask<bool> TryHandle(IOperationMiddleware middleware, 
             Exception exception, 
             IOperation<TContext> operation,
-            Transaction transaction)
+            OperationData<TContext> data)
         {
             try
             {
-                return await middleware.TryHandleException(operation, exception, transaction, _context);
+                return await middleware.TryHandleException(operation, exception, data);
             }
             catch (OperationEnforceComplete enforce)
             {
@@ -147,14 +156,6 @@ namespace SecondScratch.ThreadSafe.Operations
 
                 return true;
             }
-        }
-
-        private void Commit(Transaction transaction)
-        {
-            if (!transaction.TryCommit())
-                throw new InvalidOperationException($"Operation {Id} failed to commit");
-
-            State = OperationState.Committed;
         }
     }
 }

@@ -1,30 +1,17 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SecondScratch.ThreadSafe.Operations.Common
 {
     public interface IOperationMiddleware
     {
-        ValueTask<bool> BeforeExecution<T>(
-            IOperation operation,
-            Transaction transaction,
-            T context,
-            CancellationToken ct)
+        ValueTask<bool> BeforeExecution<T>(IOperation operation, OperationData<T> data)
             where T : IOperationContext;
         
-        ValueTask AfterExecution<T>(
-            IOperation operation, 
-            Transaction transaction, 
-            T context, 
-            CancellationToken ct)
+        ValueTask AfterExecution<T>(IOperation operation, OperationData<T> data)
             where T : IOperationContext;
         
-        ValueTask<bool> TryHandleException<T>(
-            IOperation operation,
-            Exception exception,
-            Transaction transaction, 
-            T context)
+        ValueTask<bool> TryHandleException<T>(IOperation operation, Exception exception, OperationData<T> data)
             where T : IOperationContext;
     }
 }
