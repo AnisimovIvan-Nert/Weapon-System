@@ -5,9 +5,13 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using SecondScratch.ThreadSafe.Operations;
 using SecondScratch.ThreadSafe.Operations.Common;
+using SecondScratch.ThreadSafe.Schedulers;
+using SecondScratch.ThreadSafe.Schedulers.Implementations;
 using SecondScratch.ThreadSafe.Tests.Mocks.Containers;
+using SecondScratch.ThreadSafe.Tests.Mocks.Extensions;
 using SecondScratch.ThreadSafe.Tests.Mocks.Operation;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace SecondScratch.ThreadSafe.Tests
 {
@@ -33,6 +37,7 @@ namespace SecondScratch.ThreadSafe.Tests
         private Container[] _allContainers;
 
         private SimpleOperationMiddlewareSource _middlewareSource;
+        private ICommandScheduler _scheduler;
 
         [SetUp]
         public void SetUp()
@@ -61,13 +66,17 @@ namespace SecondScratch.ThreadSafe.Tests
             _allContainers = _playerInventories.Concat(_creates).Concat(new[] { _warehouse }).ToArray();
 
             _middlewareSource = new SimpleOperationMiddlewareSource();
+
+            _scheduler = new ChannelCommandScheduler();
+            _scheduler.RunConsumers();
+            CommandScheduler.SetScheduler(_scheduler);
         }
 
         [Test]
         public async Task EveryoneMovesEveryReachableItemConcurrently_NoDataLost()
         {
             var attempts = new List<Attempt>();
-            var handlers = new List<OperationHandler<TransferContext>>();
+            var handlers = new List<IOperationHandler>();
 
             for (var i = 0; i < _players.Length; i++)
             {
@@ -75,71 +84,85 @@ namespace SecondScratch.ThreadSafe.Tests
                 for (var j = 0; j < _allItems.Length; j++)
                 {
                     var item = _allItems[j];
-                    var destination = ChooseDestination(i, j);
+                    var to = ChooseDestination(i, j);
 
-                    attempts.Add(new Attempt(item, destination));
-
-                    var context = new TransferContext(player, _warehouse, destination, item);
-                    var removeOperation = ContainerRemoveOperation.Create(context);
-                    var addOperation = ContainerAddOperation.Create(context);
-                    var handler = new OperationHandler<TransferContext>(_middlewareSource, context, removeOperation, addOperation);
-                    handlers.Add(operationHandler);
+                    attempts.Add(new Attempt(item, to));
+                    
+                    var handler = CreateOperationHandler(player, _warehouse, to, item);
+                    handlers.Add(handler);
                 }
             }
 
-            var exceptions = await handlers.WhenAll();
+            var schedulerFailures = 0;
 
-            for (var i = 0; i < attempts.Count; i++)
-                attempts[i].Outcome = handlers[i].State;
+            void CountSchedulerFailure(string condition, string stackTrace, LogType type)
+            {
+                if (type == LogType.Exception && condition.StartsWith(nameof(SubjectMissingChildException)))
+                    Interlocked.Increment(ref schedulerFailures);
+            }
 
-            var committed = attempts.Count(a => a.Outcome == OperationState.Committed);
-            var denied = attempts.Count(a => a.Outcome != OperationState.Committed);
-            Debug.Log($"[Test] {attempts.Count} attempts: {committed} committed, {denied} denied, {exceptions} errors.");
+            Application.logMessageReceivedThreaded += CountSchedulerFailure;
+            LogAssert.ignoreFailingMessages = true;
 
-            AssertIntegrity();
+            try
+            {
+                var exceptions = await handlers.WhenAll();
 
-            foreach (var attempt in attempts.Where(a => a.Outcome == OperationState.Committed))
-                Assert.IsTrue(attempt.To.Contains(attempt.Item),
-                    $"Committed move of '{attempt.Item}' did not reach '{attempt.To}'.");
+                for (var i = 0; i < attempts.Count; i++)
+                    attempts[i].Outcome = handlers[i].State;
 
-            Assert.AreEqual(denied, exceptions,
-                $"Expected {denied} scheduler failure logs for {denied} denied attempts, " +
-                $"but got {exceptions}.");
+                var committed = attempts.Count(a => a.Outcome == OperationState.Committed);
+                var denied = attempts.Count(a => a.Outcome != OperationState.Committed);
+                Debug.Log($"[Test] {attempts.Count} attempts: {committed} committed, {denied} denied, {exceptions} errors.");
+
+                AssertIntegrity();
+
+                foreach (var attempt in attempts.Where(a => a.Outcome == OperationState.Committed))
+                    Assert.IsTrue(attempt.To.Children.Contains(attempt.Item),
+                        $"Committed move of '{attempt.Item}' did not reach '{attempt.To}'.");
+
+                Assert.AreEqual(denied, exceptions,
+                    $"Expected {denied} failed operations for {denied} denied attempts, " +
+                    $"but got {exceptions}.");
+                Assert.AreEqual(denied, schedulerFailures,
+                    $"Expected {denied} scheduler failure logs for {denied} denied attempts, " +
+                    $"but got {schedulerFailures}.");
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+                Application.logMessageReceivedThreaded -= CountSchedulerFailure;
+            }
         }
 
         [Test]
         public async Task ParallelTransfersOnManyThreads_NoDataLossOrOverflow()
         {
-            var operations = new List<IOperation>();
+            var handlers = new List<IOperationHandler>();
             for (var i = 0; i < _allItems.Length; i++)
             {
                 var item = _allItems[i];
                 var from = _warehouse;
                 var to = ChooseDestination(0, i);
 
-                var operation = TransferOperation.Create(CancellationToken.None);
-                operation.Context.Player = _players[0];
-                operation.Context.From = from;
-                operation.Context.To = to;
-                operation.Context.Item = item;
-
-                operations.Add(operation);
+                var handler = CreateOperationHandler(_players[0], from, to, item);
+                handlers.Add(handler);
             }
 
-            await operations.WhenAll();
+            await handlers.WhenAll();
 
             AssertIntegrity();
         }
 
         private void AssertIntegrity()
         {
-            var itemsCount = _allContainers.Select(c => c.Items.Count).Sum();
+            var itemsCount = _allContainers.Select(c => c.Children.Count).Sum();
             Assert.AreEqual(_allItems.Length, itemsCount, "Lost an item");
             
             foreach (var container in _allContainers)
                 Assert.LessOrEqual(container.UsedCapacity, container.Capacity, $"'{container}' exceeded capacity.");
             
-            var uniqueItems = _allContainers.SelectMany(o => o.Items).Distinct().Count();
+            var uniqueItems = _allContainers.SelectMany(o => o.Children).Distinct().Count();
             Assert.AreEqual(itemsCount, uniqueItems, "Item duplication");
         }
 
@@ -150,6 +173,14 @@ namespace SecondScratch.ThreadSafe.Tests
             var destinations = _creates.Concat(new[] { inventory }).ToArray();
             var fits = destinations.Where(container => container.FreeCapacity >= item.Size).ToList();
             return fits.Count > 0 ? fits[(itemIndex + playerIndex) % fits.Count] : _warehouse;
+        }
+
+        private IOperationHandler CreateOperationHandler(Player player, Container from, Container to, Item item)
+        {
+            var context = new TransferContext(player, from, to, item);
+            var removeOperation = ContainerRemoveOperation.Create(context);
+            var addOperation = ContainerAddOperation.Create(context);
+            return new OperationHandler<TransferContext>(_middlewareSource, context, removeOperation, addOperation);
         }
 
         private sealed class Attempt

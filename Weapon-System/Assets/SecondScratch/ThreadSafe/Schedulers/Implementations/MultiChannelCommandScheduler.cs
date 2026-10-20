@@ -77,13 +77,9 @@ namespace SecondScratch.ThreadSafe.Schedulers.Implementations
             public void Execute() => Command.Execute();
             public bool CanExecute() => Command.CanExecute();
 
-            public ConditionalEvent OnReadyForExecute => Command.OnReadyForExecute;
-            
-            public event Action? OnCompleted
-            {
-                add => Command.OnCompleted += value;
-                remove => Command.OnCompleted -= value;
-            }
+            public ConditionalEvent? OnReadyForExecute => Command.OnReadyForExecute;
+
+            public ConditionalEvent OnCompleted => Command.OnCompleted;
         }
 
         internal sealed class TargetState

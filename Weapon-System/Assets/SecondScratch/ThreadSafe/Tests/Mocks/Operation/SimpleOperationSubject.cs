@@ -8,29 +8,27 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Operation
     public class SimpleOperationSubject<TOperation, TContext> : AbstractOperationSubject
         where TContext : IOperationContext
     {
-        public Action<TOperation, OperationData<TContext>>? UpstreamOperationAction;
-        public Action<TOperation, OperationData<TContext>>? DownstreamOperationAction;
+        public Action<TOperation, TContext, OperationData>? UpstreamOperationAction;
+        public Action<TOperation, TContext, OperationData>? DownstreamOperationAction;
         
-        public override async ValueTask UpstreamOperation<T>(IOperation operation, OperationData<T> data)
+        public override async ValueTask UpstreamOperation<T>(IOperation operation, T context, OperationData data)
         {
-            await base.UpstreamOperation(operation, data);
+            await base.UpstreamOperation(operation, context, data);
 
-            if (operation is not TOperation typedOperation || data.Context is not TContext typedContext)
+            if (operation is not TOperation typedOperation || context is not TContext typedContext)
                 return;
-
-            var typedData = data.WithContext(typedContext);
-            UpstreamOperationAction?.Invoke(typedOperation, typedData);
+            
+            UpstreamOperationAction?.Invoke(typedOperation, typedContext, data);
         }
 
-        public override async ValueTask DownstreamOperation<T>(IOperation operation, OperationData<T> data) 
+        public override async ValueTask DownstreamOperation<T>(IOperation operation, T context, OperationData data) 
         {
-            await base.DownstreamOperation(operation, data);
+            await base.DownstreamOperation(operation, context, data);
             
-            if (operation is not TOperation typedOperation || data.Context is not TContext typedContext)
+            if (operation is not TOperation typedOperation || context is not TContext typedContext)
                 return;
-            
-            var typedData = data.WithContext(typedContext);
-            DownstreamOperationAction?.Invoke(typedOperation, typedData);
+
+            DownstreamOperationAction?.Invoke(typedOperation, typedContext, data);
         }
     }
 }

@@ -18,7 +18,7 @@ namespace SecondScratch.ThreadSafe.Commands
         public bool IsCompleted { get; private set; }
         
         public ConditionalEvent? OnReadyForExecute { get; }
-        public event Action? OnCompleted;
+        public ConditionalEvent OnCompleted { get; }
 
         protected AbstractCommand(T target, ICommandDependency? dependency = null, bool? canExecute = null)
         {
@@ -26,11 +26,13 @@ namespace SecondScratch.ThreadSafe.Commands
             _dependency = dependency;
 
             if (dependency != null)
-                dependency.OnCompleted += OnDependencyComplete;
+                dependency.OnCompleted.CallOrSubscribe(OnDependencyComplete);
             
             canExecute ??= IsDependencyCompleted();
             if (!canExecute.Value)
                 OnReadyForExecute = new ConditionalEvent(CanExecute);
+
+            OnCompleted = new ConditionalEvent(() => IsCompleted, false);
         }
 
         public void Execute()
@@ -45,7 +47,7 @@ namespace SecondScratch.ThreadSafe.Commands
             finally
             {
                 IsCompleted = true;
-                OnCompleted?.Invoke();
+                OnCompleted.Invoke();
             }
         }
 

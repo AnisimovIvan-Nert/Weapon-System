@@ -8,12 +8,11 @@ using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Extensions
 {
-    /*
     public static class OperationExtensions
     {
-        public static async ValueTask<int> WhenAll(this IEnumerable<IOperation> operations)
+        public static async ValueTask<int> WhenAll(this IEnumerable<IOperationHandler> operations)
         {
-            var tasks = operations.Select(o => o.Execute());
+            var tasks = operations.Select(o => o.Execute()).ToArray();
 
             var exceptions = 0;
             foreach (var task in tasks)
@@ -22,9 +21,8 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Extensions
                 {
                     await task;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    Debug.LogException(e);
                     exceptions++;
                 }
             }
@@ -32,5 +30,4 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Extensions
             return exceptions;
         }
     }
-    */
 }

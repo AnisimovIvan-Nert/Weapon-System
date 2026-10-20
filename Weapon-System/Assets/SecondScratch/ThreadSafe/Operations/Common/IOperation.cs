@@ -19,6 +19,6 @@ namespace SecondScratch.ThreadSafe.Operations.Common
     public interface IOperation<in TContext> : IOperation
         where TContext : IOperationContext
     {
-        ValueTask Execute(TContext context, OperationData<TContext> data);
+        ValueTask Execute(TContext context, OperationData data);
     }
 }

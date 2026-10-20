@@ -5,13 +5,13 @@ namespace SecondScratch.ThreadSafe.Operations.Common
 {
     public interface IOperationMiddleware
     {
-        ValueTask<bool> BeforeExecution<T>(IOperation operation, OperationData<T> data)
+        ValueTask<bool> BeforeExecution<T>(IOperation operation, T context, OperationData data)
             where T : IOperationContext;
         
-        ValueTask AfterExecution<T>(IOperation operation, OperationData<T> data)
+        ValueTask AfterExecution<T>(IOperation operation, T context, OperationData data)
             where T : IOperationContext;
         
-        ValueTask<bool> TryHandleException<T>(IOperation operation, Exception exception, OperationData<T> data)
+        ValueTask<bool> TryHandleException<T>(IOperation operation, Exception exception, T context, OperationData data)
             where T : IOperationContext;
     }
 }

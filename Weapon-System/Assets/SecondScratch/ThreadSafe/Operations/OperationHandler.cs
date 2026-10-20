@@ -63,8 +63,8 @@ namespace SecondScratch.ThreadSafe.Operations
                 foreach (var operation in _operations)
                 {
                     _cts.Token.ThrowIfCancellationRequested();
-                    var data = new OperationData<TContext>(transaction, _context, _cts);
-                    await ExecuteOperation(operation, data, middlewares, executedMiddlewares);
+                    var data = new OperationData(transaction, _cts);
+                    await ExecuteOperation(operation, _context, data, middlewares, executedMiddlewares);
                 }
 
                 Commit(transaction);
@@ -96,7 +96,8 @@ namespace SecondScratch.ThreadSafe.Operations
 
         private static async ValueTask ExecuteOperation(
             IOperation<TContext> operation,
-            OperationData<TContext> data,
+            TContext context,
+            OperationData data,
             IOperationMiddleware[] middlewares,
             Stack<IOperationMiddleware> executedMiddlewares)
         {
@@ -106,15 +107,15 @@ namespace SecondScratch.ThreadSafe.Operations
             {
                 foreach (var middleware in middlewares)
                 {
-                    var executed = await middleware.BeforeExecution(operation, data);
+                    var executed = await middleware.BeforeExecution(operation, context, data);
                     if (executed)
                         executedMiddlewares.Push(middleware);
                 }
 
-                await operation.Execute(data).ConfigureAwait(false);
+                await operation.Execute(context, data).ConfigureAwait(false);
                 
                 while (executedMiddlewares.TryPop(out var middleware))
-                    await middleware.AfterExecution(operation, data);
+                    await middleware.AfterExecution(operation, context, data);
             }
             catch (OperationEnforceComplete e)
             {
@@ -130,7 +131,7 @@ namespace SecondScratch.ThreadSafe.Operations
                 var handled = false;
                 foreach (var middleware in middlewares)
                 {
-                    handled = await TryHandle(middleware, e, operation, data);
+                    handled = await TryHandle(middleware, e, operation, context, data);
                     if (handled)
                         break;
                 }
@@ -143,11 +144,12 @@ namespace SecondScratch.ThreadSafe.Operations
         private static async ValueTask<bool> TryHandle(IOperationMiddleware middleware, 
             Exception exception, 
             IOperation<TContext> operation,
-            OperationData<TContext> data)
+            TContext context, 
+            OperationData data)
         {
             try
             {
-                return await middleware.TryHandleException(operation, exception, data);
+                return await middleware.TryHandleException(operation, exception, context, data);
             }
             catch (OperationEnforceComplete enforce)
             {

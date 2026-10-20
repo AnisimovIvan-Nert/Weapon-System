@@ -109,10 +109,9 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             return new ContainerAddOperation(subjects, types, members);
         }
 
-        protected override async ValueTask InnerExecute(OperationData<IAddContext> data)
+        protected override async ValueTask InnerExecute(IAddContext context, OperationData data)
         {
             var transaction = data.Transaction;
-            var context = data.Context;
 
             await context.Validate();
             await transaction.Apply(context.MutateTo, context.RollbackTo);
@@ -148,10 +147,9 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             return new ContainerRemoveOperation(subjects, types, members);
         }
 
-        protected override async ValueTask InnerExecute(OperationData<IRemoveContext> data)
+        protected override async ValueTask InnerExecute(IRemoveContext context, OperationData data)
         {
             var transaction = data.Transaction;
-            var context = data.Context;
 
             await context.Validate();
             await transaction.Apply(context.MutateFrom, context.RollbackFrom);

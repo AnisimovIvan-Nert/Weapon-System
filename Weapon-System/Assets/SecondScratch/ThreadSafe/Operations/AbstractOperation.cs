@@ -33,17 +33,17 @@ namespace SecondScratch.ThreadSafe.Operations
         {
         }
 
-        public virtual async ValueTask Execute(OperationData<TContext> data)
+        public virtual async ValueTask Execute(TContext context, OperationData data)
         {
             foreach (var subject in Subjects)
             {
-                await subject.UpstreamOperation(this, data);
-                await subject.DownstreamOperation(this, data);
+                await subject.UpstreamOperation(this, context, data);
+                await subject.DownstreamOperation(this, context, data);
             }
 
-            await InnerExecute(data);
+            await InnerExecute(context, data);
         }
 
-        protected abstract ValueTask InnerExecute(OperationData<TContext> data);
+        protected abstract ValueTask InnerExecute(TContext context, OperationData data);
     }
 }

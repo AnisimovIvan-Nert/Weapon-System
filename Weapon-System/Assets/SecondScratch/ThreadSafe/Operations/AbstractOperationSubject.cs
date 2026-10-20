@@ -16,22 +16,22 @@ namespace SecondScratch.ThreadSafe.Operations
     
     public abstract partial class AbstractOperationSubject : AbstractLockableObject, IOperationSubject
     {
-        protected readonly List<IOperationSubject> Children = new();
+        protected readonly List<IOperationSubject> ChildrenList = new();
 
         public IOperationSubject? Parent { get; protected set; }
-        IReadOnlyCollection<IOperationSubject> IOperationSubject.Children => Children;
+        public IReadOnlyCollection<IOperationSubject> Children => ChildrenList;
 
-        public virtual ValueTask UpstreamOperation<T>(IOperation operation, OperationData<T> data) 
+        public virtual ValueTask UpstreamOperation<T>(IOperation operation, T context, OperationData data) 
             where T : IOperationContext
         {
-            return Parent?.UpstreamOperation(operation, data) ?? new ValueTask(Task.CompletedTask);
+            return Parent?.UpstreamOperation(operation, context, data) ?? new ValueTask(Task.CompletedTask);
         }
 
-        public virtual async ValueTask DownstreamOperation<T>(IOperation operation, OperationData<T> data) 
+        public virtual async ValueTask DownstreamOperation<T>(IOperation operation, T context, OperationData data) 
             where T : IOperationContext
         {
-            foreach (var child in Children)
-                await child.DownstreamOperation(operation, data);
+            foreach (var child in ChildrenList)
+                await child.DownstreamOperation(operation, context, data);
         }
 
         void IOperationSubject.SetParent(IOperationSubject? parent)
@@ -45,7 +45,7 @@ namespace SecondScratch.ThreadSafe.Operations
                 throw new SubjectAlreadyContainsChildException();
             
             child.SetParent(this);
-            Children.Add(child);
+            ChildrenList.Add(child);
         }
 
         public virtual void RemoveChild(IOperationSubject child)
@@ -54,12 +54,12 @@ namespace SecondScratch.ThreadSafe.Operations
                 throw new SubjectMissingChildException();
             
             child.SetParent(null);
-            Children.Remove(child);
+            ChildrenList.Remove(child);
         }
 
         protected virtual bool Contains(IOperationSubject child)
         {
-            return Children.Contains(child);
+            return ChildrenList.Contains(child);
         }
     }
 }

@@ -67,7 +67,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        BeforeExecutionAction = (_, data) => data.Context.Counter *= 2
+                        BeforeExecutionAction = (_, c,  _) => c.Counter *= 2
                     }
                 })
                 .Build(OperationCount, context);
@@ -97,7 +97,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        AfterExecutionAction = (_, data) => data.Context.Counter *= 2
+                        AfterExecutionAction = (_, c, _) => c.Counter *= 2
                     }
                 })
                 .Build(OperationCount, context);
@@ -127,9 +127,9 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        TryHandleExceptionAction = (_, data) =>
+                        TryHandleExceptionAction = (_, c, _) =>
                         {
-                            data.Context.Counter += 1;
+                            c.Counter += 1;
                             return true;
                         }
                     }
@@ -154,7 +154,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        BeforeExecutionAction = (_, _) => throw new TestException()
+                        BeforeExecutionAction = (_, _, _) => throw new TestException()
                     }
                 })
                 .Build(OperationCount, context);
@@ -177,7 +177,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        AfterExecutionAction = (_, _) => throw new TestException()
+                        AfterExecutionAction = (_, _, _) => throw new TestException()
                     }
                 })
                 .Build(OperationCount, context);
@@ -200,7 +200,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        TryHandleExceptionAction = (_, _) => throw new TestException()
+                        TryHandleExceptionAction = (_, _, _) => throw new TestException()
                     }
                 })
                 .Build(OperationCount, context);
@@ -225,7 +225,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     {
                         new SimpleOperationSubject<SimpleOperation, SimpleContext>
                         {
-                            UpstreamOperationAction = (_, _) => throw new TestException()
+                            UpstreamOperationAction = (_, _, _) => throw new TestException()
                         }
                     })
                 .Build(OperationCount, context);
@@ -250,7 +250,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     {
                         new SimpleOperationSubject<SimpleOperation, SimpleContext>
                         {
-                            DownstreamOperationAction = (_, _) => throw new TestException()
+                            DownstreamOperationAction = (_, _, _) => throw new TestException()
                         }
                     })
                 .Build(OperationCount, context);
@@ -317,7 +317,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        BeforeExecutionAction = (o, _) =>
+                        BeforeExecutionAction = (o, _, _) =>
                         {
                             if (o.Members.Any(m => m.Type == Members.Executor))
                                 throw new OperationEnforceComplete(true);
@@ -352,7 +352,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        BeforeExecutionAction = (o, _) =>
+                        BeforeExecutionAction = (o, _, _) =>
                         {
                             if (o.Members.Any(m => m.Type == Members.Executor))
                                 throw new OperationEnforceComplete(false);
@@ -387,7 +387,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        AfterExecutionAction = (o, _) =>
+                        AfterExecutionAction = (o, _, _) =>
                         {
                             if (o.Members.Any(m => m.Type == Members.Executor))
                                 throw new OperationEnforceComplete(true);
@@ -422,7 +422,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        AfterExecutionAction = (o, _) =>
+                        AfterExecutionAction = (o, _, _) =>
                         {
                             if (o.Members.Any(m => m.Type == Members.Executor))
                                 throw new OperationEnforceComplete(false);
@@ -451,7 +451,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        TryHandleExceptionAction = (_, _) => throw new OperationEnforceComplete(true)
+                        TryHandleExceptionAction = (_, _, _) => throw new OperationEnforceComplete(true)
                     }
                 })
                 .Build(OperationCount, context);
@@ -476,7 +476,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 {
                     new SimpleMiddleware<SimpleOperation, SimpleContext>
                     {
-                        TryHandleExceptionAction = (_, _) => throw new OperationEnforceComplete(false)
+                        TryHandleExceptionAction = (_, _, _) => throw new OperationEnforceComplete(false)
                     }
                 })
                 .Build(OperationCount, context);
@@ -503,7 +503,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     {
                         new SimpleOperationSubject<SimpleOperation, SimpleContext>
                         {
-                            UpstreamOperationAction = (_, _) => throw new OperationEnforceComplete(true)
+                            UpstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(true)
                         }
                     })
                 .Build(OperationCount, context);
@@ -530,7 +530,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     {
                         new SimpleOperationSubject<SimpleOperation, SimpleContext>
                         {
-                            UpstreamOperationAction = (_, _) => throw new OperationEnforceComplete(false)
+                            UpstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(false)
                         }
                     })
                 .Build(OperationCount, context);
@@ -557,7 +557,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     {
                         new SimpleOperationSubject<SimpleOperation, SimpleContext>
                         {
-                            DownstreamOperationAction = (_, _) => throw new OperationEnforceComplete(true)
+                            DownstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(true)
                         }
                     })
                 .Build(OperationCount, context);
@@ -584,7 +584,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     {
                         new SimpleOperationSubject<SimpleOperation, SimpleContext>
                         {
-                            DownstreamOperationAction = (_, _) => throw new OperationEnforceComplete(false)
+                            DownstreamOperationAction = (_, _, _) => throw new OperationEnforceComplete(false)
                         }
                     })
                 .Build(OperationCount, context);

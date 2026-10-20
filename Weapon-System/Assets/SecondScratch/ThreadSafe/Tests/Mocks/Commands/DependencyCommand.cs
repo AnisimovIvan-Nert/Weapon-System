@@ -1,4 +1,4 @@
-﻿using System;
+﻿using SecondScratch.Shared;
 using SecondScratch.ThreadSafe.Commands;
 using SecondScratch.ThreadSafe.LockableObject;
 
@@ -7,7 +7,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Commands
     public class DependencyCommand : AbstractCommand<DependencyObject>
     {
         public DependencyCommand(DependencyObject target, ICommandDependency? dependency = null) 
-            : base(target, new CommandDependencyAggregator(target, dependency))
+            : base(target, CommandDependencyAggregator.Create(target, dependency))
         {
         }
 
@@ -19,12 +19,12 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Commands
     public class DependencyObject : AbstractLockableObject, ICommandDependency
     {
         public bool IsCompleted { get; private set; }
-        public event Action? OnCompleted;
+        public ConditionalEvent OnCompleted { get; } = new(() => false, false);
 
         public void Complete()
         {
             IsCompleted = true;
-            OnCompleted?.Invoke();
+            OnCompleted.Invoke();
         }
     }
 }

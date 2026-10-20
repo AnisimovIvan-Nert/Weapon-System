@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations;
 using SecondScratch.ThreadSafe.Operations.Common;
@@ -62,13 +61,12 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Operation
             Cascade = cascade;
         }
 
-        protected override async ValueTask InnerExecute(OperationData<SimpleContext> data)
+        protected override async ValueTask InnerExecute(SimpleContext context, OperationData data)
         {
             if (EnforceComplete)
                 throw new OperationEnforceComplete(Cascade);
 
             var transaction = data.Transaction;
-            var context = data.Context;
             
             await transaction.Apply(context.Mutate, context.Rollback);
             await transaction.Apply(context.StatefulMutate, context.StatefulRollback);
