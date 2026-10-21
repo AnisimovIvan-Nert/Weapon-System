@@ -23,13 +23,21 @@ namespace SecondScratch.ThreadSafe.Operations
         public IOperationSubject? Parent { get; protected set; }
         public IReadOnlyCollection<IOperationSubject> Children => ChildrenList;
 
-        public virtual ValueTask UpstreamOperation<T>(IOperation operation, T context, OperationData data) 
+        public virtual ValueTask UpstreamOperation<T>(
+            IOperation operation,
+            T context, 
+            OperationData data,
+            OperationMember? member) 
             where T : IOperationContext
         {
-            return Parent?.UpstreamOperation(operation, context, data) ?? new ValueTask(Task.CompletedTask);
+            return Parent?.UpstreamOperation(operation, context, data, member) ?? new ValueTask(Task.CompletedTask);
         }
 
-        public virtual async ValueTask DownstreamOperation<T>(IOperation operation, T context, OperationData data) 
+        public virtual async ValueTask DownstreamOperation<T>(
+            IOperation operation,
+            T context,
+            OperationData data, 
+            OperationMember? member) 
             where T : IOperationContext
         {
             await ChildrenSemaphore.WaitAsync();
@@ -37,7 +45,7 @@ namespace SecondScratch.ThreadSafe.Operations
             try
             {
                 foreach (var child in ChildrenList)
-                    await child.DownstreamOperation(operation, context, data);
+                    await child.DownstreamOperation(operation, context, data, member);
             }
             finally
             {

@@ -1,5 +1,8 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations;
+using SecondScratch.ThreadSafe.Operations.Common;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 {
@@ -43,6 +46,24 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             RemoveChild(item);
             UsedCapacity -= item.Size;
         }
+
+        public override async ValueTask UpstreamOperation<T>(
+            IOperation operation,
+            T context,
+            OperationData data,
+            OperationMember? member)
+        {
+            if (member == null || member.Value.Type is not Members.Source and not Members.Destination)
+                return;
+
+            var executor = operation.Members.First(o => o.Type == Members.Executor);
+
+            if (executor.Member is not IContainerOperator containerOperator
+                || !containerOperator.HasAccessTo(this))
+                throw new ContainerAccessException(executor, this);
+
+            await base.UpstreamOperation(operation, context, data, member);
+        }
     }
 
     public interface IContainer
@@ -52,7 +73,12 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
         bool HasAccess(int id) => OwnerId == null || OwnerId.Equals(id);
     }
 
-    public class Player
+    public interface IContainerOperator
+    {
+        bool HasAccessTo(IContainer container);
+    }
+
+    public class Player : IContainerOperator
     {
         public int Id { get; }
 
@@ -62,5 +88,16 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
         }
 
         public bool HasAccessTo(IContainer container) => container.HasAccess(Id);
+    }
+
+    public class ContainerAccessException : Exception
+    {
+        public OperationMember Executor { get; }
+
+        public ContainerAccessException(OperationMember executor, IContainer container)
+            : base($"'{executor.Member}' has no access to '{container}'.")
+        {
+            Executor = executor;
+        }
     }
 }

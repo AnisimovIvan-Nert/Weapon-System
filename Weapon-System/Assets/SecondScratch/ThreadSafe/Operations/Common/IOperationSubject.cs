@@ -13,10 +13,10 @@ namespace SecondScratch.ThreadSafe.Operations.Common
         
         internal void SetParent(IOperationSubject? parent);
         
-        ValueTask UpstreamOperation<T>(IOperation operation, T context, OperationData data)
+        ValueTask UpstreamOperation<T>(IOperation operation, T context, OperationData data, OperationMember? member)
             where T : IOperationContext;
         
-        ValueTask DownstreamOperation<T>(IOperation operation, T context, OperationData data)
+        ValueTask DownstreamOperation<T>(IOperation operation, T context, OperationData data, OperationMember? member)
             where T : IOperationContext;
     }
 }

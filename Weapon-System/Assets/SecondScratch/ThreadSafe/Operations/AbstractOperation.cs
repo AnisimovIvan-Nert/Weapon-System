@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations.Common;
 
@@ -37,8 +38,9 @@ namespace SecondScratch.ThreadSafe.Operations
         {
             foreach (var subject in Subjects)
             {
-                await subject.UpstreamOperation(this, context, data);
-                await subject.DownstreamOperation(this, context, data);
+                var member = Members.FirstOrDefault(member => member.Member == subject);
+                await subject.UpstreamOperation(this, context, data, member);
+                await subject.DownstreamOperation(this, context, data, member);
             }
 
             await InnerExecute(context, data);

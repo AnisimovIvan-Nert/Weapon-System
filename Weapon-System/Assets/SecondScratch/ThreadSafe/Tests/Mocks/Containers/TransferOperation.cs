@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.Operations;
@@ -11,8 +10,6 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
     {
         public Player Player { get; set; }
         public Item Item { get; set; }
-
-        ValueTask Validate();
     }
     
     public interface IAddContext : ITransferContext
@@ -45,39 +42,12 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
             To = to;
             Item = item;
         }
-
-        public ValueTask Validate()
-        {
-            if (!Player.HasAccessTo(From))
-                throw new TransferAccessException(this, TransferAccessException.Member.From);
-            if (!Player.HasAccessTo(To))
-                throw new TransferAccessException(this, TransferAccessException.Member.To);
-
-            return new ValueTask(Task.CompletedTask);
-        }
+        
         public async ValueTask MutateFrom() => await From.CreateRemoveChildCommand(Item).Schedule();
         public async ValueTask RollbackFrom() => await From.CreateAddChildCommand(Item).Schedule();
         
         public async ValueTask MutateTo() => await To.CreateAddChildCommand(Item).Schedule();
         public async ValueTask RollbackTo() => await To.CreateRemoveChildCommand(Item).Schedule();
-    }
-
-    public class TransferAccessException : Exception
-    {
-        public Member Source { get; }
-        
-        public TransferAccessException(TransferContext cxt, Member member)
-            : base($"'{cxt.Player}' has no access to move '{cxt.Item}' between '{cxt.From}' -> '{cxt.To}'.")
-        {
-            Source = member;
-        }
-
-        public enum Member
-        {
-            None,
-            From,
-            To
-        }
     }
     
     public class ContainerAddOperation : AbstractOperation<IAddContext>
@@ -94,6 +64,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
         {
             var subjects = new IOperationSubject[]
             {
+                context.Item,
                 context.To
             };
             var types = new[]
@@ -111,10 +82,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 
         protected override async ValueTask InnerExecute(IAddContext context, OperationData data)
         {
-            var transaction = data.Transaction;
-
-            await context.Validate();
-            await transaction.Apply(context.MutateTo, context.RollbackTo);
+            await data.Transaction.Apply(context.MutateTo, context.RollbackTo);
         }
     }
 
@@ -132,6 +100,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
         {
             var subjects = new IOperationSubject[]
             {
+                context.Item,
                 context.From
             };
             var types = new[]
@@ -149,10 +118,7 @@ namespace SecondScratch.ThreadSafe.Tests.Mocks.Containers
 
         protected override async ValueTask InnerExecute(IRemoveContext context, OperationData data)
         {
-            var transaction = data.Transaction;
-
-            await context.Validate();
-            await transaction.Apply(context.MutateFrom, context.RollbackFrom);
+            await data.Transaction.Apply(context.MutateFrom, context.RollbackFrom);
         }
     }
 }
