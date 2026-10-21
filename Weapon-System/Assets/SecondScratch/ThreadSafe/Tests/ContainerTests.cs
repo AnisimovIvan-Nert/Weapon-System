@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -28,6 +29,8 @@ namespace SecondScratch.ThreadSafe.Tests
         private const int PlayersCount = 3;
         private const int PlayerInventoryCapacity = WarehouseCapacity / PlayersCount;
 
+        private const int RepeatCount = 5;
+        
         private Container _warehouse;
         private Container[] _creates;
         private Player[] _players;
@@ -62,17 +65,17 @@ namespace SecondScratch.ThreadSafe.Tests
                 _players[i] = new Player(i);
                 _playerInventories[i] = new Container(PlayerInventoryCapacity, i);
             }
-            
+
             _allContainers = _playerInventories.Concat(_creates).Concat(new[] { _warehouse }).ToArray();
 
             _middlewareSource = new SimpleOperationMiddlewareSource();
 
             _scheduler = new ChannelCommandScheduler();
-            _scheduler.RunConsumers();
             CommandScheduler.SetScheduler(_scheduler);
         }
 
         [Test]
+        [Repeat(RepeatCount)]
         public async Task EveryoneMovesEveryReachableItemConcurrently_NoDataLost()
         {
             var attempts = new List<Attempt>();
@@ -87,7 +90,7 @@ namespace SecondScratch.ThreadSafe.Tests
                     var to = ChooseDestination(i, j);
 
                     attempts.Add(new Attempt(item, to));
-                    
+
                     var handler = CreateOperationHandler(player, _warehouse, to, item);
                     handlers.Add(handler);
                 }
@@ -97,8 +100,13 @@ namespace SecondScratch.ThreadSafe.Tests
 
             void CountSchedulerFailure(string condition, string stackTrace, LogType type)
             {
-                if (type == LogType.Exception && condition.StartsWith(nameof(SubjectMissingChildException)))
-                    Interlocked.Increment(ref schedulerFailures);
+                if (type is not LogType.Exception and not LogType.Warning)
+                    return;
+
+                if (!condition.StartsWith(nameof(SubjectMissingChildException)))
+                    throw new Exception(condition);
+
+                Interlocked.Increment(ref schedulerFailures);
             }
 
             Application.logMessageReceivedThreaded += CountSchedulerFailure;
@@ -106,7 +114,11 @@ namespace SecondScratch.ThreadSafe.Tests
 
             try
             {
+                _scheduler.RunConsumers();
                 var exceptions = await handlers.WhenAll();
+
+                foreach (var info in exceptions.Where(info => info.SourceException is not SubjectMissingChildException))
+                    info.Throw();
 
                 for (var i = 0; i < attempts.Count; i++)
                     attempts[i].Outcome = handlers[i].State;
@@ -121,9 +133,9 @@ namespace SecondScratch.ThreadSafe.Tests
                     Assert.IsTrue(attempt.To.Children.Contains(attempt.Item),
                         $"Committed move of '{attempt.Item}' did not reach '{attempt.To}'.");
 
-                Assert.AreEqual(denied, exceptions,
+                Assert.AreEqual(denied, exceptions.Count,
                     $"Expected {denied} failed operations for {denied} denied attempts, " +
-                    $"but got {exceptions}.");
+                    $"but got {exceptions.Count}.");
                 Assert.AreEqual(denied, schedulerFailures,
                     $"Expected {denied} scheduler failure logs for {denied} denied attempts, " +
                     $"but got {schedulerFailures}.");
@@ -136,6 +148,7 @@ namespace SecondScratch.ThreadSafe.Tests
         }
 
         [Test]
+        [Repeat(RepeatCount)]
         public async Task ParallelTransfersOnManyThreads_NoDataLossOrOverflow()
         {
             var handlers = new List<IOperationHandler>();
@@ -149,6 +162,7 @@ namespace SecondScratch.ThreadSafe.Tests
                 handlers.Add(handler);
             }
 
+            _scheduler.RunConsumers();
             await handlers.WhenAll();
 
             AssertIntegrity();
@@ -158,10 +172,10 @@ namespace SecondScratch.ThreadSafe.Tests
         {
             var itemsCount = _allContainers.Select(c => c.Children.Count).Sum();
             Assert.AreEqual(_allItems.Length, itemsCount, "Lost an item");
-            
+
             foreach (var container in _allContainers)
                 Assert.LessOrEqual(container.UsedCapacity, container.Capacity, $"'{container}' exceeded capacity.");
-            
+
             var uniqueItems = _allContainers.SelectMany(o => o.Children).Distinct().Count();
             Assert.AreEqual(itemsCount, uniqueItems, "Item duplication");
         }

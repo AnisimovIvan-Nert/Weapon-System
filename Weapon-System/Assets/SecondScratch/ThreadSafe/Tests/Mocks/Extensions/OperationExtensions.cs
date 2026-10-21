@@ -1,29 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
-using SecondScratch.ThreadSafe.Operations;
 using SecondScratch.ThreadSafe.Operations.Common;
-using UnityEngine;
 
 namespace SecondScratch.ThreadSafe.Tests.Mocks.Extensions
 {
     public static class OperationExtensions
     {
-        public static async ValueTask<int> WhenAll(this IEnumerable<IOperationHandler> operations)
+        public static async ValueTask<List<ExceptionDispatchInfo>> WhenAll(this IEnumerable<IOperationHandler> operations)
         {
             var tasks = operations.Select(o => o.Execute()).ToArray();
 
-            var exceptions = 0;
+            var exceptions = new List<ExceptionDispatchInfo>();
             foreach (var task in tasks)
             {
                 try
                 {
                     await task;
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    exceptions++;
+                    var info = ExceptionDispatchInfo.Capture(e);
+                    exceptions.Add(info);
                 }
             }
 

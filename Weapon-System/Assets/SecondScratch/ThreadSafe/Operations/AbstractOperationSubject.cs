@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using SecondScratch.ThreadSafe.LockableObject;
 using SecondScratch.ThreadSafe.Operations.Common;
@@ -16,6 +17,7 @@ namespace SecondScratch.ThreadSafe.Operations
     
     public abstract partial class AbstractOperationSubject : AbstractLockableObject, IOperationSubject
     {
+        protected readonly SemaphoreSlim ChildrenSemaphore = new(1, 1);
         protected readonly List<IOperationSubject> ChildrenList = new();
 
         public IOperationSubject? Parent { get; protected set; }
@@ -30,8 +32,17 @@ namespace SecondScratch.ThreadSafe.Operations
         public virtual async ValueTask DownstreamOperation<T>(IOperation operation, T context, OperationData data) 
             where T : IOperationContext
         {
-            foreach (var child in ChildrenList)
-                await child.DownstreamOperation(operation, context, data);
+            await ChildrenSemaphore.WaitAsync();
+
+            try
+            {
+                foreach (var child in ChildrenList)
+                    await child.DownstreamOperation(operation, context, data);
+            }
+            finally
+            {
+                ChildrenSemaphore.Release();
+            }
         }
 
         void IOperationSubject.SetParent(IOperationSubject? parent)
@@ -45,7 +56,16 @@ namespace SecondScratch.ThreadSafe.Operations
                 throw new SubjectAlreadyContainsChildException();
             
             child.SetParent(this);
-            ChildrenList.Add(child);
+            
+            ChildrenSemaphore.Wait();
+            try
+            {
+                ChildrenList.Add(child);
+            }
+            finally
+            {
+                ChildrenSemaphore.Release();
+            }
         }
 
         public virtual void RemoveChild(IOperationSubject child)
@@ -54,12 +74,29 @@ namespace SecondScratch.ThreadSafe.Operations
                 throw new SubjectMissingChildException();
             
             child.SetParent(null);
-            ChildrenList.Remove(child);
+            
+            ChildrenSemaphore.Wait();
+            try
+            {
+                ChildrenList.Remove(child);
+            }
+            finally
+            {
+                ChildrenSemaphore.Release();
+            }
         }
 
         protected virtual bool Contains(IOperationSubject child)
         {
-            return ChildrenList.Contains(child);
+            ChildrenSemaphore.Wait();
+            try
+            {
+                return ChildrenList.Contains(child);
+            }
+            finally
+            {
+                ChildrenSemaphore.Release();
+            }
         }
     }
 }
